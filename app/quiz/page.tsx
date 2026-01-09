@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { questions } from '@/lib/data';
-import { QuizSession } from '@/lib/types';
-import { loadSession, saveSession, createNewSession } from '@/lib/storage';
-import DrawingCanvas from '@/components/DrawingCanvas';
-import Timer from '@/components/Timer';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { questions } from "@/lib/data";
+import { QuizSession } from "@/lib/types";
+import { loadSession, saveSession, createNewSession } from "@/lib/storage";
+import DrawingCanvas from "@/components/DrawingCanvas";
+import Timer from "@/components/Timer";
 
 export default function QuizPage() {
   const router = useRouter();
@@ -40,12 +40,15 @@ export default function QuizPage() {
   }
 
   const currentQuestion = questions[session.currentQuestionIndex];
-  const progress = ((session.currentQuestionIndex + 1) / questions.length) * 100;
+  const progress =
+    ((session.currentQuestionIndex + 1) / questions.length) * 100;
   const selectedAnswer = session.userAnswers[currentQuestion.id] || null;
 
   const handleAnswerSelect = (answerIndex: number) => {
     // Save time spent on this question before moving
-    const timeSpent = Math.floor((Date.now() - session.lastQuestionStartTime) / 1000);
+    const timeSpent = Math.floor(
+      (Date.now() - session.lastQuestionStartTime) / 1000
+    );
 
     setSession((prev) => {
       if (!prev) return prev;
@@ -57,7 +60,8 @@ export default function QuizPage() {
         },
         questionTimes: {
           ...prev.questionTimes,
-          [currentQuestion.id]: (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
+          [currentQuestion.id]:
+            (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
         },
       };
     });
@@ -65,7 +69,9 @@ export default function QuizPage() {
 
   const handleNext = () => {
     // Save time for current question
-    const timeSpent = Math.floor((Date.now() - session.lastQuestionStartTime) / 1000);
+    const timeSpent = Math.floor(
+      (Date.now() - session.lastQuestionStartTime) / 1000
+    );
 
     if (session.currentQuestionIndex < questions.length - 1) {
       setSession((prev) => {
@@ -76,7 +82,8 @@ export default function QuizPage() {
           lastQuestionStartTime: Date.now(),
           questionTimes: {
             ...prev.questionTimes,
-            [currentQuestion.id]: (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
+            [currentQuestion.id]:
+              (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
           },
         };
       });
@@ -88,18 +95,21 @@ export default function QuizPage() {
           ...prev,
           questionTimes: {
             ...prev.questionTimes,
-            [currentQuestion.id]: (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
+            [currentQuestion.id]:
+              (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
           },
         };
       });
-      router.push('/results');
+      router.push("/results");
     }
   };
 
   const handlePrevious = () => {
     if (session.currentQuestionIndex > 0) {
       // Save time for current question
-      const timeSpent = Math.floor((Date.now() - session.lastQuestionStartTime) / 1000);
+      const timeSpent = Math.floor(
+        (Date.now() - session.lastQuestionStartTime) / 1000
+      );
 
       setSession((prev) => {
         if (!prev) return prev;
@@ -109,7 +119,8 @@ export default function QuizPage() {
           lastQuestionStartTime: Date.now(),
           questionTimes: {
             ...prev.questionTimes,
-            [currentQuestion.id]: (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
+            [currentQuestion.id]:
+              (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
           },
         };
       });
@@ -130,8 +141,12 @@ export default function QuizPage() {
   };
 
   const handleSubmit = () => {
-    if (window.confirm('Are you sure you want to submit your quiz? You can review your answers before submitting.')) {
-      router.push('/results');
+    if (
+      window.confirm(
+        "Are you sure you want to submit your quiz? You can review your answers before submitting."
+      )
+    ) {
+      router.push("/results");
     }
   };
 
@@ -148,8 +163,12 @@ export default function QuizPage() {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => {
-                  if (window.confirm('Are you sure you want to exit? Your progress will be saved.')) {
-                    router.push('/');
+                  if (
+                    window.confirm(
+                      "Are you sure you want to exit? Your progress will be saved."
+                    )
+                  ) {
+                    router.push("/");
                   }
                 }}
                 className="text-gray-600 hover:text-gray-900 transition-colors"
@@ -170,7 +189,8 @@ export default function QuizPage() {
               </button>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
-                  Question {session.currentQuestionIndex + 1} of {questions.length}
+                  Question {session.currentQuestionIndex + 1} of{" "}
+                  {questions.length}
                 </h1>
                 <p className="text-sm text-gray-500">
                   {answeredCount} of {questions.length} answered
@@ -181,7 +201,9 @@ export default function QuizPage() {
             <div className="flex items-center gap-6">
               <Timer startTime={session.lastQuestionStartTime} />
               <button
-                onClick={() => window.open('https://www.desmos.com/scientific', '_blank')}
+                onClick={() =>
+                  window.open("https://www.desmos.com/scientific", "_blank")
+                }
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium"
               >
                 <svg
@@ -224,7 +246,9 @@ export default function QuizPage() {
               </span>
             </div>
             <DrawingCanvas
-              imageUrl={`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='40%25' font-family='Arial' font-size='32' fill='%236b7280' text-anchor='middle' dominant-baseline='middle'%3EQuestion ${session.currentQuestionIndex + 1}%3C/text%3E%3Ctext x='50%25' y='52%25' font-family='Arial' font-size='18' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle'%3EReplace with your actual question image%3C/text%3E%3Ctext x='50%25' y='62%25' font-family='Arial' font-size='16' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle'%3E(See ADDING_QUESTIONS.md for instructions)%3C/text%3E%3C/svg%3E`}
+              imageUrl={`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='40%25' font-family='Arial' font-size='32' fill='%236b7280' text-anchor='middle' dominant-baseline='middle'%3EQuestion ${
+                session.currentQuestionIndex + 1
+              }%3C/text%3E%3Ctext x='50%25' y='52%25' font-family='Arial' font-size='18' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle'%3EReplace with your actual question image%3C/text%3E%3Ctext x='50%25' y='62%25' font-family='Arial' font-size='16' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle'%3E(See ADDING_QUESTIONS.md for instructions)%3C/text%3E%3C/svg%3E`}
               initialDrawing={session.drawings[currentQuestion.id]}
               onDrawingChange={handleDrawingChange}
             />
@@ -234,25 +258,24 @@ export default function QuizPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Answer Choices */}
             <div className="lg:col-span-2">
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Select your answer:
-              </h2>
-              <div className="space-y-3">
-                {currentQuestion.answers.map((answer, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleAnswerSelect(index + 1)}
-                    className={`answer-option ${
-                      selectedAnswer === index + 1 ? 'selected' : ''
-                    }`}
-                  >
-                    <span className="font-medium">{answer}</span>
-                  </button>
-                ))}
+              <div className="card">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Select your answer:
+                </h2>
+                <div className="space-y-3">
+                  {currentQuestion.answers.map((answer, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleAnswerSelect(index + 1)}
+                      className={`answer-option ${
+                        selectedAnswer === index + 1 ? "selected" : ""
+                      }`}
+                    >
+                      <span className="font-medium">{answer}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-
             </div>
 
             {/* Navigation Buttons */}
@@ -283,44 +306,51 @@ export default function QuizPage() {
 
               {/* Question Navigator */}
               <div className="card mt-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                Quick Navigation
-              </h3>
-              <div className="grid grid-cols-5 gap-2">
-                {questions.map((q, index) => {
-                  const isAnswered = session.userAnswers[q.id] !== null && session.userAnswers[q.id] !== undefined;
-                  const isCurrent = index === session.currentQuestionIndex;
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Quick Navigation
+                </h3>
+                <div className="grid grid-cols-5 gap-2">
+                  {questions.map((q, index) => {
+                    const isAnswered =
+                      session.userAnswers[q.id] !== null &&
+                      session.userAnswers[q.id] !== undefined;
+                    const isCurrent = index === session.currentQuestionIndex;
 
-                  return (
-                    <button
-                      key={q.id}
-                      onClick={() => {
-                        const timeSpent = Math.floor((Date.now() - session.lastQuestionStartTime) / 1000);
-                        setSession((prev) => {
-                          if (!prev) return prev;
-                          return {
-                            ...prev,
-                            currentQuestionIndex: index,
-                            lastQuestionStartTime: Date.now(),
-                            questionTimes: {
-                              ...prev.questionTimes,
-                              [currentQuestion.id]: (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
-                            },
-                          };
-                        });
-                      }}
-                      className={`p-2 rounded text-sm font-medium transition-colors ${
-                        isCurrent
-                          ? 'bg-blue-600 text-white'
-                          : isAnswered
-                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {index + 1}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={q.id}
+                        onClick={() => {
+                          const timeSpent = Math.floor(
+                            (Date.now() - session.lastQuestionStartTime) / 1000
+                          );
+                          setSession((prev) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              currentQuestionIndex: index,
+                              lastQuestionStartTime: Date.now(),
+                              questionTimes: {
+                                ...prev.questionTimes,
+                                [currentQuestion.id]:
+                                  (prev.questionTimes[currentQuestion.id] ||
+                                    0) + timeSpent,
+                              },
+                            };
+                          });
+                        }}
+                        className={`p-2 rounded text-sm font-medium transition-colors ${
+                          isCurrent
+                            ? "bg-blue-600 text-white"
+                            : isAnswered
+                            ? "bg-green-100 text-green-800 hover:bg-green-200"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                      >
+                        {index + 1}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
