@@ -212,23 +212,28 @@ export default function QuizPage() {
         </div>
 
         {/* Question Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left: Question Image with Drawing */}
+        <div className="space-y-6">
+          {/* Question Image with Drawing - Full Width */}
           <div className="card">
-            <div className="mb-4">
+            <div className="flex items-center justify-between mb-4">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                 {currentQuestion.topics[0]}
               </span>
+              <span className="text-sm text-gray-500">
+                Draw your scratch work below
+              </span>
             </div>
             <DrawingCanvas
-              imageUrl={`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='40%25' font-family='Arial' font-size='24' fill='%236b7280' text-anchor='middle' dominant-baseline='middle'%3EQuestion ${session.currentQuestionIndex + 1}%3C/text%3E%3Ctext x='50%25' y='55%25' font-family='Arial' font-size='16' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle'%3EReplace with your actual question image%3C/text%3E%3Ctext x='50%25' y='65%25' font-family='Arial' font-size='14' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle'%3E(See ADDING_QUESTIONS.md for instructions)%3C/text%3E%3C/svg%3E`}
+              imageUrl={`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='40%25' font-family='Arial' font-size='32' fill='%236b7280' text-anchor='middle' dominant-baseline='middle'%3EQuestion ${session.currentQuestionIndex + 1}%3C/text%3E%3Ctext x='50%25' y='52%25' font-family='Arial' font-size='18' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle'%3EReplace with your actual question image%3C/text%3E%3Ctext x='50%25' y='62%25' font-family='Arial' font-size='16' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle'%3E(See ADDING_QUESTIONS.md for instructions)%3C/text%3E%3C/svg%3E`}
               initialDrawing={session.drawings[currentQuestion.id]}
               onDrawingChange={handleDrawingChange}
             />
           </div>
 
-          {/* Right: Answer Choices */}
-          <div>
+          {/* Answer Choices and Navigation */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Answer Choices */}
+            <div className="lg:col-span-2">
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 Select your answer:
@@ -248,31 +253,36 @@ export default function QuizPage() {
               </div>
             </div>
 
-            {/* Navigation */}
-            <div className="flex items-center gap-3 mt-6">
-              <button
-                onClick={handlePrevious}
-                disabled={session.currentQuestionIndex === 0}
-                className="btn-outline flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              {session.currentQuestionIndex === questions.length - 1 ? (
-                <button
-                  onClick={handleSubmit}
-                  className="btn-primary flex-1"
-                >
-                  Submit Quiz
-                </button>
-              ) : (
-                <button onClick={handleNext} className="btn-primary flex-1">
-                  Next
-                </button>
-              )}
             </div>
 
-            {/* Question Navigator */}
-            <div className="card mt-6">
+            {/* Navigation Buttons */}
+            <div>
+              <div className="card">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handlePrevious}
+                    disabled={session.currentQuestionIndex === 0}
+                    className="btn-outline flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {session.currentQuestionIndex === questions.length - 1 ? (
+                    <button
+                      onClick={handleSubmit}
+                      className="btn-primary flex-1"
+                    >
+                      Submit Quiz
+                    </button>
+                  ) : (
+                    <button onClick={handleNext} className="btn-primary flex-1">
+                      Next
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Question Navigator */}
+              <div className="card mt-6">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">
                 Quick Navigation
               </h3>

@@ -319,7 +319,7 @@ export default function DrawingCanvas({
         <canvas
           ref={backgroundCanvasRef}
           className="absolute inset-0 w-full pointer-events-none"
-          style={{ minHeight: '400px' }}
+          style={{ minHeight: '500px' }}
         />
 
         {/* Drawing canvas - for user drawings only */}
@@ -333,7 +333,7 @@ export default function DrawingCanvas({
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
           className="relative w-full cursor-crosshair touch-none"
-          style={{ minHeight: '400px' }}
+          style={{ minHeight: '500px' }}
         />
       </div>
     </div>
