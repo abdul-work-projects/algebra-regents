@@ -63,11 +63,57 @@ CREATE POLICY "Allow authenticated delete" ON questions
 --    - question-images (public)
 --    - reference-images (public)
 --    - explanation-images (public)
--- 3. Set each bucket to "Public" in the bucket settings
--- 4. Add the following policy to each bucket:
---
--- Bucket Policy (apply to all three buckets):
--- SELECT: Allow public read access
--- INSERT: Allow authenticated users
--- UPDATE: Allow authenticated users
--- DELETE: Allow authenticated users
+-- 3. Run the storage policies below (they will be created when you run this entire script)
+
+-- Storage Bucket Policies
+-- Allow public read access to all buckets
+CREATE POLICY "Public read access for question-images"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'question-images');
+
+CREATE POLICY "Public read access for reference-images"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'reference-images');
+
+CREATE POLICY "Public read access for explanation-images"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'explanation-images');
+
+-- Allow authenticated users to upload to all buckets
+CREATE POLICY "Authenticated users can upload question-images"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'question-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can upload reference-images"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'reference-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can upload explanation-images"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'explanation-images' AND auth.role() = 'authenticated');
+
+-- Allow authenticated users to update files they own
+CREATE POLICY "Authenticated users can update question-images"
+ON storage.objects FOR UPDATE
+USING (bucket_id = 'question-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update reference-images"
+ON storage.objects FOR UPDATE
+USING (bucket_id = 'reference-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update explanation-images"
+ON storage.objects FOR UPDATE
+USING (bucket_id = 'explanation-images' AND auth.role() = 'authenticated');
+
+-- Allow authenticated users to delete files
+CREATE POLICY "Authenticated users can delete question-images"
+ON storage.objects FOR DELETE
+USING (bucket_id = 'question-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can delete reference-images"
+ON storage.objects FOR DELETE
+USING (bucket_id = 'reference-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can delete explanation-images"
+ON storage.objects FOR DELETE
+USING (bucket_id = 'explanation-images' AND auth.role() = 'authenticated');

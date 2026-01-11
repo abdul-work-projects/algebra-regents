@@ -30,8 +30,11 @@ This guide will help you set up Supabase for the Algebra Regents App.
 This creates:
 - The `questions` table with all necessary columns
 - Indexes for performance
-- Row Level Security policies
+- Row Level Security policies for the questions table
+- Storage bucket RLS policies for authenticated uploads
 - Automatic timestamp triggers
+
+**Important:** The SQL script includes storage bucket policies. Make sure to create the storage buckets (Step 3) BEFORE running the schema if you encounter policy errors, OR run the schema twice (once before creating buckets, once after).
 
 ## Step 3: Set Up Storage Buckets
 
@@ -126,11 +129,55 @@ If you want to enable user registration through the app:
 
 ## Troubleshooting
 
+### Error: "StorageApiError: new row violates row-level security policy"
+
+This is the most common error when uploading images. It means the storage buckets don't have the correct RLS policies.
+
+**Solution:**
+
+1. Make sure you created all three storage buckets (question-images, reference-images, explanation-images)
+2. Go back to SQL Editor in Supabase dashboard
+3. Run this SQL to add the storage policies:
+
+```sql
+-- Allow public read access
+CREATE POLICY "Public read access for question-images"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'question-images');
+
+CREATE POLICY "Public read access for reference-images"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'reference-images');
+
+CREATE POLICY "Public read access for explanation-images"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'explanation-images');
+
+-- Allow authenticated users to upload
+CREATE POLICY "Authenticated users can upload question-images"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'question-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can upload reference-images"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'reference-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can upload explanation-images"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'explanation-images' AND auth.role() = 'authenticated');
+```
+
+4. Click "Run"
+5. Try uploading again
+
+**Alternative:** Re-run the entire `supabase-schema.sql` file - it includes these policies.
+
 ### Error: "Failed to upload question image"
 
 - Check that you created all three storage buckets
 - Make sure the buckets are set to "Public"
 - Verify your environment variables are correct
+- Make sure you're logged in as an authenticated user
 
 ### Error: "Error fetching questions"
 
