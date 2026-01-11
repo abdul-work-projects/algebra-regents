@@ -13,6 +13,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  *
  * Table: questions
  * - id: uuid (primary key)
+ * - name: text (optional question name/title for admin identification)
  * - question_image_url: text (URL to question image in storage)
  * - reference_image_url: text (URL to reference image in storage, optional)
  * - answers: text[] (array of 4 answer choices)
@@ -32,6 +33,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Type definition for database question
 export interface DatabaseQuestion {
   id: string;
+  name: string | null;
   question_image_url: string;
   reference_image_url: string | null;
   answers: string[]; // Array of 4 answer choices

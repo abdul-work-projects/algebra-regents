@@ -4,6 +4,7 @@
 -- Create questions table
 CREATE TABLE IF NOT EXISTS questions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT,
   question_image_url TEXT NOT NULL,
   reference_image_url TEXT,
   answers TEXT[] NOT NULL CHECK (array_length(answers, 1) = 4),

@@ -14,6 +14,7 @@ export default function AdminPage() {
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [questionName, setQuestionName] = useState("");
   const [questionImage, setQuestionImage] = useState<File | null>(null);
   const [questionImagePreview, setQuestionImagePreview] = useState<string | null>(null);
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
@@ -98,6 +99,7 @@ export default function AdminPage() {
 
   const resetForm = () => {
     setEditingId(null);
+    setQuestionName("");
     setQuestionImage(null);
     setQuestionImagePreview(null);
     setReferenceImage(null);
@@ -112,6 +114,7 @@ export default function AdminPage() {
 
   const loadQuestionForEdit = (question: DatabaseQuestion) => {
     setEditingId(question.id);
+    setQuestionName(question.name || "");
     setQuestionImagePreview(question.question_image_url);
     setReferenceImagePreview(question.reference_image_url);
     setExplanationImagePreview(question.explanation_image_url);
@@ -197,6 +200,7 @@ export default function AdminPage() {
       const topics = topicsInput.split(",").map(t => t.trim()).filter(t => t.length > 0);
 
       const questionData = {
+        name: questionName.trim() || null,
         question_image_url: questionImageUrl!,
         reference_image_url: referenceImageUrl,
         answers,
@@ -311,9 +315,14 @@ export default function AdminPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-1">
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-gray-900">
-                              Q{index + 1}
+                            <p className="text-xs font-semibold text-gray-900 truncate">
+                              {question.name || `Q${index + 1}`}
                             </p>
+                            {question.name && (
+                              <p className="text-[10px] text-gray-400">
+                                Q{index + 1}
+                              </p>
+                            )}
                             <p className="text-xs text-gray-600 truncate">
                               {question.topics.join(", ")}
                             </p>
@@ -357,6 +366,21 @@ export default function AdminPage() {
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-3">
+              {/* Question Name */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Question Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={questionName}
+                  onChange={(e) => setQuestionName(e.target.value)}
+                  placeholder="e.g., Linear Equations - Problem 1"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-0.5">Helps you identify this question in the list</p>
+              </div>
+
               {/* Compact Image Uploads */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
