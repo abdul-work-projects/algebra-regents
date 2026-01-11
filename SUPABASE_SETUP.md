@@ -73,7 +73,31 @@ This creates:
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
    ```
 
-## Step 5: Test the Integration
+## Step 5: Create Admin User
+
+To upload questions, you need to create an admin user account:
+
+1. In your Supabase dashboard, click "Authentication" in the left sidebar
+2. Click "Users" tab
+3. Click "Add user" → "Create new user"
+4. Fill in the user details:
+   - Email: Your admin email (e.g., admin@yourdomain.com)
+   - Password: Choose a strong password
+   - Auto Confirm User: ✓ Yes (check this box)
+5. Click "Create user"
+
+**Important:** Save these credentials securely - you'll need them to log in to the admin panel.
+
+### Alternative: Sign up via the app (Optional)
+
+If you want to enable user registration through the app:
+
+1. In Supabase dashboard, go to "Authentication" → "Providers"
+2. Enable "Email" provider
+3. Configure email templates if desired
+4. Create a signup page in your app (not included in MVP)
+
+## Step 6: Test the Integration
 
 1. Start the development server:
    ```bash
@@ -82,9 +106,11 @@ This creates:
 
 2. Open [http://localhost:3000](http://localhost:3000)
 
-3. Click "Admin Panel" in the top right
+3. Click "Admin Login" in the top right
 
-4. Try uploading a test question:
+4. Log in with your admin credentials (created in Step 5)
+
+5. Try uploading a test question:
    - Upload a question image
    - Fill in 4 answers
    - Select the correct answer
@@ -111,6 +137,19 @@ This creates:
 - Check that you ran the SQL schema successfully
 - Verify your environment variables are correct
 - Check the browser console for detailed error messages
+
+### Cannot login / "Invalid login credentials"
+
+- Verify you created the admin user in Supabase dashboard
+- Check that "Auto Confirm User" was enabled when creating the user
+- Make sure you're using the correct email and password
+- Try resetting the password in Supabase dashboard: Authentication → Users → Click user → Reset Password
+
+### Redirected to login when trying to upload questions
+
+- This is expected behavior - you must be logged in
+- Make sure you created an admin user (Step 5)
+- The RLS policies require authentication for INSERT/UPDATE/DELETE operations
 
 ### Questions not showing up
 
