@@ -36,6 +36,17 @@ This creates:
 
 **Important:** The SQL script includes storage bucket policies. Make sure to create the storage buckets (Step 3) BEFORE running the schema if you encounter policy errors, OR run the schema twice (once before creating buckets, once after).
 
+### If You Already Have the Questions Table
+
+If you've already set up the database before and need to add the `name` field:
+
+1. Go to SQL Editor in Supabase
+2. Run the migration script:
+   ```sql
+   ALTER TABLE questions ADD COLUMN IF NOT EXISTS name TEXT;
+   ```
+3. This adds the optional name field without affecting existing data
+
 ## Step 3: Set Up Storage Buckets
 
 1. In your Supabase dashboard, click "Storage" in the left sidebar
