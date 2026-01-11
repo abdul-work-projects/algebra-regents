@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { uploadImage, createQuestion } from "@/lib/supabase";
+import { getCurrentUser, signOut, onAuthStateChange } from "@/lib/auth";
 
 export default function AdminPage() {
   const router = useRouter();
+
+  const [user, setUser] = useState<any>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const [questionImage, setQuestionImage] = useState<File | null>(null);
   const [questionImagePreview, setQuestionImagePreview] = useState<string | null>(null);
@@ -24,6 +28,37 @@ export default function AdminPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        router.push("/admin/login");
+        return;
+      }
+      setUser(currentUser);
+      setIsCheckingAuth(false);
+    }
+
+    checkAuth();
+
+    const subscription = onAuthStateChange((user) => {
+      if (!user) {
+        router.push("/admin/login");
+      } else {
+        setUser(user);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push("/");
+  };
 
   const handleImageSelect = (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -165,6 +200,14 @@ export default function AdminPage() {
     }
   };
 
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
@@ -173,25 +216,38 @@ export default function AdminPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
               <p className="text-gray-600">Upload new questions to the database</p>
+              {user && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Logged in as: {user.email}
+                </p>
+              )}
             </div>
-            <button
-              onClick={() => router.push("/")}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+                Logout
+              </button>
+              <button
+                onClick={() => router.push("/")}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {notification && (

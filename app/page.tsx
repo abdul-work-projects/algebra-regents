@@ -43,10 +43,10 @@ export default function Home() {
         <div className="text-center mb-12">
           <div className="flex justify-end mb-4">
             <Link
-              href="/admin"
+              href="/admin/login"
               className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             >
-              Admin Panel
+              Admin Login
             </Link>
           </div>
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
