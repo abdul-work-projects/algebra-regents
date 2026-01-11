@@ -271,9 +271,66 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Left: Form */}
-          <div className="bg-white rounded-lg shadow-sm p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Left: Questions List */}
+          <div className="lg:col-span-1 bg-white rounded-lg shadow-sm p-4">
+            <h2 className="text-base font-semibold mb-3">
+              Questions ({questions.length})
+            </h2>
+
+            {isLoadingQuestions ? (
+              <div className="text-center py-8 text-gray-500 text-sm">Loading...</div>
+            ) : questions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 text-sm">No questions yet</div>
+            ) : (
+              <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+                {questions.map((question, index) => (
+                  <div
+                    key={question.id}
+                    className={`border rounded p-2 hover:bg-gray-50 cursor-pointer ${
+                      editingId === question.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-2">
+                      <img
+                        src={question.question_image_url}
+                        alt={`Question ${index + 1}`}
+                        className="w-full h-20 object-cover rounded"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-900">
+                          Q{index + 1}
+                        </p>
+                        <p className="text-xs text-gray-600 truncate">
+                          {question.topics.join(", ")}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1 truncate">
+                          ✓ {question.answers[question.correct_answer - 1]}
+                        </p>
+                        <div className="flex gap-1 mt-2">
+                          <button
+                            onClick={() => loadQuestionForEdit(question)}
+                            className="flex-1 text-blue-600 hover:bg-blue-50 text-xs px-2 py-1 rounded border border-blue-200"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(question.id)}
+                            className="flex-1 text-red-600 hover:bg-red-50 text-xs px-2 py-1 rounded border border-red-200"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right: Form */}
+          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-4">
             <h2 className="text-base font-semibold mb-3">
               {editingId ? "Edit Question" : "Add New Question"}
             </h2>
@@ -422,67 +479,6 @@ export default function AdminPage() {
                 )}
               </div>
             </form>
-          </div>
-
-          {/* Right: Questions List */}
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <h2 className="text-base font-semibold mb-3">
-              Questions ({questions.length})
-            </h2>
-
-            {isLoadingQuestions ? (
-              <div className="text-center py-8 text-gray-500 text-sm">Loading...</div>
-            ) : questions.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">No questions yet</div>
-            ) : (
-              <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
-                {questions.map((question, index) => (
-                  <div
-                    key={question.id}
-                    className={`border rounded p-2 hover:bg-gray-50 ${
-                      editingId === question.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <img
-                        src={question.question_image_url}
-                        alt={`Question ${index + 1}`}
-                        className="w-16 h-16 object-cover rounded"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-gray-900">
-                              Question {index + 1}
-                            </p>
-                            <p className="text-xs text-gray-600 truncate">
-                              {question.topics.join(", ")}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Correct: {question.answers[question.correct_answer - 1]}
-                            </p>
-                          </div>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => loadQuestionForEdit(question)}
-                              className="text-blue-600 hover:text-blue-800 text-xs px-2 py-1"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(question.id)}
-                              className="text-red-600 hover:text-red-800 text-xs px-2 py-1"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>
