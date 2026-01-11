@@ -2,25 +2,42 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { questions } from '@/lib/data';
+import { questions as staticQuestions } from '@/lib/data';
 import { loadSession, clearSession } from '@/lib/storage';
 import { calculateResults, getPerformanceLevel, formatTime } from '@/lib/results';
-import { QuizResult } from '@/lib/types';
+import { fetchQuestionsForQuiz } from '@/lib/supabase';
+import { Question, QuizResult } from '@/lib/types';
 
 export default function ResultsPage() {
   const router = useRouter();
   const [result, setResult] = useState<QuizResult | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [questions, setQuestions] = useState<Question[]>(staticQuestions);
 
   useEffect(() => {
-    const session = loadSession();
-    if (!session) {
-      router.push('/');
-      return;
+    async function loadResults() {
+      const session = loadSession();
+      if (!session) {
+        router.push('/');
+        return;
+      }
+
+      let questionsToUse: Question[] = staticQuestions;
+      try {
+        const dbQuestions = await fetchQuestionsForQuiz();
+        if (dbQuestions.length > 0) {
+          questionsToUse = dbQuestions;
+          setQuestions(dbQuestions);
+        }
+      } catch (error) {
+        console.error('Error fetching questions:', error);
+      }
+
+      const calculatedResult = calculateResults(questionsToUse, session);
+      setResult(calculatedResult);
     }
 
-    const calculatedResult = calculateResults(questions, session);
-    setResult(calculatedResult);
+    loadResults();
   }, [router]);
 
   if (!result) {

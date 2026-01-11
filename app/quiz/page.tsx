@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { questions } from "@/lib/data";
-import { QuizSession } from "@/lib/types";
+import { questions as staticQuestions } from "@/lib/data";
+import { Question, QuizSession } from "@/lib/types";
 import { loadSession, saveSession, createNewSession } from "@/lib/storage";
+import { fetchQuestionsForQuiz } from "@/lib/supabase";
 import DrawingCanvas from "@/components/DrawingCanvas";
 import Timer from "@/components/Timer";
 import ExplanationSlider from "@/components/ExplanationSlider";
@@ -18,9 +19,27 @@ export default function QuizPage() {
   const [showExplanation, setShowExplanation] = useState(false);
   const [checkedAnswer, setCheckedAnswer] = useState<number | null>(null);
   const [showReferenceImage, setShowReferenceImage] = useState(false);
+  const [questions, setQuestions] = useState<Question[]>(staticQuestions);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
   useEffect(() => {
     setMounted(true);
+
+    async function loadQuestions() {
+      try {
+        const dbQuestions = await fetchQuestionsForQuiz();
+        if (dbQuestions.length > 0) {
+          setQuestions(dbQuestions);
+        }
+      } catch (error) {
+        console.error('Error fetching questions from Supabase:', error);
+      } finally {
+        setIsLoadingQuestions(false);
+      }
+    }
+
+    loadQuestions();
+
     const existingSession = loadSession();
     if (existingSession) {
       setSession(existingSession);
@@ -37,10 +56,31 @@ export default function QuizPage() {
     }
   }, [session]);
 
-  if (!mounted || !session) {
+  if (!mounted || !session || isLoadingQuestions) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            No questions available
+          </h2>
+          <p className="text-gray-600 mb-4">
+            Please add questions using the admin panel.
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            className="btn-primary"
+          >
+            Go Home
+          </button>
+        </div>
       </div>
     );
   }

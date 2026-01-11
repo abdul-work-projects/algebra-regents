@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { Question } from './types';
 
 // Supabase client configuration
 // Make sure to set these environment variables in .env.local
@@ -122,4 +123,24 @@ export async function deleteQuestion(id: string) {
   }
 
   return true;
+}
+
+// Convert DatabaseQuestion to Question format for the quiz
+export function convertToQuizFormat(dbQuestion: DatabaseQuestion): Question {
+  return {
+    id: dbQuestion.id,
+    imageFilename: dbQuestion.question_image_url,
+    referenceImageUrl: dbQuestion.reference_image_url || undefined,
+    answers: dbQuestion.answers,
+    correctAnswer: dbQuestion.correct_answer,
+    explanation: dbQuestion.explanation_text,
+    explanationImageUrl: dbQuestion.explanation_image_url || undefined,
+    topics: dbQuestion.topics,
+  };
+}
+
+// Fetch questions and convert to quiz format
+export async function fetchQuestionsForQuiz(): Promise<Question[]> {
+  const dbQuestions = await fetchQuestions();
+  return dbQuestions.map(convertToQuizFormat);
 }

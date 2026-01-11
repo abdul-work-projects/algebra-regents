@@ -1,16 +1,31 @@
 'use client';
 
 import Link from 'next/link';
-import { questions } from '@/lib/data';
+import { questions as staticQuestions } from '@/lib/data';
 import { loadSession, clearSession } from '@/lib/storage';
+import { fetchQuestionsForQuiz } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
   const [hasExistingSession, setHasExistingSession] = useState(false);
+  const [questionCount, setQuestionCount] = useState(staticQuestions.length);
 
   useEffect(() => {
     const session = loadSession();
     setHasExistingSession(session !== null);
+
+    async function loadQuestionCount() {
+      try {
+        const dbQuestions = await fetchQuestionsForQuiz();
+        if (dbQuestions.length > 0) {
+          setQuestionCount(dbQuestions.length);
+        }
+      } catch (error) {
+        console.error('Error fetching question count:', error);
+      }
+    }
+
+    loadQuestionCount();
   }, []);
 
   const handleStartNew = () => {
@@ -26,6 +41,14 @@ export default function Home() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="max-w-2xl w-full">
         <div className="text-center mb-12">
+          <div className="flex justify-end mb-4">
+            <Link
+              href="/admin"
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Admin Panel
+            </Link>
+          </div>
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
             Algebra I Regents
           </h1>
@@ -33,7 +56,7 @@ export default function Home() {
             Practice Test
           </p>
           <p className="text-lg text-gray-500">
-            {questions.length} Questions
+            {questionCount} Questions
           </p>
         </div>
 
