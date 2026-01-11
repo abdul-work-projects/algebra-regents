@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { uploadImage, createQuestion, updateQuestion, deleteQuestion, fetchQuestions, DatabaseQuestion } from "@/lib/supabase";
 import { getCurrentUser, signOut, onAuthStateChange } from "@/lib/auth";
+import TagInput from "@/components/TagInput";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function AdminPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [questions, setQuestions] = useState<DatabaseQuestion[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [questionName, setQuestionName] = useState("");
@@ -25,7 +27,7 @@ export default function AdminPage() {
   const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
   const [correctAnswer, setCorrectAnswer] = useState<number>(1);
   const [explanationText, setExplanationText] = useState("");
-  const [topicsInput, setTopicsInput] = useState("");
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState<{
@@ -67,6 +69,12 @@ export default function AdminPage() {
     setIsLoadingQuestions(true);
     const data = await fetchQuestions();
     setQuestions(data);
+
+    // Extract unique topics from all questions
+    const allTopics = data.flatMap(q => q.topics);
+    const uniqueTags = Array.from(new Set(allTopics)).sort();
+    setAvailableTags(uniqueTags);
+
     setIsLoadingQuestions(false);
   };
 
@@ -109,7 +117,7 @@ export default function AdminPage() {
     setAnswers(["", "", "", ""]);
     setCorrectAnswer(1);
     setExplanationText("");
-    setTopicsInput("");
+    setSelectedTopics([]);
   };
 
   const loadQuestionForEdit = (question: DatabaseQuestion) => {
@@ -121,7 +129,7 @@ export default function AdminPage() {
     setAnswers(question.answers);
     setCorrectAnswer(question.correct_answer);
     setExplanationText(question.explanation_text);
-    setTopicsInput(question.topics.join(", "));
+    setSelectedTopics(question.topics);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -160,7 +168,7 @@ export default function AdminPage() {
       return;
     }
 
-    if (!topicsInput.trim()) {
+    if (selectedTopics.length === 0) {
       setNotification({ type: "error", message: "At least one topic is required" });
       return;
     }
@@ -197,8 +205,6 @@ export default function AdminPage() {
         );
       }
 
-      const topics = topicsInput.split(",").map(t => t.trim()).filter(t => t.length > 0);
-
       const questionData = {
         name: questionName.trim() || null,
         question_image_url: questionImageUrl!,
@@ -207,7 +213,7 @@ export default function AdminPage() {
         correct_answer: correctAnswer,
         explanation_text: explanationText,
         explanation_image_url: explanationImageUrl,
-        topics,
+        topics: selectedTopics,
       };
 
       let result;
@@ -495,12 +501,11 @@ export default function AdminPage() {
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Topics <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={topicsInput}
-                  onChange={(e) => setTopicsInput(e.target.value)}
-                  placeholder="Algebra, Linear Equations"
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                <TagInput
+                  selectedTags={selectedTopics}
+                  availableTags={availableTags}
+                  onChange={setSelectedTopics}
+                  placeholder="Type to search or add new topics (e.g., Algebra, Linear Equations)"
                 />
               </div>
 
