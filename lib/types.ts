@@ -1,9 +1,11 @@
 export interface Question {
   id: string;
   imageFilename: string;
+  referenceImageUrl?: string; // Reference image URL
   answers: string[];
   correctAnswer: number; // 1-4
   explanation: string;
+  explanationImageUrl?: string; // Explanation image URL
   topics: string[];
 }
 

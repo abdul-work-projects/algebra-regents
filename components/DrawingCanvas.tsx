@@ -187,7 +187,7 @@ export default function DrawingCanvas({
     const { x, y } = getCoordinates(e);
 
     if (tool === 'pen') {
-      ctx.strokeStyle = '#000000';
+      ctx.strokeStyle = '#10b981'; // Green color
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
