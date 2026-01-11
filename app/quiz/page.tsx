@@ -7,11 +7,17 @@ import { QuizSession } from "@/lib/types";
 import { loadSession, saveSession, createNewSession } from "@/lib/storage";
 import DrawingCanvas from "@/components/DrawingCanvas";
 import Timer from "@/components/Timer";
+import ExplanationSlider from "@/components/ExplanationSlider";
+import ReferenceImageModal from "@/components/ReferenceImageModal";
 
 export default function QuizPage() {
   const router = useRouter();
   const [session, setSession] = useState<QuizSession | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [hoveredAnswer, setHoveredAnswer] = useState<number | null>(null);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [checkedAnswer, setCheckedAnswer] = useState<number | null>(null);
+  const [showReferenceImage, setShowReferenceImage] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -45,7 +51,6 @@ export default function QuizPage() {
   const selectedAnswer = session.userAnswers[currentQuestion.id] || null;
 
   const handleAnswerSelect = (answerIndex: number) => {
-    // Save time spent on this question before moving
     const timeSpent = Math.floor(
       (Date.now() - session.lastQuestionStartTime) / 1000
     );
@@ -67,8 +72,12 @@ export default function QuizPage() {
     });
   };
 
+  const handleCheckAnswer = (answerIndex: number) => {
+    setCheckedAnswer(answerIndex);
+    setShowExplanation(true);
+  };
+
   const handleNext = () => {
-    // Save time for current question
     const timeSpent = Math.floor(
       (Date.now() - session.lastQuestionStartTime) / 1000
     );
@@ -87,8 +96,8 @@ export default function QuizPage() {
           },
         };
       });
+      setCheckedAnswer(null);
     } else {
-      // Quiz complete
       setSession((prev) => {
         if (!prev) return prev;
         return {
@@ -106,7 +115,6 @@ export default function QuizPage() {
 
   const handlePrevious = () => {
     if (session.currentQuestionIndex > 0) {
-      // Save time for current question
       const timeSpent = Math.floor(
         (Date.now() - session.lastQuestionStartTime) / 1000
       );
@@ -124,6 +132,7 @@ export default function QuizPage() {
           },
         };
       });
+      setCheckedAnswer(null);
     }
   };
 
@@ -154,8 +163,11 @@ export default function QuizPage() {
     (key) => session.userAnswers[key] !== null
   ).length;
 
+  const isCorrect = checkedAnswer === currentQuestion.correctAnswer;
+
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
+    <>
+      <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-5xl mx-auto px-4">
         {/* Header */}
         <div className="card mb-6">
@@ -238,9 +250,32 @@ export default function QuizPage() {
           {/* Question Image with Drawing - Full Width */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                {currentQuestion.topics[0]}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {currentQuestion.topics[0]}
+                </span>
+                {currentQuestion.referenceImageUrl && (
+                  <button
+                    onClick={() => setShowReferenceImage(true)}
+                    className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium bg-purple-100 text-purple-800 hover:bg-purple-200 transition-colors"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Reference Image
+                  </button>
+                )}
+              </div>
               <span className="text-sm text-gray-500">
                 Draw your scratch work below
               </span>
@@ -264,15 +299,31 @@ export default function QuizPage() {
                 </h2>
                 <div className="space-y-3">
                   {currentQuestion.answers.map((answer, index) => (
-                    <button
+                    <div
                       key={index}
-                      onClick={() => handleAnswerSelect(index + 1)}
-                      className={`answer-option ${
-                        selectedAnswer === index + 1 ? "selected" : ""
-                      }`}
+                      className="relative group"
+                      onMouseEnter={() => setHoveredAnswer(index + 1)}
+                      onMouseLeave={() => setHoveredAnswer(null)}
                     >
-                      <span className="font-medium">{answer}</span>
-                    </button>
+                      <button
+                        onClick={() => handleAnswerSelect(index + 1)}
+                        className={`answer-option w-full ${
+                          selectedAnswer === index + 1 ? "selected" : ""
+                        }`}
+                      >
+                        <span className="font-medium">{answer}</span>
+                      </button>
+
+                      {hoveredAnswer === index + 1 && (
+                        <button
+                          onClick={() => handleCheckAnswer(index + 1)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md shadow-lg transition-all"
+                          title="Check if this answer is correct"
+                        >
+                          ✓ Check
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -337,6 +388,7 @@ export default function QuizPage() {
                               },
                             };
                           });
+                          setCheckedAnswer(null);
                         }}
                         className={`p-2 rounded text-sm font-medium transition-colors ${
                           isCurrent
@@ -356,6 +408,29 @@ export default function QuizPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+
+      {/* Explanation Slider */}
+      <ExplanationSlider
+        isOpen={showExplanation}
+        onClose={() => {
+          setShowExplanation(false);
+          setCheckedAnswer(null);
+        }}
+        explanationText={currentQuestion.explanation}
+        explanationImageUrl={currentQuestion.explanationImageUrl}
+        correctAnswer={currentQuestion.answers[currentQuestion.correctAnswer - 1]}
+        isCorrect={isCorrect}
+      />
+
+      {/* Reference Image Modal */}
+      {currentQuestion.referenceImageUrl && (
+        <ReferenceImageModal
+          isOpen={showReferenceImage}
+          onClose={() => setShowReferenceImage(false)}
+          imageUrl={currentQuestion.referenceImageUrl}
+        />
+      )}
+    </>
   );
 }
