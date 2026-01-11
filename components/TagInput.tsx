@@ -43,6 +43,15 @@ export default function TagInput({ selectedTags, availableTags, onChange, placeh
       } else if (inputValue.trim()) {
         addTag(inputValue);
       }
+    } else if (e.key === "Tab") {
+      // Tab to autocomplete with first suggestion
+      if (showSuggestions && filteredSuggestions.length > 0) {
+        e.preventDefault();
+        const suggestionToAdd = focusedIndex >= 0
+          ? filteredSuggestions[focusedIndex]
+          : filteredSuggestions[0];
+        addTag(suggestionToAdd);
+      }
     } else if (e.key === "Backspace" && !inputValue && selectedTags.length > 0) {
       removeTag(selectedTags[selectedTags.length - 1]);
     } else if (e.key === "ArrowDown") {
