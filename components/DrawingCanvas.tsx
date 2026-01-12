@@ -70,8 +70,7 @@ export default function DrawingCanvas({
         if (image.complete && image.naturalHeight !== 0) {
           const aspectRatio = image.naturalWidth / image.naturalHeight;
           canvasHeight = containerWidth / aspectRatio;
-          // Set a minimum and maximum height
-          canvasHeight = Math.max(300, Math.min(canvasHeight, 800));
+          // No constraints - let the aspect ratio determine the height naturally
         }
 
         // Set both canvases to same size
@@ -121,11 +120,35 @@ export default function DrawingCanvas({
     } else {
       image.addEventListener('load', handleImageLoad);
       image.addEventListener('error', handleImageError);
-      return () => {
-        image.removeEventListener('load', handleImageLoad);
-        image.removeEventListener('error', handleImageError);
-      };
     }
+
+    // Add resize listener to recalculate canvas size on viewport changes
+    const handleResize = () => {
+      if (image.complete && image.naturalHeight !== 0) {
+        // Save current drawing before resizing
+        const currentDrawing = drawingCanvas.toDataURL();
+        loadImage();
+        // Restore drawing after resize
+        if (currentDrawing && currentDrawing !== 'data:,') {
+          const img = new Image();
+          img.onload = () => {
+            const drawCtx = drawingCanvas.getContext('2d');
+            if (drawCtx) {
+              drawCtx.drawImage(img, 0, 0, drawingCanvas.width, drawingCanvas.height);
+            }
+          };
+          img.src = currentDrawing;
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      image.removeEventListener('load', handleImageLoad);
+      image.removeEventListener('error', handleImageError);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [imageUrl, initialDrawing]);
 
   /**
@@ -333,7 +356,7 @@ export default function DrawingCanvas({
         <canvas
           ref={backgroundCanvasRef}
           className="absolute inset-0 pointer-events-none"
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          style={{ width: '100%', height: 'auto' }}
         />
 
         {/* Drawing canvas - for user drawings only */}
@@ -347,7 +370,7 @@ export default function DrawingCanvas({
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
           className={`relative touch-none ${tool === 'pen' ? 'cursor-pointer' : 'cursor-cell'}`}
-          style={{ width: '100%', display: 'block', minHeight: '300px', maxHeight: '800px' }}
+          style={{ width: '100%', height: 'auto', display: 'block' }}
         />
       </div>
     </div>

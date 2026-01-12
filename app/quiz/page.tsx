@@ -309,12 +309,14 @@ export default function QuizPage() {
         </div>
 
         <div className="max-w-3xl mx-auto px-4 pt-8">
-          {/* Topic Badge */}
-          {currentQuestion.topics[0] && (
-            <div className="mb-4">
-              <span className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
-                {currentQuestion.topics[0]}
-              </span>
+          {/* Topic Badges */}
+          {currentQuestion.topics.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {currentQuestion.topics.map((topic, index) => (
+                <span key={index} className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                  {topic}
+                </span>
+              ))}
             </div>
           )}
 
