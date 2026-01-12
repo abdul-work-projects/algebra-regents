@@ -62,7 +62,7 @@ export default function ResultsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-white py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
@@ -75,10 +75,10 @@ export default function ResultsPage() {
         </div>
 
         {/* Score Card */}
-        <div className="card mb-6">
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-8 mb-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-blue-100 mb-4">
-              <span className="text-5xl font-bold text-blue-600">
+            <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-black mb-4">
+              <span className="text-5xl font-bold text-white">
                 {scorePercentage}%
               </span>
             </div>
@@ -86,32 +86,40 @@ export default function ResultsPage() {
               {result.score} / {result.totalQuestions}
             </h2>
             <div
-              className={`inline-block px-4 py-2 rounded-full border-2 ${performance.bgColor}`}
+              className={`inline-block px-4 py-2 rounded-xl border-2 ${
+                scorePercentage >= 80
+                  ? 'bg-green-50 border-green-500 text-green-700'
+                  : scorePercentage >= 65
+                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  : scorePercentage >= 50
+                  ? 'bg-yellow-50 border-yellow-500 text-yellow-700'
+                  : 'bg-rose-50 border-rose-500 text-rose-700'
+              }`}
             >
-              <span className={`font-semibold ${performance.color}`}>
+              <span className="font-bold text-sm">
                 {performance.label}
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pt-8 border-t border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pt-8 border-t-2 border-gray-200">
             <div className="text-center">
               <div className="text-3xl font-bold text-gray-900 mb-1">
                 {formatTime(result.averageTime)}
               </div>
-              <div className="text-sm text-gray-600">Average Time per Question</div>
+              <div className="text-sm text-gray-600 font-medium">Average Time per Question</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-gray-900 mb-1">
                 {Object.keys(result.topicAccuracy).length}
               </div>
-              <div className="text-sm text-gray-600">Topics Covered</div>
+              <div className="text-sm text-gray-600 font-medium">Topics Covered</div>
             </div>
           </div>
         </div>
 
         {/* Topic Performance */}
-        <div className="card mb-6">
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-6 mb-6">
           <h3 className="text-xl font-bold text-gray-900 mb-4">
             Performance by Topic
           </h3>
@@ -119,25 +127,24 @@ export default function ResultsPage() {
             {Object.entries(result.topicAccuracy)
               .sort((a, b) => b[1].percentage - a[1].percentage)
               .map(([topic, stats]) => {
-                const topicPerformance = getPerformanceLevel(stats.percentage);
                 return (
                   <div key={topic}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-gray-900">{topic}</span>
-                      <span className="text-sm text-gray-600">
+                      <span className="font-bold text-gray-900">{topic}</span>
+                      <span className="text-xs text-gray-600 font-medium">
                         {stats.correct} / {stats.total} correct ({stats.percentage}%)
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className={`h-3 rounded-full transition-all ${
+                        className={`h-2 rounded-full transition-all ${
                           stats.percentage >= 80
                             ? 'bg-green-500'
                             : stats.percentage >= 65
                             ? 'bg-blue-500'
                             : stats.percentage >= 50
                             ? 'bg-yellow-500'
-                            : 'bg-red-500'
+                            : 'bg-rose-500'
                         }`}
                         style={{ width: `${stats.percentage}%` }}
                       />
@@ -149,10 +156,10 @@ export default function ResultsPage() {
         </div>
 
         {/* Question-by-Question Details */}
-        <div className="card mb-6">
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-6 mb-6">
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="w-full flex items-center justify-between text-left"
+            className="w-full flex items-center justify-between text-left active:scale-95 transition-all"
           >
             <h3 className="text-xl font-bold text-gray-900">
               Question-by-Question Breakdown
@@ -247,11 +254,17 @@ export default function ResultsPage() {
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4">
-          <button onClick={handleRetakeQuiz} className="btn-primary flex-1">
-            Retake Quiz
+          <button
+            onClick={handleRetakeQuiz}
+            className="flex-1 px-6 py-3 text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-xl shadow-md transition-all"
+          >
+            RETAKE QUIZ
           </button>
-          <button onClick={handleBackHome} className="btn-outline flex-1">
-            Back to Home
+          <button
+            onClick={handleBackHome}
+            className="flex-1 px-6 py-3 text-sm font-bold text-gray-700 bg-white border-2 border-gray-300 hover:border-black hover:bg-gray-50 active:scale-95 rounded-xl transition-all"
+          >
+            BACK TO HOME
           </button>
         </div>
       </div>

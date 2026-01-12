@@ -628,27 +628,36 @@ export default function QuizPage() {
                 </svg>
               </button>
 
-              {/* Next Button */}
-              <button
-                onClick={handleNext}
-                disabled={session.currentQuestionIndex === questions.length - 1}
-                className="p-2 rounded-full border-2 border-gray-300 hover:border-black hover:bg-gray-100 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                title="Next"
-              >
-                <svg
-                  className="w-4 h-4 text-gray-700"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              {/* Next/Finish Button */}
+              {session.currentQuestionIndex === questions.length - 1 ? (
+                <button
+                  onClick={handleNext}
+                  className="px-4 py-2 rounded-full border-2 border-black bg-black text-white hover:bg-gray-800 active:scale-95 text-xs font-bold transition-all"
+                  title="Finish Quiz"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
+                  FINISH
+                </button>
+              ) : (
+                <button
+                  onClick={handleNext}
+                  className="p-2 rounded-full border-2 border-gray-300 hover:border-black hover:bg-gray-100 active:scale-95 transition-all"
+                  title="Next"
+                >
+                  <svg
+                    className="w-4 h-4 text-gray-700"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              )}
             </div>
 
             {/* Right: Explanation Button */}
