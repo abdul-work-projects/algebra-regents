@@ -248,12 +248,12 @@ export default function QuizPage() {
               style={{ width: `${progress}%` }}
             />
             {/* Question number centered above progress bar */}
-            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs font-bold text-black">
+            <div className="absolute top-3 md:top-2 left-1/2 transform -translate-x-1/2 text-xs font-bold text-black">
               Questions {session.currentQuestionIndex + 1} of {questions.length}
             </div>
           </div>
 
-          <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="max-w-5xl mx-auto px-4 py-4 md:py-3 flex items-center justify-between">
             <button
               onClick={() => {
                 if (

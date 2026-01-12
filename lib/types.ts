@@ -7,6 +7,7 @@ export interface Question {
   explanation: string;
   explanationImageUrl?: string; // Explanation image URL
   topics: string[];
+  points?: number; // Points for this question (default: 2)
 }
 
 export interface QuizSession {
@@ -22,6 +23,8 @@ export interface QuizSession {
 export interface QuizResult {
   score: number;
   totalQuestions: number;
+  earnedPoints: number;
+  totalPoints: number;
   averageTime: number;
   questionResults: {
     questionId: string;
@@ -30,6 +33,7 @@ export interface QuizResult {
     isCorrect: boolean;
     timeSpent: number;
     topics: string[];
+    points: number;
   }[];
   topicAccuracy: {
     [topic: string]: {

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { questions as staticQuestions } from '@/lib/data';
 import { loadSession, clearSession } from '@/lib/storage';
-import { calculateResults, getPerformanceLevel, formatTime } from '@/lib/results';
+import { calculateResults, getPerformanceLevel, formatTime, getScoreComment } from '@/lib/results';
 import { fetchQuestionsForQuiz } from '@/lib/supabase';
 import { Question, QuizResult } from '@/lib/types';
 
@@ -48,8 +48,9 @@ export default function ResultsPage() {
     );
   }
 
-  const scorePercentage = Math.round((result.score / result.totalQuestions) * 100);
+  const scorePercentage = Math.round((result.earnedPoints / result.totalPoints) * 100);
   const performance = getPerformanceLevel(scorePercentage);
+  const scoreComment = getScoreComment(result.earnedPoints);
 
   const handleRetakeQuiz = () => {
     clearSession();
@@ -77,28 +78,26 @@ export default function ResultsPage() {
         {/* Score Card */}
         <div className="bg-white border-2 border-gray-200 rounded-xl p-8 mb-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-black mb-4">
-              <span className="text-5xl font-bold text-white">
+            <div className="inline-flex items-center justify-center w-40 h-40 rounded-full bg-black mb-4">
+              <span className={`font-bold text-white ${scorePercentage === 100 ? 'text-4xl' : 'text-5xl'}`}>
                 {scorePercentage}%
               </span>
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              {result.score} / {result.totalQuestions}
+              {result.earnedPoints} / {result.totalPoints} Points
             </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              {result.score} / {result.totalQuestions} Questions Correct
+            </p>
             <div
-              className={`inline-block px-4 py-2 rounded-xl border-2 ${
-                scorePercentage >= 80
-                  ? 'bg-green-50 border-green-500 text-green-700'
-                  : scorePercentage >= 65
-                  ? 'bg-blue-50 border-blue-500 text-blue-700'
-                  : scorePercentage >= 50
-                  ? 'bg-yellow-50 border-yellow-500 text-yellow-700'
-                  : 'bg-rose-50 border-rose-500 text-rose-700'
-              }`}
+              className={`inline-block px-6 py-3 rounded-xl border-2 ${scoreComment.bgColor} mb-4`}
             >
-              <span className="font-bold text-sm">
-                {performance.label}
-              </span>
+              <div className={`font-bold text-base ${scoreComment.color}`}>
+                {scoreComment.status}
+              </div>
+              <div className={`text-sm ${scoreComment.color} mt-1`}>
+                {scoreComment.message}
+              </div>
             </div>
           </div>
 
@@ -196,9 +195,12 @@ export default function ResultsPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <span className="font-bold text-gray-900">
                           Question {index + 1}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-black text-white">
+                          {qResult.isCorrect ? qResult.points : 0}/{qResult.points} pts
                         </span>
                         {qResult.isCorrect ? (
                           <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">

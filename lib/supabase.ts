@@ -21,6 +21,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * - explanation_text: text
  * - explanation_image_url: text (optional)
  * - topics: text[] (array of topic strings)
+ * - points: integer (points for this question, default: 1)
  * - created_at: timestamp
  * - updated_at: timestamp
  *
@@ -41,6 +42,7 @@ export interface DatabaseQuestion {
   explanation_text: string;
   explanation_image_url: string | null;
   topics: string[];
+  points: number;
   created_at: string;
   updated_at: string;
 }
@@ -138,6 +140,7 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion): Question {
     explanation: dbQuestion.explanation_text,
     explanationImageUrl: dbQuestion.explanation_image_url || undefined,
     topics: dbQuestion.topics,
+    points: dbQuestion.points,
   };
 }
 

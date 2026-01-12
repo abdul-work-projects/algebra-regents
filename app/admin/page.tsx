@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [correctAnswer, setCorrectAnswer] = useState<number>(1);
   const [explanationText, setExplanationText] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [points, setPoints] = useState<number>(1);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState<{
@@ -118,6 +119,7 @@ export default function AdminPage() {
     setCorrectAnswer(1);
     setExplanationText("");
     setSelectedTopics([]);
+    setPoints(1);
   };
 
   const loadQuestionForEdit = (question: DatabaseQuestion) => {
@@ -130,6 +132,7 @@ export default function AdminPage() {
     setCorrectAnswer(question.correct_answer);
     setExplanationText(question.explanation_text);
     setSelectedTopics(question.topics);
+    setPoints(question.points || 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -214,6 +217,7 @@ export default function AdminPage() {
         explanation_text: explanationText,
         explanation_image_url: explanationImageUrl,
         topics: selectedTopics,
+        points: points,
       };
 
       let result;
@@ -251,20 +255,26 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4">
+    <div className="min-h-screen bg-white py-4">
       <div className="max-w-7xl mx-auto px-4">
         {/* Compact Header */}
-        <div className="bg-white rounded-lg shadow-sm p-3 mb-4">
+        <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-4 mb-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Admin Panel</h1>
-              {user && <p className="text-xs text-gray-500">{user.email}</p>}
+              <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
+              {user && <p className="text-sm text-gray-600">{user.email}</p>}
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={handleLogout} className="text-xs px-3 py-1 text-gray-700 hover:bg-gray-100 rounded">
-                Logout
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleLogout}
+                className="text-sm px-4 py-2 font-bold text-gray-700 border-2 border-gray-300 hover:border-black hover:bg-gray-50 active:scale-95 rounded-xl transition-all"
+              >
+                LOGOUT
               </button>
-              <button onClick={() => router.push("/")} className="text-gray-600 hover:text-gray-900">
+              <button
+                onClick={() => router.push("/")}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -275,18 +285,18 @@ export default function AdminPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left: Questions List */}
-          <div className="lg:col-span-1 bg-white rounded-lg shadow-sm p-4">
+          <div className="lg:col-span-1 bg-white border-2 border-gray-200 rounded-xl shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-semibold">
+              <h2 className="text-base font-bold text-gray-900">
                 Questions ({questions.length})
               </h2>
               {editingId && (
                 <button
                   onClick={resetForm}
-                  className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                  className="text-xs px-3 py-2 font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
                   title="Clear form and add new question"
                 >
-                  + New
+                  + NEW
                 </button>
               )}
             </div>
@@ -300,8 +310,8 @@ export default function AdminPage() {
                 {questions.map((question, index) => (
                   <div
                     key={question.id}
-                    className={`border rounded p-2 hover:bg-gray-50 ${
-                      editingId === question.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                    className={`border-2 rounded-xl p-3 hover:bg-gray-50 transition-all ${
+                      editingId === question.id ? "border-black bg-gray-50" : "border-gray-200"
                     }`}
                   >
                     <div className="flex items-start gap-2">
@@ -331,7 +341,7 @@ export default function AdminPage() {
                           <div className="flex gap-1 flex-shrink-0">
                             <button
                               onClick={() => loadQuestionForEdit(question)}
-                              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                              className="p-1.5 text-gray-700 hover:bg-gray-200 rounded-lg active:scale-95 transition-all"
                               title="Edit question"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,7 +350,7 @@ export default function AdminPage() {
                             </button>
                             <button
                               onClick={() => handleDelete(question.id)}
-                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                              className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
                               title="Delete question"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -358,8 +368,8 @@ export default function AdminPage() {
           </div>
 
           {/* Right: Form */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-4">
-            <h2 className="text-base font-semibold mb-3">
+          <div className="lg:col-span-2 bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">
               {editingId ? "Edit Question" : "Add New Question"}
             </h2>
 
@@ -501,10 +511,27 @@ export default function AdminPage() {
                 />
               </div>
 
+              {/* Points */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Points <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={points}
+                  onChange={(e) => setPoints(parseInt(e.target.value) || 1)}
+                  placeholder="1"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-0.5">Points awarded for this question (default: 1)</p>
+              </div>
+
               {/* Notification Message */}
               {notification && (
-                <div className={`p-3 rounded-lg text-sm ${
-                  notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                <div className={`p-4 rounded-xl text-sm font-bold border-2 ${
+                  notification.type === "success"
+                    ? "bg-green-50 text-green-800 border-green-200"
+                    : "bg-red-50 text-red-800 border-red-200"
                 }`}>
                   {notification.message}
                 </div>
@@ -515,9 +542,9 @@ export default function AdminPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-blue-600 text-white px-3 py-2 text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="w-full bg-black text-white px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-800 active:scale-95 disabled:opacity-50 transition-all shadow-md"
                 >
-                  {isSubmitting ? "Saving..." : editingId ? "Update Question" : "Create Question"}
+                  {isSubmitting ? "SAVING..." : editingId ? "UPDATE QUESTION" : "CREATE QUESTION"}
                 </button>
               </div>
             </form>
