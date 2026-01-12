@@ -379,18 +379,17 @@ export default function QuizPage() {
                 <div
                   key={index}
                   className="relative group"
-                  onMouseEnter={() => setHoveredAnswer(answerNum)}
-                  onMouseLeave={() => setHoveredAnswer(null)}
                 >
                   <button
                     onClick={() => handleAnswerSelect(answerNum)}
                     className={buttonClass}
                   >
+                    <span className="font-bold mr-2">({answerNum})</span>
                     {answer}
                   </button>
 
-                  {/* Check button on hover - show on any option that hasn't been checked yet */}
-                  {hoveredAnswer === answerNum && !isChecked && (
+                  {/* Check button when selected - show on any option that hasn't been checked yet */}
+                  {isSelected && !isChecked && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

@@ -35,6 +35,7 @@ export default function AdminPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [draggedOver, setDraggedOver] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkAuth() {
@@ -84,6 +85,14 @@ export default function AdminPage() {
     router.push("/");
   };
 
+  const sanitizeFilename = (filename: string): string => {
+    // Remove special characters and spaces, replace with underscores or dashes
+    return filename
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/[^\w.-]/g, '') // Remove special characters except dots, underscores, and dashes
+      .toLowerCase();
+  };
+
   const handleImageSelect = (
     event: React.ChangeEvent<HTMLInputElement>,
     setImage: (file: File | null) => void,
@@ -91,6 +100,38 @@ export default function AdminPage() {
   ) => {
     const file = event.target.files?.[0];
     if (file) {
+      setImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent, dropZone: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedOver(dropZone);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedOver(null);
+  };
+
+  const handleDrop = (
+    e: React.DragEvent,
+    setImage: (file: File | null) => void,
+    setPreview: (preview: string | null) => void
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedOver(null);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
       setImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -182,29 +223,32 @@ export default function AdminPage() {
     try {
       let questionImageUrl = questionImagePreview;
       if (questionImage) {
+        const sanitizedName = sanitizeFilename(questionImage.name);
         questionImageUrl = await uploadImage(
           "question-images",
           questionImage,
-          `questions/${Date.now()}-${questionImage.name}`
+          `questions/${Date.now()}-${sanitizedName}`
         );
         if (!questionImageUrl) throw new Error("Failed to upload question image");
       }
 
       let referenceImageUrl = referenceImagePreview;
       if (referenceImage) {
+        const sanitizedName = sanitizeFilename(referenceImage.name);
         referenceImageUrl = await uploadImage(
           "reference-images",
           referenceImage,
-          `references/${Date.now()}-${referenceImage.name}`
+          `references/${Date.now()}-${sanitizedName}`
         );
       }
 
       let explanationImageUrl = explanationImagePreview;
       if (explanationImage) {
+        const sanitizedName = sanitizeFilename(explanationImage.name);
         explanationImageUrl = await uploadImage(
           "explanation-images",
           explanationImage,
-          `explanations/${Date.now()}-${explanationImage.name}`
+          `explanations/${Date.now()}-${sanitizedName}`
         );
       }
 
@@ -402,12 +446,30 @@ export default function AdminPage() {
                     className="hidden"
                     id="question-image"
                   />
-                  <label htmlFor="question-image" className="cursor-pointer block">
+                  <label
+                    htmlFor="question-image"
+                    className="cursor-pointer block"
+                    onDragOver={(e) => handleDragOver(e, 'question')}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, setQuestionImage, setQuestionImagePreview)}
+                  >
                     {questionImagePreview ? (
-                      <img src={questionImagePreview} alt="Question" className="w-full h-24 object-cover rounded border" />
+                      <div className={`relative w-full h-24 rounded border-2 overflow-hidden transition-all ${
+                        draggedOver === 'question' ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'
+                      }`}>
+                        <img src={questionImagePreview} alt="Question" className="w-full h-full object-cover" />
+                        {draggedOver === 'question' && (
+                          <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                            <span className="text-xs font-bold text-blue-700">Drop to replace</span>
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <div className="w-full h-24 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 hover:border-blue-500">
-                        <span className="text-xs">Upload</span>
+                      <div className={`w-full h-24 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
+                        draggedOver === 'question' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-500'
+                      }`}>
+                        <span className="text-xs font-medium">Drop image</span>
+                        <span className="text-xs">or click</span>
                       </div>
                     )}
                   </label>
@@ -422,12 +484,30 @@ export default function AdminPage() {
                     className="hidden"
                     id="reference-image"
                   />
-                  <label htmlFor="reference-image" className="cursor-pointer block">
+                  <label
+                    htmlFor="reference-image"
+                    className="cursor-pointer block"
+                    onDragOver={(e) => handleDragOver(e, 'reference')}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, setReferenceImage, setReferenceImagePreview)}
+                  >
                     {referenceImagePreview ? (
-                      <img src={referenceImagePreview} alt="Reference" className="w-full h-24 object-cover rounded border" />
+                      <div className={`relative w-full h-24 rounded border-2 overflow-hidden transition-all ${
+                        draggedOver === 'reference' ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'
+                      }`}>
+                        <img src={referenceImagePreview} alt="Reference" className="w-full h-full object-cover" />
+                        {draggedOver === 'reference' && (
+                          <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                            <span className="text-xs font-bold text-blue-700">Drop to replace</span>
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <div className="w-full h-24 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 hover:border-blue-500">
-                        <span className="text-xs">Upload</span>
+                      <div className={`w-full h-24 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
+                        draggedOver === 'reference' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-500'
+                      }`}>
+                        <span className="text-xs font-medium">Drop image</span>
+                        <span className="text-xs">or click</span>
                       </div>
                     )}
                   </label>
@@ -442,12 +522,30 @@ export default function AdminPage() {
                     className="hidden"
                     id="explanation-image"
                   />
-                  <label htmlFor="explanation-image" className="cursor-pointer block">
+                  <label
+                    htmlFor="explanation-image"
+                    className="cursor-pointer block"
+                    onDragOver={(e) => handleDragOver(e, 'explanation')}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, setExplanationImage, setExplanationImagePreview)}
+                  >
                     {explanationImagePreview ? (
-                      <img src={explanationImagePreview} alt="Explanation" className="w-full h-24 object-cover rounded border" />
+                      <div className={`relative w-full h-24 rounded border-2 overflow-hidden transition-all ${
+                        draggedOver === 'explanation' ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'
+                      }`}>
+                        <img src={explanationImagePreview} alt="Explanation" className="w-full h-full object-cover" />
+                        {draggedOver === 'explanation' && (
+                          <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                            <span className="text-xs font-bold text-blue-700">Drop to replace</span>
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <div className="w-full h-24 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 hover:border-blue-500">
-                        <span className="text-xs">Upload</span>
+                      <div className={`w-full h-24 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
+                        draggedOver === 'explanation' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-500'
+                      }`}>
+                        <span className="text-xs font-medium">Drop image</span>
+                        <span className="text-xs">or click</span>
                       </div>
                     )}
                   </label>
