@@ -10,6 +10,7 @@ A modern, interactive web application for students to practice Algebra I Regents
 ## ✨ Features
 
 ### For Students
+
 - **Interactive Quiz Interface** - Clean, distraction-free question-by-question interface
 - **Drawing Canvas** - Draw and take notes directly on question images with pen/eraser tools
 - **Built-in TI-84 Calculator** - Full-featured graphing calculator accessible during the quiz
@@ -25,6 +26,7 @@ A modern, interactive web application for students to practice Algebra I Regents
   - Question-by-question review with correct answers
 
 ### For Administrators
+
 - **Question Management** - Easy-to-use admin panel for creating and editing questions
 - **Drag & Drop Upload** - Upload images by dragging them onto the form
 - **Multiple Image Types** - Support for question images, reference images, and explanation images
@@ -77,6 +79,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 Get these values from your Supabase project dashboard:
+
 1. Go to Project Settings → API
 2. Copy the Project URL and anon/public key
 
@@ -90,6 +93,7 @@ Run the complete database setup script in your Supabase SQL Editor:
 ```
 
 This will create:
+
 - `questions` table with all necessary columns
 - Row Level Security (RLS) policies
 - Storage buckets for images
@@ -100,6 +104,7 @@ This will create:
 ### 5. Create Admin User
 
 In your Supabase dashboard:
+
 1. Go to Authentication → Users
 2. Click "Add user" → "Create new user"
 3. Enter email and password for admin access
@@ -179,6 +184,7 @@ algebra-regents-app/
 ## 🎨 Features in Detail
 
 ### Drawing Canvas
+
 - **Pen Tool**: Draw in green to work out problems
 - **Eraser Tool**: Remove drawings (preserves original image)
 - **Undo**: Step backward through drawing history
@@ -187,7 +193,8 @@ algebra-regents-app/
 - **Responsive**: Maintains aspect ratio on all screen sizes
 
 ### Calculator
-- Full TI-84 Plus CE emulator
+
+- Full TI-84 Plus CE emulator (https://github.com/ading2210/ti84pce-html5)
 - Accessible via button in quiz header
 - Desktop: Slides in from right side (full height)
 - Mobile: Displays inline below answers
@@ -195,6 +202,7 @@ algebra-regents-app/
 - Scrollable when zoomed in (desktop)
 
 ### Scoring System
+
 - **Points-Based**: Each question has customizable point value (default: 1)
 - **Performance Levels**:
   - **Pass Advanced** (85+ points): Outstanding performance
@@ -203,6 +211,7 @@ algebra-regents-app/
   - **Failed** (0-55 points): Needs more practice
 
 ### Analytics
+
 - **Overall Score**: Percentage circle with points breakdown
 - **Topic Accuracy**: Performance breakdown by topic with color-coded bars
 - **Time Tracking**: Average time per question
@@ -213,6 +222,7 @@ algebra-regents-app/
   - Topics covered
 
 ### Answer Options
+
 - **Numbered Choices**: Options display with (1), (2), (3), (4)
 - **Check Button**: Appears when answer is selected
 - **Color Feedback**:
@@ -243,6 +253,7 @@ algebra-regents-app/
 ### Other Platforms
 
 The app can be deployed to any platform that supports Next.js:
+
 - Netlify
 - Railway
 - AWS Amplify
@@ -251,27 +262,32 @@ The app can be deployed to any platform that supports Next.js:
 ## 🐛 Troubleshooting
 
 ### Images Not Loading
+
 - Verify storage buckets are created in Supabase
 - Check storage policies allow public read access
 - Ensure image URLs are correct in database
 - Check for filename issues (spaces/special characters)
 
 ### Admin Can't Login
+
 - Verify user exists in Supabase Auth
 - Check environment variables are set correctly
 - Ensure RLS policies are applied
 
 ### Quiz Not Saving Progress
+
 - Check browser localStorage is enabled
 - Clear browser cache and try again
 - Ensure no browser extensions are blocking localStorage
 
 ### Calculator Not Working
+
 - Try refreshing the page
 - Check browser console for errors
 - Ensure iframe is not blocked by browser extensions
 
 ### Hydration Warning
+
 - This is caused by browser extensions (e.g., ColorZilla)
 - Safe to ignore in development
 - Doesn't affect functionality
@@ -281,6 +297,7 @@ The app can be deployed to any platform that supports Next.js:
 The app uses a modern, clean design inspired by Duolingo:
 
 - **Colors**:
+
   - Primary: Black (#000000)
   - Success: Green (#22C55E)
   - Error: Red/Rose (#EF4444)
@@ -297,6 +314,7 @@ The app uses a modern, clean design inspired by Duolingo:
 ## 📝 Database Schema
 
 ### Questions Table
+
 ```sql
 - id: UUID (primary key)
 - name: TEXT (optional, for admin reference)
@@ -331,12 +349,12 @@ The app uses a modern, clean design inspired by Duolingo:
 ## 🎓 Credits
 
 - TI-84 Calculator: [ti84.pages.dev](https://ti84.pages.dev)
-- Inspired by Duolingo's clean, modern UI design
 - Built with ❤️ for students preparing for Algebra I Regents
 
 ## 📧 Support
 
 For issues and questions:
+
 1. Check the Troubleshooting section above
 2. Review Supabase dashboard for errors
 3. Check browser console for client-side errors
