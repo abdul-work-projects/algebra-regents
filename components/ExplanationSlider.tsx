@@ -47,35 +47,35 @@ export default function ExplanationSlider({
         />
       )}
 
-      {/* Slider Panel */}
+      {/* Slider Panel - Duolingo Style */}
       <div
         className={`fixed top-0 right-0 h-full w-full md:w-2/3 lg:w-1/2 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className="h-full flex flex-col">
-          {/* Header */}
-          <div className={`p-6 border-b ${isCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
+          {/* Header - Duolingo Style */}
+          <div className={`p-6 border-b-2 ${isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold">
                   {isCorrect ? (
-                    <span className="text-green-600">✓ Correct!</span>
+                    <span className="text-emerald-600">✓ Correct!</span>
                   ) : (
-                    <span className="text-red-600">✗ Incorrect</span>
+                    <span className="text-rose-600">✗ Incorrect</span>
                   )}
                 </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Correct answer: {correctAnswer}
+                <p className="text-sm text-gray-600 mt-2 font-medium">
+                  Correct answer: <span className="font-bold text-gray-800">{correctAnswer}</span>
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                className="p-2 rounded-xl hover:bg-white active:scale-95 transition-all"
                 aria-label="Close explanation"
               >
                 <svg
-                  className="w-6 h-6"
+                  className="w-6 h-6 text-gray-700"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -93,31 +93,33 @@ export default function ExplanationSlider({
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">
-              Explanation
-            </h3>
-            <p className="text-gray-700 leading-relaxed mb-6">
-              {explanationText}
-            </p>
+            <div className="bg-white rounded-2xl border-2 border-gray-200 p-5 mb-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
+                Explanation
+              </h3>
+              <p className="text-gray-700 leading-relaxed text-base">
+                {explanationText}
+              </p>
+            </div>
 
             {explanationImageUrl && (
-              <div className="mt-4">
+              <div className="bg-white rounded-2xl border-2 border-gray-200 p-4 overflow-hidden">
                 <img
                   src={explanationImageUrl}
                   alt="Explanation"
-                  className="w-full rounded-lg border border-gray-200"
+                  className="w-full rounded-xl"
                 />
               </div>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="p-6 border-t bg-gray-50">
+          {/* Footer - Duolingo Style */}
+          <div className="p-6 border-t-2 border-gray-200 bg-white">
             <button
               onClick={onClose}
-              className="btn-primary w-full"
+              className="w-full px-6 py-4 text-base font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] rounded-2xl shadow-md transition-all"
             >
-              Continue
+              CONTINUE
             </button>
           </div>
         </div>

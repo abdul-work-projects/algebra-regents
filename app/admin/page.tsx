@@ -273,14 +273,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {notification && (
-          <div className={`mb-3 p-3 rounded-lg text-sm ${
-            notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-          }`}>
-            {notification.message}
-          </div>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left: Questions List */}
           <div className="lg:col-span-1 bg-white rounded-lg shadow-sm p-4">
@@ -508,6 +500,15 @@ export default function AdminPage() {
                   placeholder="Type to search or add new topics (e.g., Algebra, Linear Equations)"
                 />
               </div>
+
+              {/* Notification Message */}
+              {notification && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                }`}>
+                  {notification.message}
+                </div>
+              )}
 
               {/* Buttons */}
               <div className="pt-2">

@@ -51,7 +51,7 @@ export default function ReferenceImageModal({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-semibold text-gray-900">
-            Reference Image
+            Reference
           </h3>
           <button
             onClick={onClose}
@@ -75,22 +75,12 @@ export default function ReferenceImageModal({
         </div>
 
         {/* Image */}
-        <div className="p-4 overflow-auto max-h-[calc(90vh-8rem)]">
+        <div className="p-4 overflow-auto max-h-[calc(90vh-4rem)]">
           <img
             src={imageUrl}
             alt="Reference"
             className="w-full h-auto rounded"
           />
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t bg-gray-50">
-          <button
-            onClick={onClose}
-            className="btn-secondary w-full"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>

@@ -61,19 +61,29 @@ export default function DrawingCanvas({
       const container = backgroundCanvas.parentElement;
       if (container) {
         const rect = container.getBoundingClientRect();
-        const width = rect.width;
-        const height = rect.height;
+        const containerWidth = rect.width;
+
+        // Calculate height based on image aspect ratio
+        let canvasWidth = containerWidth;
+        let canvasHeight = 500; // Default height
+
+        if (image.complete && image.naturalHeight !== 0) {
+          const aspectRatio = image.naturalWidth / image.naturalHeight;
+          canvasHeight = containerWidth / aspectRatio;
+          // Set a minimum and maximum height
+          canvasHeight = Math.max(300, Math.min(canvasHeight, 800));
+        }
 
         // Set both canvases to same size
-        backgroundCanvas.width = width;
-        backgroundCanvas.height = height;
-        drawingCanvas.width = width;
-        drawingCanvas.height = height;
+        backgroundCanvas.width = canvasWidth;
+        backgroundCanvas.height = canvasHeight;
+        drawingCanvas.width = canvasWidth;
+        drawingCanvas.height = canvasHeight;
 
-        // Draw background image
-        bgCtx.clearRect(0, 0, width, height);
+        // Draw background image maintaining aspect ratio
+        bgCtx.clearRect(0, 0, canvasWidth, canvasHeight);
         if (image.complete && image.naturalHeight !== 0) {
-          bgCtx.drawImage(image, 0, 0, width, height);
+          bgCtx.drawImage(image, 0, 0, canvasWidth, canvasHeight);
         }
 
         // Load initial drawing if provided
@@ -251,15 +261,16 @@ export default function DrawingCanvas({
 
   return (
     <div className="w-full">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-3 p-3 bg-gray-100 rounded-lg">
+      {/* Toolbar - Duolingo Style */}
+      <div className="flex items-center gap-2 mb-3">
         <button
           onClick={() => setTool('pen')}
-          className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`p-2 rounded-xl border-2 transition-all active:scale-95 ${
             tool === 'pen'
-              ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
+              ? 'bg-emerald-500 border-emerald-500 text-white'
+              : 'bg-white border-gray-300 text-gray-700 hover:border-emerald-500 hover:bg-emerald-50'
           }`}
+          title="Pen"
         >
           <svg
             className="w-5 h-5"
@@ -278,11 +289,12 @@ export default function DrawingCanvas({
 
         <button
           onClick={() => setTool('eraser')}
-          className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`px-3 py-2 rounded-xl border-2 text-sm font-medium transition-all active:scale-95 ${
             tool === 'eraser'
-              ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
+              ? 'bg-emerald-500 border-emerald-500 text-white'
+              : 'bg-white border-gray-300 text-gray-700 hover:border-emerald-500 hover:bg-emerald-50'
           }`}
+          title="Eraser"
         >
           Eraser
         </button>
@@ -292,21 +304,23 @@ export default function DrawingCanvas({
         <button
           onClick={handleUndo}
           disabled={!canUndo}
-          className="px-3 py-2 rounded-md text-sm font-medium bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-2 rounded-xl border-2 border-gray-300 bg-white text-sm font-medium text-gray-700 hover:border-emerald-500 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+          title="Undo"
         >
           Undo
         </button>
 
         <button
           onClick={handleClear}
-          className="px-3 py-2 rounded-md text-sm font-medium bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+          className="px-3 py-2 rounded-xl border-2 border-gray-300 bg-white text-sm font-medium text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
+          title="Clear all"
         >
           Clear
         </button>
       </div>
 
       {/* Canvas Container with Two Layers */}
-      <div className="relative w-full bg-white rounded-lg overflow-hidden border-2 border-gray-200">
+      <div className="relative w-full bg-white rounded overflow-hidden border border-gray-200">
         {/* Hidden image element for loading */}
         <img
           ref={imageRef}
@@ -318,8 +332,7 @@ export default function DrawingCanvas({
         {/* Background canvas - shows the question image */}
         <canvas
           ref={backgroundCanvasRef}
-          className="absolute inset-0 w-full pointer-events-none"
-          style={{ minHeight: '500px' }}
+          className="absolute inset-0 w-full h-full pointer-events-none"
         />
 
         {/* Drawing canvas - for user drawings only */}
@@ -333,7 +346,7 @@ export default function DrawingCanvas({
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
           className="relative w-full cursor-crosshair touch-none"
-          style={{ minHeight: '500px' }}
+          style={{ minHeight: '300px', maxHeight: '800px' }}
         />
       </div>
     </div>
