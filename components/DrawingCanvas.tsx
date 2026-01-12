@@ -197,7 +197,7 @@ export default function DrawingCanvas({
     const { x, y } = getCoordinates(e);
 
     if (tool === 'pen') {
-      ctx.strokeStyle = '#10b981'; // Green color
+      ctx.strokeStyle = '#22c55e'; // Green color
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -262,18 +262,18 @@ export default function DrawingCanvas({
   return (
     <div className="w-full">
       {/* Toolbar - Duolingo Style */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-1.5 mb-3">
         <button
           onClick={() => setTool('pen')}
-          className={`p-2 rounded-xl border-2 transition-all active:scale-95 ${
+          className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
             tool === 'pen'
-              ? 'bg-emerald-500 border-emerald-500 text-white'
-              : 'bg-white border-gray-300 text-gray-700 hover:border-emerald-500 hover:bg-emerald-50'
+              ? 'bg-green-500 border-green-500 text-white'
+              : 'bg-white border-gray-300 text-gray-700 hover:border-green-500 hover:bg-green-50'
           }`}
           title="Pen"
         >
           <svg
-            className="w-5 h-5"
+            className="w-4 h-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -289,10 +289,10 @@ export default function DrawingCanvas({
 
         <button
           onClick={() => setTool('eraser')}
-          className={`px-3 py-2 rounded-xl border-2 text-sm font-medium transition-all active:scale-95 ${
+          className={`px-2.5 py-1.5 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
             tool === 'eraser'
-              ? 'bg-emerald-500 border-emerald-500 text-white'
-              : 'bg-white border-gray-300 text-gray-700 hover:border-emerald-500 hover:bg-emerald-50'
+              ? 'bg-black border-black text-white'
+              : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
           }`}
           title="Eraser"
         >
@@ -304,7 +304,7 @@ export default function DrawingCanvas({
         <button
           onClick={handleUndo}
           disabled={!canUndo}
-          className="px-3 py-2 rounded-xl border-2 border-gray-300 bg-white text-sm font-medium text-gray-700 hover:border-emerald-500 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+          className="px-2.5 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs font-medium text-gray-700 hover:border-black hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
           title="Undo"
         >
           Undo
@@ -312,7 +312,7 @@ export default function DrawingCanvas({
 
         <button
           onClick={handleClear}
-          className="px-3 py-2 rounded-xl border-2 border-gray-300 bg-white text-sm font-medium text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
+          className="px-2.5 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs font-medium text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
           title="Clear all"
         >
           Clear
@@ -332,7 +332,8 @@ export default function DrawingCanvas({
         {/* Background canvas - shows the question image */}
         <canvas
           ref={backgroundCanvasRef}
-          className="absolute inset-0 w-full h-full pointer-events-none"
+          className="absolute inset-0 pointer-events-none"
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
         />
 
         {/* Drawing canvas - for user drawings only */}
@@ -345,8 +346,8 @@ export default function DrawingCanvas({
           onTouchStart={startDrawing}
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
-          className="relative w-full cursor-crosshair touch-none"
-          style={{ minHeight: '300px', maxHeight: '800px' }}
+          className={`relative touch-none ${tool === 'pen' ? 'cursor-pointer' : 'cursor-cell'}`}
+          style={{ width: '100%', display: 'block', minHeight: '300px', maxHeight: '800px' }}
         />
       </div>
     </div>

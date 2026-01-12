@@ -19,6 +19,7 @@ export default function QuizPage() {
   const [showExplanation, setShowExplanation] = useState(false);
   const [showReferenceImage, setShowReferenceImage] = useState(false);
   const [showAllQuestions, setShowAllQuestions] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
   const [questions, setQuestions] = useState<Question[]>(staticQuestions);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
@@ -32,7 +33,7 @@ export default function QuizPage() {
           setQuestions(dbQuestions);
         }
       } catch (error) {
-        console.error('Error fetching questions from Supabase:', error);
+        console.error("Error fetching questions from Supabase:", error);
       } finally {
         setIsLoadingQuestions(false);
       }
@@ -46,6 +47,13 @@ export default function QuizPage() {
       if (!existingSession.checkedAnswers) {
         existingSession.checkedAnswers = {};
       }
+      // Convert old format (single number) to new format (array)
+      Object.keys(existingSession.checkedAnswers).forEach((key) => {
+        const value = existingSession.checkedAnswers[key];
+        if (typeof value === "number") {
+          existingSession.checkedAnswers[key] = [value];
+        }
+      });
       setSession(existingSession);
     } else {
       const newSession = createNewSession();
@@ -78,10 +86,7 @@ export default function QuizPage() {
           <p className="text-gray-600 mb-4">
             Please add questions using the admin panel.
           </p>
-          <button
-            onClick={() => router.push("/")}
-            className="btn-primary"
-          >
+          <button onClick={() => router.push("/")} className="btn-primary">
             Go Home
           </button>
         </div>
@@ -93,7 +98,7 @@ export default function QuizPage() {
   const progress =
     ((session.currentQuestionIndex + 1) / questions.length) * 100;
   const selectedAnswer = session.userAnswers[currentQuestion.id] || null;
-  const checkedAnswer = session.checkedAnswers[currentQuestion.id] || null;
+  const checkedAnswers = session.checkedAnswers[currentQuestion.id] || [];
 
   const handleAnswerSelect = (answerIndex: number) => {
     const timeSpent = Math.floor(
@@ -120,13 +125,23 @@ export default function QuizPage() {
   const handleCheckAnswer = (answerIndex: number) => {
     setSession((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        checkedAnswers: {
-          ...prev.checkedAnswers,
-          [currentQuestion.id]: answerIndex,
-        },
-      };
+      const currentChecked = prev.checkedAnswers[currentQuestion.id] || [];
+
+      // Add to checked answers if not already checked
+      if (!currentChecked.includes(answerIndex)) {
+        return {
+          ...prev,
+          userAnswers: {
+            ...prev.userAnswers,
+            [currentQuestion.id]: answerIndex,
+          },
+          checkedAnswers: {
+            ...prev.checkedAnswers,
+            [currentQuestion.id]: [...currentChecked, answerIndex],
+          },
+        };
+      }
+      return prev;
     });
   };
 
@@ -214,22 +229,28 @@ export default function QuizPage() {
     (key) => session.userAnswers[key] !== null
   ).length;
 
-  const isCorrect = checkedAnswer === currentQuestion.correctAnswer;
+  const isCorrect =
+    checkedAnswers.length > 0 &&
+    checkedAnswers[checkedAnswers.length - 1] === currentQuestion.correctAnswer;
 
   return (
     <>
-      <div className="min-h-screen bg-white pb-32">
+      <div
+        className={`min-h-screen bg-white pb-32 transition-all duration-300 ${
+          showCalculator ? "md:mr-[420px]" : ""
+        }`}
+      >
         {/* Top Progress Bar */}
         <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
           <div className="relative h-1 bg-gray-200">
             <div
-              className="h-1 bg-emerald-500 transition-all duration-300"
+              className="h-1 bg-black transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
             {/* Question number on progress bar */}
             <div
-              className="absolute top-2 text-xs font-bold text-emerald-600"
-              style={{ left: `${progress}%`, transform: 'translateX(-50%)' }}
+              className="absolute top-2 text-xs font-bold text-black"
+              style={{ left: `${progress}%`, transform: "translateX(-50%)" }}
             >
               Questions {session.currentQuestionIndex + 1} of {questions.length}
             </div>
@@ -246,11 +267,11 @@ export default function QuizPage() {
                   router.push("/");
                 }
               }}
-              className="p-2 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
+              className="p-1.5 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
               title="Exit"
             >
               <svg
-                className="w-6 h-6 text-gray-600"
+                className="w-5 h-5 text-gray-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -264,13 +285,18 @@ export default function QuizPage() {
               </svg>
             </button>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => window.open("https://www.desmos.com/scientific", "_blank")}
-                className="p-2 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
+                onClick={() => setShowCalculator(!showCalculator)}
+                className="p-1.5 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
                 title="Calculator"
               >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-4 h-4 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -285,96 +311,140 @@ export default function QuizPage() {
           </div>
         </div>
 
-      <div className="max-w-3xl mx-auto px-4 pt-8">
-
-        {/* Topic Badge */}
-        {currentQuestion.topics[0] && (
-          <div className="mb-4">
-            <span className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              {currentQuestion.topics[0]}
-            </span>
-          </div>
-        )}
-
-        {/* Question Image Card */}
-        <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 mb-6">
-          {currentQuestion.referenceImageUrl && (
-            <button
-              onClick={() => setShowReferenceImage(true)}
-              className="mb-3 text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              View Reference
-            </button>
+        <div className="max-w-3xl mx-auto px-4 pt-8">
+          {/* Topic Badge */}
+          {currentQuestion.topics[0] && (
+            <div className="mb-4">
+              <span className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                {currentQuestion.topics[0]}
+              </span>
+            </div>
           )}
-          <DrawingCanvas
-            imageUrl={currentQuestion.imageFilename}
-            initialDrawing={session.drawings[currentQuestion.id]}
-            onDrawingChange={handleDrawingChange}
-          />
-        </div>
 
-        {/* Answer Choices */}
-        <div className="space-y-3 mb-6">
-          {currentQuestion.answers.map((answer, index) => {
-            const answerNum = index + 1;
-            const isChecked = checkedAnswer === answerNum;
-            const isCorrectAnswer = answerNum === currentQuestion.correctAnswer;
-            const isSelected = selectedAnswer === answerNum;
-
-            let buttonClass = "w-full p-4 text-left rounded-2xl border-2 transition-all duration-200 text-base font-medium active:scale-[0.98]";
-
-            if (isChecked) {
-              if (isCorrectAnswer) {
-                buttonClass += " bg-emerald-50 border-emerald-500 text-emerald-900";
-              } else {
-                buttonClass += " bg-rose-50 border-rose-500 text-rose-900";
-              }
-            } else if (isSelected) {
-              buttonClass += " bg-sky-50 border-sky-400 text-sky-900";
-            } else {
-              buttonClass += " bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50";
-            }
-
-            return (
-              <div
-                key={index}
-                className="relative group"
-                onMouseEnter={() => setHoveredAnswer(answerNum)}
-                onMouseLeave={() => setHoveredAnswer(null)}
+          {/* Question Image Card */}
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 mb-6">
+            {currentQuestion.referenceImageUrl && (
+              <button
+                onClick={() => setShowReferenceImage(true)}
+                className="mb-3 text-sm text-black hover:text-green-700 font-medium flex items-center gap-1"
               >
-                <button
-                  onClick={() => handleAnswerSelect(answerNum)}
-                  className={buttonClass}
-                  disabled={checkedAnswer !== null}
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  {answer}
-                </button>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                View Reference
+              </button>
+            )}
+            <DrawingCanvas
+              imageUrl={currentQuestion.imageFilename}
+              initialDrawing={session.drawings[currentQuestion.id]}
+              onDrawingChange={handleDrawingChange}
+            />
+          </div>
 
-                {/* Check button on hover */}
-                {checkedAnswer === null && hoveredAnswer === answerNum && (
+          {/* Answer Choices */}
+          <div className="space-y-3 mb-6">
+            {currentQuestion.answers.map((answer, index) => {
+              const answerNum = index + 1;
+              const isChecked = checkedAnswers.includes(answerNum);
+              const isCorrectAnswer =
+                answerNum === currentQuestion.correctAnswer;
+              const isSelected = selectedAnswer === answerNum;
+
+              let buttonClass =
+                "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 text-sm font-medium active:scale-[0.98]";
+
+              if (isChecked) {
+                if (isCorrectAnswer) {
+                  buttonClass += " bg-green-50 border-black text-green-900";
+                } else {
+                  buttonClass += " bg-rose-50 border-rose-500 text-rose-900";
+                }
+              } else if (isSelected) {
+                buttonClass += " bg-sky-50 border-sky-400 text-sky-900";
+              } else {
+                buttonClass +=
+                  " bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50";
+              }
+
+              return (
+                <div
+                  key={index}
+                  className="relative group"
+                  onMouseEnter={() => setHoveredAnswer(answerNum)}
+                  onMouseLeave={() => setHoveredAnswer(null)}
+                >
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCheckAnswer(answerNum);
-                    }}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-sm font-bold rounded-full shadow-lg transition-all"
+                    onClick={() => handleAnswerSelect(answerNum)}
+                    className={buttonClass}
                   >
-                    CHECK
+                    {answer}
                   </button>
-                )}
+
+                  {/* Check button on hover - show on any option that hasn't been checked yet */}
+                  {hoveredAnswer === answerNum && !isChecked && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCheckAnswer(answerNum);
+                      }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 px-3 py-1.5 bg-black hover:bg-gray-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-md transition-all"
+                    >
+                      CHECK
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Calculator on Mobile - inline below answers */}
+          {showCalculator && (
+            <div className="md:hidden w-full bg-white border-2 border-gray-200 rounded-xl overflow-hidden mb-6">
+              <div className="flex items-center justify-between p-4 border-b-2 border-gray-200 bg-gray-50">
+                <h3 className="text-base font-bold text-gray-900">
+                  TI-84 Calculator
+                </h3>
+                <button
+                  onClick={() => setShowCalculator(false)}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all"
+                  aria-label="Close calculator"
+                >
+                  <svg
+                    className="w-5 h-5 text-gray-700"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
               </div>
-            );
-          })}
+              <div className="w-full bg-gray-50 overflow-auto">
+                <iframe
+                  src="https://ti84calconline.com/calculator.php"
+                  className="w-full h-full min-h-[800px] border-0"
+                  title="TI-84 Plus CE Calculator"
+                  allow="fullscreen"
+                />
+              </div>
+            </div>
+          )}
         </div>
-      </div>
       </div>
 
       {/* Drop-up Panel for All Questions */}
@@ -390,7 +460,9 @@ export default function QuizPage() {
           <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl shadow-2xl p-6 z-50 max-w-2xl w-full mx-4 border-2 border-gray-200">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">All Questions</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  All Questions
+                </h3>
                 <p className="text-sm text-gray-500 mt-1">
                   {answeredCount} of {questions.length} completed
                 </p>
@@ -399,8 +471,18 @@ export default function QuizPage() {
                 onClick={() => setShowAllQuestions(false)}
                 className="p-2 rounded-full hover:bg-gray-100 transition-colors"
               >
-                <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -412,15 +494,18 @@ export default function QuizPage() {
                   session.userAnswers[q.id] !== null &&
                   session.userAnswers[q.id] !== undefined;
                 const isCurrent = index === session.currentQuestionIndex;
-                const isChecked = session.checkedAnswers[q.id] !== null && session.checkedAnswers[q.id] !== undefined;
-                const isCorrect = isChecked && session.checkedAnswers[q.id] === q.correctAnswer;
+                const checkedArray = session.checkedAnswers[q.id] || [];
+                const isChecked = checkedArray.length > 0;
+                const isCorrect =
+                  isChecked &&
+                  checkedArray[checkedArray.length - 1] === q.correctAnswer;
 
                 let bgClass = "bg-white border-2 border-gray-200 text-gray-700";
                 if (isCurrent) {
                   bgClass = "bg-slate-700 border-slate-700 text-white";
                 } else if (isChecked) {
                   if (isCorrect) {
-                    bgClass = "bg-emerald-50 border-emerald-500 text-emerald-700";
+                    bgClass = "bg-green-50 border-black text-green-700";
                   } else {
                     bgClass = "bg-rose-50 border-rose-500 text-rose-700";
                   }
@@ -444,7 +529,8 @@ export default function QuizPage() {
                           questionTimes: {
                             ...prev.questionTimes,
                             [currentQuestion.id]:
-                              (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
+                              (prev.questionTimes[currentQuestion.id] || 0) +
+                              timeSpent,
                           },
                         };
                       });
@@ -466,7 +552,7 @@ export default function QuizPage() {
                 <span>Unanswered</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded border-2 border-emerald-500 bg-emerald-50"></div>
+                <div className="w-6 h-6 rounded border-2 border-black bg-green-50"></div>
                 <span>Correct</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -483,31 +569,57 @@ export default function QuizPage() {
       )}
 
       {/* Fixed Bottom Section - Duolingo Style */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 z-30">
+      <div
+        className={`fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 z-30 transition-all duration-300 ${
+          showCalculator ? "md:right-[420px]" : "md:right-0"
+        }`}
+      >
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             {/* Left: Navigation */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {/* Previous Button */}
               <button
                 onClick={handlePrevious}
                 disabled={session.currentQuestionIndex === 0}
-                className="p-2.5 rounded-full border-2 border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="p-2 rounded-full border-2 border-gray-300 hover:border-black hover:bg-gray-100 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 title="Previous"
               >
-                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <svg
+                  className="w-4 h-4 text-gray-700"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
                 </svg>
               </button>
 
               {/* Question Navigator */}
               <button
                 onClick={() => setShowAllQuestions(true)}
-                className="px-4 py-2.5 rounded-full border-2 border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 text-sm font-bold text-gray-700 active:scale-95 transition-all flex items-center gap-1.5"
+                className="px-3 py-2 rounded-full border-2 border-gray-300 hover:border-black hover:bg-gray-100 text-xs font-bold text-gray-700 active:scale-95 transition-all flex items-center gap-1.5"
               >
-                <span>{session.currentQuestionIndex + 1} of {questions.length}</span>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                <span>
+                  {session.currentQuestionIndex + 1} of {questions.length}
+                </span>
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 15l7-7 7 7"
+                  />
                 </svg>
               </button>
 
@@ -515,11 +627,21 @@ export default function QuizPage() {
               <button
                 onClick={handleNext}
                 disabled={session.currentQuestionIndex === questions.length - 1}
-                className="p-2.5 rounded-full border-2 border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="p-2 rounded-full border-2 border-gray-300 hover:border-black hover:bg-gray-100 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 title="Next"
               >
-                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className="w-4 h-4 text-gray-700"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </button>
             </div>
@@ -527,7 +649,7 @@ export default function QuizPage() {
             {/* Right: Explanation Button */}
             <button
               onClick={() => setShowExplanation(true)}
-              className="px-6 py-3 text-base font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-95 rounded-2xl shadow-md transition-all"
+              className="px-5 py-2.5 text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-xl shadow-md transition-all"
             >
               EXPLANATION
             </button>
@@ -541,7 +663,9 @@ export default function QuizPage() {
         onClose={() => setShowExplanation(false)}
         explanationText={currentQuestion.explanation}
         explanationImageUrl={currentQuestion.explanationImageUrl}
-        correctAnswer={currentQuestion.answers[currentQuestion.correctAnswer - 1]}
+        correctAnswer={
+          currentQuestion.answers[currentQuestion.correctAnswer - 1]
+        }
         isCorrect={isCorrect}
       />
 
@@ -553,6 +677,23 @@ export default function QuizPage() {
           imageUrl={currentQuestion.referenceImageUrl}
         />
       )}
+
+      {/* Calculator Panel - Desktop only (right sidebar) */}
+      <div
+        className={`hidden md:block fixed top-0 right-0 h-full w-[420px] bg-white border-l-2 border-gray-200 shadow-2xl z-40 transition-transform duration-300 ${
+          showCalculator ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Calculator iframe - full height */}
+        <div className="w-full h-full bg-gray-50 overflow-auto">
+          <iframe
+            src="https://ti84calconline.com/calculator.php"
+            className="w-full h-full border-0"
+            title="TI-84 Plus CE Calculator"
+            allow="fullscreen"
+          />
+        </div>
+      </div>
     </>
   );
 }

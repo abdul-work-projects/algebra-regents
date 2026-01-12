@@ -52,12 +52,12 @@ export default function Timer({ startTime, onTick }: TimerProps) {
   };
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1">
       {/* Timer Display */}
       {!isHidden && (
-        <div className="flex items-center gap-1.5 text-gray-700">
+        <div className="flex items-center gap-1 text-gray-700">
           <svg
-            className="w-4 h-4 text-gray-500"
+            className="w-3.5 h-3.5 text-gray-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -69,20 +69,20 @@ export default function Timer({ startTime, onTick }: TimerProps) {
               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <span className="text-sm font-mono font-medium">
+          <span className="text-xs font-mono font-medium">
             {formatTime(elapsedSeconds)}
           </span>
           {isPaused && (
-            <span className="text-xs text-orange-600 font-medium">PAUSED</span>
+            <span className="text-[10px] text-orange-600 font-medium">PAUSED</span>
           )}
         </div>
       )}
 
       {/* Timer Controls - Always Visible */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <button
           onClick={handlePauseToggle}
-          className="p-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+          className="p-1 rounded hover:bg-gray-100 active:scale-95 transition-all"
           title={isPaused ? 'Resume timer' : 'Pause timer'}
         >
           {isPaused ? (
@@ -97,7 +97,7 @@ export default function Timer({ startTime, onTick }: TimerProps) {
         </button>
         <button
           onClick={() => setIsHidden(!isHidden)}
-          className="p-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+          className="p-1 rounded hover:bg-gray-100 active:scale-95 transition-all"
           title={isHidden ? "Show timer" : "Hide timer"}
         >
           {isHidden ? (

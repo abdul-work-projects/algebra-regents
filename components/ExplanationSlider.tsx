@@ -55,27 +55,27 @@ export default function ExplanationSlider({
       >
         <div className="h-full flex flex-col">
           {/* Header - Duolingo Style */}
-          <div className={`p-6 border-b-2 ${isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+          <div className={`p-5 border-b-2 ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-rose-50 border-rose-200'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold">
+                <h2 className="text-xl font-bold">
                   {isCorrect ? (
-                    <span className="text-emerald-600">✓ Correct!</span>
+                    <span className="text-green-600">✓ Correct!</span>
                   ) : (
                     <span className="text-rose-600">✗ Incorrect</span>
                   )}
                 </h2>
-                <p className="text-sm text-gray-600 mt-2 font-medium">
+                <p className="text-xs text-gray-600 mt-1.5 font-medium">
                   Correct answer: <span className="font-bold text-gray-800">{correctAnswer}</span>
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-xl hover:bg-white active:scale-95 transition-all"
+                className="p-1.5 rounded-lg hover:bg-white active:scale-95 transition-all"
                 aria-label="Close explanation"
               >
                 <svg
-                  className="w-6 h-6 text-gray-700"
+                  className="w-5 h-5 text-gray-700"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -92,32 +92,32 @@ export default function ExplanationSlider({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="bg-white rounded-2xl border-2 border-gray-200 p-5 mb-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">
+          <div className="flex-1 overflow-y-auto p-5">
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-4 mb-4">
+              <h3 className="text-base font-bold text-gray-900 mb-2">
                 Explanation
               </h3>
-              <p className="text-gray-700 leading-relaxed text-base">
+              <p className="text-gray-700 leading-relaxed text-sm">
                 {explanationText}
               </p>
             </div>
 
             {explanationImageUrl && (
-              <div className="bg-white rounded-2xl border-2 border-gray-200 p-4 overflow-hidden">
+              <div className="bg-white rounded-xl border-2 border-gray-200 p-3 overflow-hidden">
                 <img
                   src={explanationImageUrl}
                   alt="Explanation"
-                  className="w-full rounded-xl"
+                  className="w-full rounded-lg"
                 />
               </div>
             )}
           </div>
 
           {/* Footer - Duolingo Style */}
-          <div className="p-6 border-t-2 border-gray-200 bg-white">
+          <div className="p-5 border-t-2 border-gray-200 bg-white">
             <button
               onClick={onClose}
-              className="w-full px-6 py-4 text-base font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] rounded-2xl shadow-md transition-all"
+              className="w-full px-5 py-3 text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-[0.98] rounded-xl shadow-md transition-all"
             >
               CONTINUE
             </button>

@@ -12,7 +12,7 @@ export interface Question {
 export interface QuizSession {
   currentQuestionIndex: number;
   userAnswers: { [questionId: string]: number | null };
-  checkedAnswers: { [questionId: string]: number | null }; // Which answer was checked
+  checkedAnswers: { [questionId: string]: number[] }; // Array of checked answers
   questionTimes: { [questionId: string]: number }; // time spent in seconds
   drawings: { [questionId: string]: string }; // base64 encoded canvas data
   startTime: number;
