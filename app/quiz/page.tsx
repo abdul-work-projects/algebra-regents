@@ -434,16 +434,8 @@ export default function QuizPage() {
               </div>
               <div className="w-full h-[650px] bg-gray-50 overflow-hidden">
                 <iframe
-                  src="https://ti84calconline.com/calculator.php"
-                  className="border-0"
-                  style={{
-                    margin: "-60px",
-                    width: "calc(100% + 120px)",
-                    height: "calc(100% + 120px)",
-                    minHeight: "600px",
-                    transform: "scale(1.2)",
-                    transformOrigin: "center center",
-                  }}
+                  src="https://ti84.pages.dev/#popup"
+                  className="border-0 w-full h-full"
                   title="TI-84 Plus CE Calculator"
                   allow="fullscreen"
                 />
@@ -695,27 +687,18 @@ export default function QuizPage() {
 
       {/* Calculator Panel - Desktop only (right sidebar) */}
       <div
-        className={`hidden md:block fixed top-0 right-0 w-[420px] h-[850px] bg-white border-l-2 border-gray-200 rounded-l-xl shadow-2xl z-40 transition-transform duration-300 ${
+        className={`hidden md:block fixed top-0 right-0 w-[420px] h-screen bg-white border-l-2 border-gray-200 shadow-2xl z-40 transition-transform duration-300 ${
           showCalculator ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Calculator iframe */}
-        <div className="w-full h-full bg-gray-50 overflow-y-auto overflow-x-hidden">
+        <div className="w-full h-full bg-gray-50 overflow-auto">
           <iframe
-            src="https://ti84calconline.com/calculator.php"
-            className="border-0"
-            style={{
-              marginTop: "-80px",
-              marginLeft: "-40px",
-              marginRight: "-40px",
-              marginBottom: "-40px",
-              width: "calc(100% + 80px)",
-              height: "750px",
-              transform: "scale(1.1)",
-              transformOrigin: "top center",
-            }}
+            src="https://ti84.pages.dev/#popup"
+            className="border-0 w-full h-full"
             title="TI-84 Plus CE Calculator"
             allow="fullscreen"
+            scrolling="yes"
           />
         </div>
       </div>
