@@ -248,9 +248,7 @@ export default function QuizPage() {
               style={{ width: `${progress}%` }}
             />
             {/* Question number centered above progress bar */}
-            <div
-              className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs font-bold text-black"
-            >
+            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs font-bold text-black">
               Questions {session.currentQuestionIndex + 1} of {questions.length}
             </div>
           </div>
@@ -433,11 +431,18 @@ export default function QuizPage() {
                   </svg>
                 </button>
               </div>
-              <div className="w-full bg-gray-50 overflow-hidden">
+              <div className="w-full h-[650px] bg-gray-50 overflow-hidden">
                 <iframe
                   src="https://ti84calconline.com/calculator.php"
-                  className="w-full h-full min-h-[800px] border-0"
-                  style={{ margin: '-20px', width: 'calc(100% + 40px)', height: 'calc(100% + 40px)' }}
+                  className="border-0"
+                  style={{
+                    margin: "-60px",
+                    width: "calc(100% + 120px)",
+                    height: "calc(100% + 120px)",
+                    minHeight: "600px",
+                    transform: "scale(1.2)",
+                    transformOrigin: "center center",
+                  }}
                   title="TI-84 Plus CE Calculator"
                   allow="fullscreen"
                 />
@@ -680,15 +685,25 @@ export default function QuizPage() {
 
       {/* Calculator Panel - Desktop only (right sidebar) */}
       <div
-        className={`hidden md:block fixed top-0 right-0 h-full w-[420px] bg-white border-l-2 border-gray-200 shadow-2xl z-40 transition-transform duration-300 ${
+        className={`hidden md:block fixed top-0 right-0 w-[420px] h-[850px] bg-white border-l-2 border-gray-200 rounded-l-xl shadow-2xl z-40 transition-transform duration-300 ${
           showCalculator ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* Calculator iframe - full height */}
-        <div className="w-full h-full bg-gray-50 overflow-auto">
+        {/* Calculator iframe */}
+        <div className="w-full h-full bg-gray-50 overflow-y-auto overflow-x-hidden">
           <iframe
             src="https://ti84calconline.com/calculator.php"
-            className="w-full h-full border-0"
+            className="border-0"
+            style={{
+              marginTop: "-80px",
+              marginLeft: "-40px",
+              marginRight: "-40px",
+              marginBottom: "-40px",
+              width: "calc(100% + 80px)",
+              height: "750px",
+              transform: "scale(1.1)",
+              transformOrigin: "top center",
+            }}
             title="TI-84 Plus CE Calculator"
             allow="fullscreen"
           />
