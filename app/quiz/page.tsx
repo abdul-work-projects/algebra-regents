@@ -247,10 +247,9 @@ export default function QuizPage() {
               className="h-1 bg-black transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
-            {/* Question number on progress bar */}
+            {/* Question number centered above progress bar */}
             <div
-              className="absolute top-2 text-xs font-bold text-black"
-              style={{ left: `${progress}%`, transform: "translateX(-50%)" }}
+              className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs font-bold text-black"
             >
               Questions {session.currentQuestionIndex + 1} of {questions.length}
             </div>
@@ -434,10 +433,11 @@ export default function QuizPage() {
                   </svg>
                 </button>
               </div>
-              <div className="w-full bg-gray-50 overflow-auto">
+              <div className="w-full bg-gray-50 overflow-hidden">
                 <iframe
                   src="https://ti84calconline.com/calculator.php"
                   className="w-full h-full min-h-[800px] border-0"
+                  style={{ margin: '-20px', width: 'calc(100% + 40px)', height: 'calc(100% + 40px)' }}
                   title="TI-84 Plus CE Calculator"
                   allow="fullscreen"
                 />
