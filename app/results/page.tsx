@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { questions as staticQuestions } from '@/lib/data';
 import { loadSession, clearSession } from '@/lib/storage';
-import { calculateResults, getPerformanceLevel, formatTime, getScoreComment } from '@/lib/results';
+import { calculateResults, getPerformanceLevel, formatTime, getScoreComment, getScaledScore } from '@/lib/results';
 import { fetchQuestionsForQuiz } from '@/lib/supabase';
 import { Question, QuizResult } from '@/lib/types';
 
@@ -48,9 +48,9 @@ export default function ResultsPage() {
     );
   }
 
-  const scorePercentage = Math.round((result.earnedPoints / result.totalPoints) * 100);
-  const performance = getPerformanceLevel(scorePercentage);
-  const scoreComment = getScoreComment(result.earnedPoints);
+  const rawScore = result.earnedPoints;
+  const scaledScore = getScaledScore(rawScore);
+  const scoreComment = getScoreComment(scaledScore);
 
   const handleRetakeQuiz = () => {
     clearSession();
@@ -78,24 +78,29 @@ export default function ResultsPage() {
         {/* Score Card */}
         <div className="bg-white border-2 border-gray-200 rounded-xl p-8 mb-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-40 h-40 rounded-full bg-black mb-4">
-              <span className={`font-bold text-white ${scorePercentage === 100 ? 'text-4xl' : 'text-5xl'}`}>
-                {scorePercentage}%
+            {/* Circle with Remark */}
+            <div className={`inline-flex flex-col items-center justify-center w-48 h-48 rounded-full ${scoreComment.circleColor} mb-4 text-white`}>
+              <span className="font-bold text-2xl text-center px-4">
+                {scoreComment.status}
               </span>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              {result.earnedPoints} / {result.totalPoints} Points
+
+            {/* Score Details */}
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Raw Score: {rawScore} / {result.totalPoints}
             </h2>
+            <p className="text-xl font-semibold text-gray-700 mb-2">
+              Scaled Score: {scaledScore} / 100
+            </p>
             <p className="text-sm text-gray-600 mb-4">
               {result.score} / {result.totalQuestions} Questions Correct
             </p>
+
+            {/* Message */}
             <div
               className={`inline-block px-6 py-3 rounded-xl border-2 ${scoreComment.bgColor} mb-4`}
             >
-              <div className={`font-bold text-base ${scoreComment.color}`}>
-                {scoreComment.status}
-              </div>
-              <div className={`text-sm ${scoreComment.color} mt-1`}>
+              <div className={`text-sm ${scoreComment.color}`}>
                 {scoreComment.message}
               </div>
             </div>

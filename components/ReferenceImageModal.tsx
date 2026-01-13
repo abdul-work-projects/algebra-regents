@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 /**
  * ReferenceImageModal Component
  *
- * Modal to display reference image for the question
+ * Modal to display reference image or default PDF reference sheet
  */
 
 interface ReferenceImageModalProps {
   isOpen: boolean;
   onClose: () => void;
-  imageUrl: string;
+  imageUrl?: string; // Optional - if not provided, shows default PDF
 }
 
 export default function ReferenceImageModal({
@@ -22,21 +22,25 @@ export default function ReferenceImageModal({
   // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
 
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
+      document.addEventListener("keydown", handleEscape);
       // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
       return () => {
-        document.removeEventListener('keydown', handleEscape);
-        document.body.style.overflow = 'unset';
+        document.removeEventListener("keydown", handleEscape);
+        document.body.style.overflow = "unset";
       };
     }
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  // If no imageUrl provided, use default reference sheet image
+  const isDefaultReference = !imageUrl;
+  const contentUrl = imageUrl || "/Reference Sheet.jpg";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -51,7 +55,7 @@ export default function ReferenceImageModal({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-semibold text-gray-900">
-            Reference
+            {isDefaultReference ? "Reference Sheet" : "Reference"}
           </h3>
           <button
             onClick={onClose}
@@ -74,11 +78,11 @@ export default function ReferenceImageModal({
           </button>
         </div>
 
-        {/* Image */}
+        {/* Content - Image */}
         <div className="p-4 overflow-auto max-h-[calc(90vh-4rem)]">
           <img
-            src={imageUrl}
-            alt="Reference"
+            src={contentUrl}
+            alt={isDefaultReference ? "Reference Sheet" : "Reference"}
             className="w-full h-auto rounded"
           />
         </div>

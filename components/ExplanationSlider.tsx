@@ -15,6 +15,7 @@ interface ExplanationSliderProps {
   explanationImageUrl?: string;
   correctAnswer: string;
   isCorrect: boolean;
+  hasAnswered: boolean; // New prop to check if user selected an answer
 }
 
 export default function ExplanationSlider({
@@ -24,6 +25,7 @@ export default function ExplanationSlider({
   explanationImageUrl,
   correctAnswer,
   isCorrect,
+  hasAnswered,
 }: ExplanationSliderProps) {
   // Close on escape key
   useEffect(() => {
@@ -55,19 +57,35 @@ export default function ExplanationSlider({
       >
         <div className="h-full flex flex-col">
           {/* Header - Duolingo Style */}
-          <div className={`p-5 border-b-2 ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-rose-50 border-rose-200'}`}>
+          <div className={`p-5 border-b-2 ${
+            !hasAnswered ? 'bg-gray-50 border-gray-200' :
+            isCorrect ? 'bg-green-50 border-green-200' : 'bg-rose-50 border-rose-200'
+          }`}>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold">
-                  {isCorrect ? (
-                    <span className="text-green-600">✓ Correct!</span>
-                  ) : (
-                    <span className="text-rose-600">✗ Incorrect</span>
-                  )}
-                </h2>
-                <p className="text-xs text-gray-600 mt-1.5 font-medium">
-                  Correct answer: <span className="font-bold text-gray-800">{correctAnswer}</span>
-                </p>
+                {hasAnswered ? (
+                  <>
+                    <h2 className="text-xl font-bold">
+                      {isCorrect ? (
+                        <span className="text-green-600">✓ Correct!</span>
+                      ) : (
+                        <span className="text-rose-600">✗ Incorrect</span>
+                      )}
+                    </h2>
+                    <p className="text-xs text-gray-600 mt-1.5 font-medium">
+                      Correct answer: <span className="font-bold text-gray-800">{correctAnswer}</span>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-bold text-gray-700">
+                      Explanation
+                    </h2>
+                    <p className="text-xs text-gray-600 mt-1.5 font-medium">
+                      Correct answer: <span className="font-bold text-gray-800">{correctAnswer}</span>
+                    </p>
+                  </>
+                )}
               </div>
               <button
                 onClick={onClose}
