@@ -265,10 +265,6 @@ export default function QuizPage() {
               className="h-1 bg-black transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
-            {/* Question number centered above progress bar */}
-            <div className="absolute top-3 md:top-2 left-1/2 transform -translate-x-1/2 text-xs font-bold text-black">
-              Questions {session.currentQuestionIndex + 1} of {questions.length}
-            </div>
           </div>
 
           <div className="max-w-5xl mx-auto px-4 py-4 md:py-3 flex items-center justify-between">
@@ -327,16 +323,51 @@ export default function QuizPage() {
         </div>
 
         <div className="max-w-3xl mx-auto px-4 pt-8">
-          {/* Topic Badges */}
-          {currentQuestion.topics.length > 0 && (
-            <div className="mb-4 flex flex-wrap gap-2">
-              {currentQuestion.topics.map((topic, index) => (
-                <span key={index} className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
-                  {topic}
-                </span>
-              ))}
+          {/* Question Number and Topic Badges Row */}
+          <div className="mb-4 flex items-center gap-2 flex-wrap">
+            {/* Question Number Badge */}
+            <div className="flex items-center gap-2">
+              <span className="inline-block text-sm font-bold px-4 py-1.5 rounded-full bg-black text-white">
+                Question {session.currentQuestionIndex + 1}
+              </span>
+
+              {/* Mark for Review Button */}
+              <button
+                onClick={handleToggleMarkForReview}
+                className={`p-1.5 rounded-full border-2 active:scale-95 transition-all ${
+                  isMarkedForReview
+                    ? "bg-yellow-50 border-yellow-400 hover:border-yellow-500"
+                    : "border-gray-300 hover:border-black hover:bg-gray-100"
+                }`}
+                title={isMarkedForReview ? "Unmark for review" : "Mark for review"}
+              >
+                <svg
+                  className={`w-4 h-4 ${isMarkedForReview ? "text-yellow-600" : "text-gray-700"}`}
+                  fill={isMarkedForReview ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                  />
+                </svg>
+              </button>
             </div>
-          )}
+
+            {/* Topic Badges */}
+            {currentQuestion.topics.length > 0 && (
+              <>
+                {currentQuestion.topics.map((topic, index) => (
+                  <span key={index} className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                    {topic}
+                  </span>
+                ))}
+              </>
+            )}
+          </div>
 
           {/* Question Image Card */}
           <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 mb-6">
@@ -473,7 +504,7 @@ export default function QuizPage() {
           />
 
           {/* Panel */}
-          <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl shadow-2xl p-6 z-50 max-w-2xl w-full mx-4 border-2 border-gray-200">
+          <div className="fixed bottom-24 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white rounded-2xl shadow-2xl p-4 md:p-6 z-50 md:max-w-2xl md:w-full border-2 border-gray-200 max-h-[70vh] md:max-h-[600px] flex flex-col">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">
@@ -504,7 +535,7 @@ export default function QuizPage() {
             </div>
 
             {/* Question Grid */}
-            <div className="grid grid-cols-10 gap-2.5 max-h-80 overflow-y-auto pr-2">
+            <div className="grid grid-cols-10 gap-2.5 overflow-y-auto pr-2 flex-1 min-h-0">
               {questions.map((q, index) => {
                 const isAnswered =
                   session.userAnswers[q.id] !== null &&
@@ -577,7 +608,7 @@ export default function QuizPage() {
             </div>
 
             {/* Legend at bottom */}
-            <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t text-xs text-gray-600">
+            <div className="flex items-center justify-center gap-3 md:gap-6 mt-4 pt-4 border-t text-xs text-gray-600 flex-shrink-0 flex-wrap">
               <div className="flex items-center gap-1.5">
                 <div className="w-6 h-6 rounded border-2 border-gray-200 bg-white"></div>
                 <span>Unanswered</span>
@@ -684,31 +715,6 @@ export default function QuizPage() {
                   </svg>
                 </button>
               )}
-
-              {/* Mark for Review Button */}
-              <button
-                onClick={handleToggleMarkForReview}
-                className={`p-2 rounded-full border-2 active:scale-95 transition-all ${
-                  isMarkedForReview
-                    ? "bg-yellow-50 border-yellow-400 hover:border-yellow-500"
-                    : "border-gray-300 hover:border-black hover:bg-gray-100"
-                }`}
-                title={isMarkedForReview ? "Unmark for review" : "Mark for review"}
-              >
-                <svg
-                  className={`w-4 h-4 ${isMarkedForReview ? "text-yellow-600" : "text-gray-700"}`}
-                  fill={isMarkedForReview ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                  />
-                </svg>
-              </button>
             </div>
 
             {/* Right: Explanation Button */}

@@ -41,6 +41,11 @@ export default function DrawingCanvas({
   const [tool, setTool] = useState<Tool>('pen');
   const [history, setHistory] = useState<string[]>([]); // Stack of canvas states for undo
   const [canUndo, setCanUndo] = useState(false);
+  const [penSize, setPenSize] = useState(2);
+  const [eraserSize, setEraserSize] = useState(20);
+  const [penColor, setPenColor] = useState('#22c55e'); // Default green
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
 
   /**
    * Initialize both canvas layers when image loads
@@ -220,21 +225,42 @@ export default function DrawingCanvas({
     const { x, y } = getCoordinates(e);
 
     if (tool === 'pen') {
-      ctx.strokeStyle = '#22c55e'; // Green color
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = penColor;
+      ctx.lineWidth = penSize;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.globalCompositeOperation = 'source-over';
     } else {
       // Eraser mode - erase on the drawing canvas only
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.lineWidth = 20;
+      ctx.lineWidth = eraserSize;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
     }
 
     ctx.lineTo(x, y);
     ctx.stroke();
+  };
+
+  const handleMouseMove = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
+  ) => {
+    const canvas = drawingCanvasRef.current;
+    if (!canvas) return;
+
+    // Update cursor position for eraser visual
+    if (tool === 'eraser') {
+      const rect = canvas.getBoundingClientRect();
+      if ('touches' in e) {
+        const touch = e.touches[0];
+        setCursorPosition({ x: touch.clientX - rect.left, y: touch.clientY - rect.top });
+      } else {
+        setCursorPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      }
+    }
+
+    // Call draw for both pen and eraser
+    draw(e);
   };
 
   const stopDrawing = () => {
@@ -282,64 +308,170 @@ export default function DrawingCanvas({
     onDrawingChange('');
   };
 
+  const colors = [
+    { name: 'Green', value: '#22c55e' },
+    { name: 'Blue', value: '#3b82f6' },
+    { name: 'Red', value: '#ef4444' },
+    { name: 'Yellow', value: '#eab308' },
+    { name: 'Purple', value: '#a855f7' },
+    { name: 'Black', value: '#000000' },
+  ];
+
   return (
     <div className="w-full">
       {/* Toolbar - Duolingo Style */}
-      <div className="flex items-center gap-1.5 mb-3">
-        <button
-          onClick={() => setTool('pen')}
-          className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
-            tool === 'pen'
-              ? 'bg-green-500 border-green-500 text-white'
-              : 'bg-white border-gray-300 text-gray-700 hover:border-green-500 hover:bg-green-50'
-          }`}
-          title="Pen"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+      <div className="flex flex-col gap-3 mb-3">
+        {/* Tools and Actions Row */}
+        <div className="flex items-center gap-1.5">
+          {/* Pen Tool with Integrated Color Picker */}
+          <div className="relative">
+            {/* Unified Pen Button */}
+            <button
+              onClick={(e) => {
+                if (tool === 'pen') {
+                  // If already pen, toggle color picker
+                  setShowColorPicker(!showColorPicker);
+                } else {
+                  // If not pen, select pen tool
+                  setTool('pen');
+                }
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (tool === 'pen') {
+                  setShowColorPicker(true);
+                }
+              }}
+              className={`relative p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
+                tool === 'pen'
+                  ? 'border-2 text-white'
+                  : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+              }`}
+              style={tool === 'pen' ? { backgroundColor: penColor, borderColor: penColor } : {}}
+              title="Pen (click again to change color)"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                />
+              </svg>
+
+              {/* Small triangle indicator when pen is selected */}
+              {tool === 'pen' && (
+                <div className="absolute bottom-0 right-0 w-0 h-0 border-l-4 border-l-transparent border-b-4 border-b-white" />
+              )}
+            </button>
+
+            {/* Color Picker Popup - Minimal Horizontal Dropup */}
+            {showColorPicker && tool === 'pen' && (
+              <>
+                {/* Backdrop to close popup */}
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowColorPicker(false)}
+                />
+                {/* Popup Content */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white border-2 border-gray-200 rounded-lg shadow-xl p-1.5 z-20">
+                  {/* Arrow pointing down */}
+                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-r-2 border-b-2 border-gray-200 rotate-45" />
+
+                  {/* Horizontal color swatches */}
+                  <div className="flex items-center gap-1.5">
+                    {colors.map((color) => (
+                      <button
+                        key={color.value}
+                        onClick={() => {
+                          setPenColor(color.value);
+                          setShowColorPicker(false);
+                        }}
+                        className={`w-7 h-7 rounded-md transition-all hover:scale-110 active:scale-95 ${
+                          penColor === color.value ? 'ring-2 ring-black ring-offset-1' : 'border-2 border-gray-300'
+                        }`}
+                        style={{ backgroundColor: color.value }}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <button
+            onClick={() => setTool('eraser')}
+            className={`px-2.5 py-1.5 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
+              tool === 'eraser'
+                ? 'bg-black border-black text-white'
+                : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+            }`}
+            title="Eraser"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-            />
-          </svg>
-        </button>
+            Eraser
+          </button>
 
-        <button
-          onClick={() => setTool('eraser')}
-          className={`px-2.5 py-1.5 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
-            tool === 'eraser'
-              ? 'bg-black border-black text-white'
-              : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
-          }`}
-          title="Eraser"
-        >
-          Eraser
-        </button>
+          <div className="flex-1" />
 
-        <div className="flex-1" />
+          <button
+            onClick={handleUndo}
+            disabled={!canUndo}
+            className="px-2.5 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs font-medium text-gray-700 hover:border-black hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+            title="Undo"
+          >
+            Undo
+          </button>
 
-        <button
-          onClick={handleUndo}
-          disabled={!canUndo}
-          className="px-2.5 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs font-medium text-gray-700 hover:border-black hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
-          title="Undo"
-        >
-          Undo
-        </button>
+          <button
+            onClick={handleClear}
+            className="px-2.5 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs font-medium text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
+            title="Clear all"
+          >
+            Clear
+          </button>
+        </div>
 
-        <button
-          onClick={handleClear}
-          className="px-2.5 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs font-medium text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
-          title="Clear all"
-        >
-          Clear
-        </button>
+        {/* Size Slider Row */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+            {tool === 'pen' ? 'Pen' : 'Eraser'} Size:
+          </span>
+          <input
+            type="range"
+            min={tool === 'pen' ? '1' : '5'}
+            max={tool === 'pen' ? '10' : '50'}
+            value={tool === 'pen' ? penSize : eraserSize}
+            onChange={(e) => {
+              const value = parseInt(e.target.value);
+              if (tool === 'pen') {
+                setPenSize(value);
+              } else {
+                setEraserSize(value);
+              }
+            }}
+            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
+            style={{
+              background: `linear-gradient(to right, #000 0%, #000 ${
+                tool === 'pen'
+                  ? ((penSize - 1) / 9) * 100
+                  : ((eraserSize - 5) / 45) * 100
+              }%, #e5e7eb ${
+                tool === 'pen'
+                  ? ((penSize - 1) / 9) * 100
+                  : ((eraserSize - 5) / 45) * 100
+              }%, #e5e7eb 100%)`,
+            }}
+          />
+          <span className="text-xs font-bold text-gray-700 min-w-[24px] text-right">
+            {tool === 'pen' ? penSize : eraserSize}
+          </span>
+        </div>
       </div>
 
       {/* Canvas Container with Two Layers */}
@@ -363,15 +495,35 @@ export default function DrawingCanvas({
         <canvas
           ref={drawingCanvasRef}
           onMouseDown={startDrawing}
-          onMouseMove={draw}
+          onMouseMove={handleMouseMove}
           onMouseUp={stopDrawing}
           onMouseLeave={stopDrawing}
           onTouchStart={startDrawing}
-          onTouchMove={draw}
+          onTouchMove={handleMouseMove}
           onTouchEnd={stopDrawing}
-          className={`relative touch-none ${tool === 'pen' ? 'cursor-pointer' : 'cursor-cell'}`}
-          style={{ width: '100%', height: 'auto', display: 'block' }}
+          className="relative touch-none"
+          style={{
+            width: '100%',
+            height: 'auto',
+            display: 'block',
+            cursor: tool === 'pen' ? 'crosshair' : 'none'
+          }}
         />
+
+        {/* Custom Eraser Cursor */}
+        {tool === 'eraser' && (
+          <div
+            className="pointer-events-none absolute rounded-full border-2 border-black bg-white bg-opacity-30"
+            style={{
+              left: `${cursorPosition.x}px`,
+              top: `${cursorPosition.y}px`,
+              width: `${eraserSize}px`,
+              height: `${eraserSize}px`,
+              transform: 'translate(-50%, -50%)',
+              transition: 'width 0.1s, height 0.1s',
+            }}
+          />
+        )}
       </div>
     </div>
   );
