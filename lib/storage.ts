@@ -44,6 +44,7 @@ export const createNewSession = (): QuizSession => {
     checkedAnswers: {},
     questionTimes: {},
     drawings: {},
+    markedForReview: {},
     startTime: now,
     lastQuestionStartTime: now,
   };

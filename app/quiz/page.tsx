@@ -47,6 +47,10 @@ export default function QuizPage() {
       if (!existingSession.checkedAnswers) {
         existingSession.checkedAnswers = {};
       }
+      // Add markedForReview if it doesn't exist (backward compatibility)
+      if (!existingSession.markedForReview) {
+        existingSession.markedForReview = {};
+      }
       // Convert old format (single number) to new format (array)
       Object.keys(existingSession.checkedAnswers).forEach((key) => {
         const value = existingSession.checkedAnswers[key];
@@ -99,6 +103,7 @@ export default function QuizPage() {
     ((session.currentQuestionIndex + 1) / questions.length) * 100;
   const selectedAnswer = session.userAnswers[currentQuestion.id] || null;
   const checkedAnswers = session.checkedAnswers[currentQuestion.id] || [];
+  const isMarkedForReview = session.markedForReview[currentQuestion.id] || false;
 
   const handleAnswerSelect = (answerIndex: number) => {
     const timeSpent = Math.floor(
@@ -210,6 +215,19 @@ export default function QuizPage() {
         drawings: {
           ...prev.drawings,
           [currentQuestion.id]: dataUrl,
+        },
+      };
+    });
+  };
+
+  const handleToggleMarkForReview = () => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        markedForReview: {
+          ...prev.markedForReview,
+          [currentQuestion.id]: !prev.markedForReview[currentQuestion.id],
         },
       };
     });
@@ -497,6 +515,7 @@ export default function QuizPage() {
                 const isCorrect =
                   isChecked &&
                   checkedArray[checkedArray.length - 1] === q.correctAnswer;
+                const isMarked = session.markedForReview[q.id] || false;
 
                 let bgClass = "bg-white border-2 border-gray-200 text-gray-700";
                 if (isCurrent) {
@@ -534,10 +553,24 @@ export default function QuizPage() {
                       });
                       setShowAllQuestions(false);
                     }}
-                    className={`h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass}`}
-                    title={`Question ${index + 1}`}
+                    className={`relative h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass}`}
+                    title={`Question ${index + 1}${isMarked ? ' (Marked for review)' : ''}`}
                   >
                     {index + 1}
+                    {isMarked && (
+                      <svg
+                        className="absolute -top-1 -right-1 w-3.5 h-3.5 text-yellow-500"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                        />
+                      </svg>
+                    )}
                   </button>
                 );
               })}
@@ -651,6 +684,31 @@ export default function QuizPage() {
                   </svg>
                 </button>
               )}
+
+              {/* Mark for Review Button */}
+              <button
+                onClick={handleToggleMarkForReview}
+                className={`p-2 rounded-full border-2 active:scale-95 transition-all ${
+                  isMarkedForReview
+                    ? "bg-yellow-50 border-yellow-400 hover:border-yellow-500"
+                    : "border-gray-300 hover:border-black hover:bg-gray-100"
+                }`}
+                title={isMarkedForReview ? "Unmark for review" : "Mark for review"}
+              >
+                <svg
+                  className={`w-4 h-4 ${isMarkedForReview ? "text-yellow-600" : "text-gray-700"}`}
+                  fill={isMarkedForReview ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                  />
+                </svg>
+              </button>
             </div>
 
             {/* Right: Explanation Button */}

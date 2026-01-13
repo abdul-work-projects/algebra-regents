@@ -16,6 +16,7 @@ export interface QuizSession {
   checkedAnswers: { [questionId: string]: number[] }; // Array of checked answers
   questionTimes: { [questionId: string]: number }; // time spent in seconds
   drawings: { [questionId: string]: string }; // base64 encoded canvas data
+  markedForReview: { [questionId: string]: boolean }; // Questions marked for review
   startTime: number;
   lastQuestionStartTime: number;
 }
