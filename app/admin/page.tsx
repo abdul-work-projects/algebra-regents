@@ -25,6 +25,8 @@ export default function AdminPage() {
   const [explanationImagePreview, setExplanationImagePreview] = useState<string | null>(null);
 
   const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
+  const [answerImages, setAnswerImages] = useState<(File | null)[]>([null, null, null, null]);
+  const [answerImagePreviews, setAnswerImagePreviews] = useState<(string | null)[]>([null, null, null, null]);
   const [correctAnswer, setCorrectAnswer] = useState<number>(1);
   const [explanationText, setExplanationText] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
@@ -36,6 +38,7 @@ export default function AdminPage() {
     message: string;
   } | null>(null);
   const [draggedOver, setDraggedOver] = useState<string | null>(null);
+  const [answerDraggedOver, setAnswerDraggedOver] = useState<number | null>(null);
 
   useEffect(() => {
     async function checkAuth() {
@@ -147,6 +150,58 @@ export default function AdminPage() {
     setAnswers(newAnswers);
   };
 
+  const handleAnswerImageSelect = (index: number, file: File | null) => {
+    const newImages = [...answerImages];
+    newImages[index] = file;
+    setAnswerImages(newImages);
+
+    const newPreviews = [...answerImagePreviews];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        newPreviews[index] = reader.result as string;
+        setAnswerImagePreviews([...newPreviews]);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      newPreviews[index] = null;
+      setAnswerImagePreviews(newPreviews);
+    }
+  };
+
+  const removeAnswerImage = (index: number) => {
+    const newImages = [...answerImages];
+    newImages[index] = null;
+    setAnswerImages(newImages);
+
+    const newPreviews = [...answerImagePreviews];
+    newPreviews[index] = null;
+    setAnswerImagePreviews(newPreviews);
+  };
+
+  const handleAnswerImageDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAnswerDraggedOver(index);
+  };
+
+  const handleAnswerImageDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAnswerDraggedOver(null);
+  };
+
+  const handleAnswerImageDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAnswerDraggedOver(null);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      handleAnswerImageSelect(index, file);
+    }
+  };
+
   const resetForm = () => {
     setEditingId(null);
     setQuestionName("");
@@ -157,6 +212,8 @@ export default function AdminPage() {
     setExplanationImage(null);
     setExplanationImagePreview(null);
     setAnswers(["", "", "", ""]);
+    setAnswerImages([null, null, null, null]);
+    setAnswerImagePreviews([null, null, null, null]);
     setCorrectAnswer(1);
     setExplanationText("");
     setSelectedTopics([]);
@@ -170,6 +227,7 @@ export default function AdminPage() {
     setReferenceImagePreview(question.reference_image_url);
     setExplanationImagePreview(question.explanation_image_url);
     setAnswers(question.answers);
+    setAnswerImagePreviews(question.answer_image_urls || [null, null, null, null]);
     setCorrectAnswer(question.correct_answer);
     setExplanationText(question.explanation_text);
     setSelectedTopics(question.topics);
@@ -202,9 +260,17 @@ export default function AdminPage() {
       return;
     }
 
-    if (answers.some(a => !a.trim())) {
-      setNotification({ type: "error", message: "All 4 answers are required" });
-      return;
+    // Validate that each answer has either text or image (or both)
+    for (let i = 0; i < 4; i++) {
+      const hasText = answers[i]?.trim();
+      const hasImage = answerImages[i] || answerImagePreviews[i];
+      if (!hasText && !hasImage) {
+        setNotification({
+          type: "error",
+          message: `Answer ${i + 1} must have either text or image (or both)`
+        });
+        return;
+      }
     }
 
     if (!explanationText.trim()) {
@@ -252,11 +318,27 @@ export default function AdminPage() {
         );
       }
 
+      // Upload answer images
+      const answerImageUrls = await Promise.all(
+        answerImages.map(async (img, index) => {
+          if (img) {
+            const sanitizedName = sanitizeFilename(img.name);
+            return await uploadImage(
+              "answer-images",
+              img,
+              `answers/${Date.now()}-${index}-${sanitizedName}`
+            );
+          }
+          return answerImagePreviews[index] || null;
+        })
+      );
+
       const questionData = {
         name: questionName.trim() || null,
         question_image_url: questionImageUrl!,
         reference_image_url: referenceImageUrl,
         answers,
+        answer_image_urls: answerImageUrls,
         correct_answer: correctAnswer,
         explanation_text: explanationText,
         explanation_image_url: explanationImageUrl,
@@ -552,31 +634,107 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Compact Answers */}
+              {/* Answers with optional images */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Answers <span className="text-red-500">*</span>
+                  Answers <span className="text-red-500">*</span> <span className="text-gray-500 font-normal">(text or image or both required)</span>
                 </label>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {answers.map((answer, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="correct-answer"
-                        checked={correctAnswer === index + 1}
-                        onChange={() => setCorrectAnswer(index + 1)}
-                        className="h-3 w-3"
-                      />
-                      <input
-                        type="text"
-                        value={answer}
-                        onChange={(e) => handleAnswerChange(index, e.target.value)}
-                        placeholder={`Answer ${index + 1}`}
-                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                      />
-                      {correctAnswer === index + 1 && (
-                        <span className="text-green-600 text-xs font-medium">✓</span>
-                      )}
+                    <div key={index} className="border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-start gap-2 mb-2">
+                        <input
+                          type="radio"
+                          name="correct-answer"
+                          checked={correctAnswer === index + 1}
+                          onChange={() => setCorrectAnswer(index + 1)}
+                          className="h-4 w-4 mt-1"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-bold text-gray-700">({index + 1})</span>
+                            {correctAnswer === index + 1 && (
+                              <span className="text-green-600 text-xs font-bold">✓ Correct</span>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            value={answer}
+                            onChange={(e) => handleAnswerChange(index, e.target.value)}
+                            placeholder={`Answer text (optional if image provided)`}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Image upload for this answer */}
+                      <div className="ml-6">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            handleAnswerImageSelect(index, file || null);
+                          }}
+                          className="hidden"
+                          id={`answer-image-${index}`}
+                        />
+                        {answerImagePreviews[index] ? (
+                          <label
+                            htmlFor={`answer-image-${index}`}
+                            className="cursor-pointer block"
+                            onDragOver={(e) => handleAnswerImageDragOver(e, index)}
+                            onDragLeave={handleAnswerImageDragLeave}
+                            onDrop={(e) => handleAnswerImageDrop(e, index)}
+                          >
+                            <div className={`relative w-full max-w-xs h-24 rounded border-2 overflow-hidden transition-all ${
+                              answerDraggedOver === index ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'
+                            }`}>
+                              <img
+                                src={answerImagePreviews[index]!}
+                                alt={`Answer ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                              {answerDraggedOver === index && (
+                                <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                                  <span className="text-xs font-bold text-blue-700">Drop to replace</span>
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  removeAnswerImage(index);
+                                }}
+                                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 active:scale-95 transition-all z-10"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          </label>
+                        ) : (
+                          <label
+                            htmlFor={`answer-image-${index}`}
+                            className="cursor-pointer block"
+                            onDragOver={(e) => handleAnswerImageDragOver(e, index)}
+                            onDragLeave={handleAnswerImageDragLeave}
+                            onDrop={(e) => handleAnswerImageDrop(e, index)}
+                          >
+                            <div className={`w-full max-w-xs h-20 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
+                              answerDraggedOver === index ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-500'
+                            }`}>
+                              <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span className="text-xs font-medium">Drop image or click</span>
+                              <span className="text-xs">(optional)</span>
+                            </div>
+                          </label>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

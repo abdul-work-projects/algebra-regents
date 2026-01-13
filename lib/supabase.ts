@@ -17,6 +17,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * - question_image_url: text (URL to question image in storage)
  * - reference_image_url: text (URL to reference image in storage, optional)
  * - answers: text[] (array of 4 answer choices)
+ * - answer_image_urls: text[] (array of 4 optional image URLs for answer choices)
  * - correct_answer: integer (1-4)
  * - explanation_text: text
  * - explanation_image_url: text (optional)
@@ -29,6 +30,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * - question-images: For question screenshot images
  * - reference-images: For reference images
  * - explanation-images: For explanation images (optional)
+ * - answer-images: For answer option images (optional)
  */
 
 // Type definition for database question
@@ -38,6 +40,7 @@ export interface DatabaseQuestion {
   question_image_url: string;
   reference_image_url: string | null;
   answers: string[]; // Array of 4 answer choices
+  answer_image_urls?: (string | null)[]; // Optional array of 4 image URLs for answers
   correct_answer: number;
   explanation_text: string;
   explanation_image_url: string | null;
@@ -136,6 +139,7 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion): Question {
     imageFilename: dbQuestion.question_image_url,
     referenceImageUrl: dbQuestion.reference_image_url || undefined,
     answers: dbQuestion.answers,
+    answerImageUrls: dbQuestion.answer_image_urls?.map(url => url || undefined),
     correctAnswer: dbQuestion.correct_answer,
     explanation: dbQuestion.explanation_text,
     explanationImageUrl: dbQuestion.explanation_image_url || undefined,

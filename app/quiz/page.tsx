@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { questions as staticQuestions } from "@/lib/data";
 import { Question, QuizSession } from "@/lib/types";
 import { loadSession, saveSession, createNewSession } from "@/lib/storage";
 import { fetchQuestionsForQuiz } from "@/lib/supabase";
@@ -20,7 +19,7 @@ export default function QuizPage() {
   const [showReferenceImage, setShowReferenceImage] = useState(false);
   const [showAllQuestions, setShowAllQuestions] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
-  const [questions, setQuestions] = useState<Question[]>(staticQuestions);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
   useEffect(() => {
@@ -29,9 +28,7 @@ export default function QuizPage() {
     async function loadQuestions() {
       try {
         const dbQuestions = await fetchQuestionsForQuiz();
-        if (dbQuestions.length > 0) {
-          setQuestions(dbQuestions);
-        }
+        setQuestions(dbQuestions);
       } catch (error) {
         console.error("Error fetching questions from Supabase:", error);
       } finally {
@@ -423,6 +420,8 @@ export default function QuizPage() {
                   " bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50";
               }
 
+              const answerImage = currentQuestion.answerImageUrls?.[index];
+
               return (
                 <div
                   key={index}
@@ -432,8 +431,19 @@ export default function QuizPage() {
                     onClick={() => handleAnswerSelect(answerNum)}
                     className={buttonClass}
                   >
-                    <span className="font-bold mr-2">({answerNum})</span>
-                    {answer}
+                    <div className="flex items-start gap-3">
+                      <span className="font-bold shrink-0">({answerNum})</span>
+                      <div className="flex-1">
+                        {answer && <div className="mb-2">{answer}</div>}
+                        {answerImage && (
+                          <img
+                            src={answerImage}
+                            alt={`Answer ${answerNum}`}
+                            className="max-w-full h-auto rounded border border-gray-300"
+                          />
+                        )}
+                      </div>
+                    </div>
                   </button>
 
                   {/* Check button when selected - show on any option that hasn't been checked yet */}
@@ -443,7 +453,7 @@ export default function QuizPage() {
                         e.stopPropagation();
                         handleCheckAnswer(answerNum);
                       }}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 px-3 py-1.5 bg-black hover:bg-gray-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-md transition-all"
+                      className="absolute right-3 top-3 px-3 py-1.5 bg-black hover:bg-gray-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-md transition-all"
                     >
                       CHECK
                     </button>

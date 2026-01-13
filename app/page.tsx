@@ -1,14 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { questions as staticQuestions } from '@/lib/data';
 import { loadSession, clearSession } from '@/lib/storage';
 import { fetchQuestionsForQuiz } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
   const [hasExistingSession, setHasExistingSession] = useState(false);
-  const [questionCount, setQuestionCount] = useState(staticQuestions.length);
+  const [questionCount, setQuestionCount] = useState<number | null>(null);
 
   useEffect(() => {
     const session = loadSession();
@@ -17,11 +16,10 @@ export default function Home() {
     async function loadQuestionCount() {
       try {
         const dbQuestions = await fetchQuestionsForQuiz();
-        if (dbQuestions.length > 0) {
-          setQuestionCount(dbQuestions.length);
-        }
+        setQuestionCount(dbQuestions.length);
       } catch (error) {
         console.error('Error fetching question count:', error);
+        setQuestionCount(0);
       }
     }
 
@@ -48,7 +46,7 @@ export default function Home() {
             Practice Test
           </p>
           <div className="inline-flex items-center justify-center px-4 py-2 bg-black text-white rounded-xl font-bold text-sm">
-            {questionCount} Questions
+            {questionCount === null ? 'Loading...' : `${questionCount} Questions`}
           </div>
         </div>
 

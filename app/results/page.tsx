@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { questions as staticQuestions } from '@/lib/data';
 import { loadSession, clearSession } from '@/lib/storage';
 import { calculateResults, getPerformanceLevel, formatTime, getScoreComment, getScaledScore } from '@/lib/results';
 import { fetchQuestionsForQuiz } from '@/lib/supabase';
@@ -12,7 +11,7 @@ export default function ResultsPage() {
   const router = useRouter();
   const [result, setResult] = useState<QuizResult | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [questions, setQuestions] = useState<Question[]>(staticQuestions);
+  const [questions, setQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
     async function loadResults() {
@@ -22,19 +21,15 @@ export default function ResultsPage() {
         return;
       }
 
-      let questionsToUse: Question[] = staticQuestions;
       try {
         const dbQuestions = await fetchQuestionsForQuiz();
-        if (dbQuestions.length > 0) {
-          questionsToUse = dbQuestions;
-          setQuestions(dbQuestions);
-        }
+        setQuestions(dbQuestions);
+        const calculatedResult = calculateResults(dbQuestions, session);
+        setResult(calculatedResult);
       } catch (error) {
         console.error('Error fetching questions:', error);
+        router.push('/');
       }
-
-      const calculatedResult = calculateResults(questionsToUse, session);
-      setResult(calculatedResult);
     }
 
     loadResults();
@@ -226,25 +221,41 @@ export default function ResultsPage() {
                       </div>
                       <div className="text-sm text-gray-700">
                         {qResult.userAnswer !== null && (
-                          <div>
-                            Your answer:{' '}
-                            <span className="font-medium">
-                              {
-                                questions[index].answers[qResult.userAnswer - 1]
-                              }
-                            </span>
+                          <div className="mb-2">
+                            <span className="block mb-1">Your answer:</span>
+                            <div className="ml-4">
+                              {questions[index].answers[qResult.userAnswer - 1] && (
+                                <span className="font-medium">
+                                  {questions[index].answers[qResult.userAnswer - 1]}
+                                </span>
+                              )}
+                              {questions[index].answerImageUrls?.[qResult.userAnswer - 1] && (
+                                <img
+                                  src={questions[index].answerImageUrls[qResult.userAnswer - 1]}
+                                  alt={`Your answer ${qResult.userAnswer}`}
+                                  className="max-w-[200px] h-auto rounded border border-gray-300 mt-1"
+                                />
+                              )}
+                            </div>
                           </div>
                         )}
                         {!qResult.isCorrect && (
                           <div className="text-green-700">
-                            Correct answer:{' '}
-                            <span className="font-medium">
-                              {
-                                questions[index].answers[
-                                  qResult.correctAnswer - 1
-                                ]
-                              }
-                            </span>
+                            <span className="block mb-1">Correct answer:</span>
+                            <div className="ml-4">
+                              {questions[index].answers[qResult.correctAnswer - 1] && (
+                                <span className="font-medium">
+                                  {questions[index].answers[qResult.correctAnswer - 1]}
+                                </span>
+                              )}
+                              {questions[index].answerImageUrls?.[qResult.correctAnswer - 1] && (
+                                <img
+                                  src={questions[index].answerImageUrls[qResult.correctAnswer - 1]}
+                                  alt={`Correct answer ${qResult.correctAnswer}`}
+                                  className="max-w-[200px] h-auto rounded border border-gray-300 mt-1"
+                                />
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>

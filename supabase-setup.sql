@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS questions (
   question_image_url TEXT NOT NULL,
   reference_image_url TEXT,
   answers TEXT[] NOT NULL,
+  answer_image_urls TEXT[],
   correct_answer INTEGER NOT NULL CHECK (correct_answer >= 1 AND correct_answer <= 4),
   explanation_text TEXT NOT NULL,
   explanation_image_url TEXT,
@@ -84,6 +85,11 @@ ON CONFLICT (id) DO NOTHING;
 -- Create storage bucket for explanation images
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('explanation-images', 'explanation-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Create storage bucket for answer images
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('answer-images', 'answer-images', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- =====================================================
@@ -180,6 +186,36 @@ CREATE POLICY "Authenticated users can delete explanation images"
   TO authenticated
   USING (bucket_id = 'explanation-images');
 
+-- Answer Images Bucket Policies
+
+-- Allow public to read answer images
+CREATE POLICY "Public can view answer images"
+  ON storage.objects
+  FOR SELECT
+  TO public
+  USING (bucket_id = 'answer-images');
+
+-- Allow authenticated users to upload answer images
+CREATE POLICY "Authenticated users can upload answer images"
+  ON storage.objects
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'answer-images');
+
+-- Allow authenticated users to update answer images
+CREATE POLICY "Authenticated users can update answer images"
+  ON storage.objects
+  FOR UPDATE
+  TO authenticated
+  USING (bucket_id = 'answer-images');
+
+-- Allow authenticated users to delete answer images
+CREATE POLICY "Authenticated users can delete answer images"
+  ON storage.objects
+  FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'answer-images');
+
 -- =====================================================
 -- Triggers for automatic updated_at timestamp
 -- =====================================================
@@ -211,4 +247,4 @@ WHERE EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'question
 -- Verify storage buckets were created
 SELECT 'Storage buckets created: ' || string_agg(name, ', ') AS status
 FROM storage.buckets
-WHERE name IN ('question-images', 'reference-images', 'explanation-images');
+WHERE name IN ('question-images', 'reference-images', 'explanation-images', 'answer-images');
