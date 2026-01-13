@@ -3,7 +3,7 @@ export interface Question {
   imageFilename: string;
   referenceImageUrl?: string; // Reference image URL
   answers: string[];
-  answerImageUrls?: string[]; // Optional image URLs for each answer (1-4)
+  answerImageUrls?: (string | undefined)[]; // Optional image URLs for each answer (1-4), can be undefined to preserve indices
   correctAnswer: number; // 1-4
   explanation: string;
   explanationImageUrl?: string; // Explanation image URL
