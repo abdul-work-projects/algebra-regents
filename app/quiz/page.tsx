@@ -792,7 +792,7 @@ export default function QuizPage() {
             </div>
 
             {/* Question Grid */}
-            <div className="grid grid-cols-10 gap-2.5 overflow-y-auto pr-2 flex-1 min-h-0">
+            <div className="flex flex-wrap gap-2 overflow-y-auto pr-2 flex-1 min-h-0">
               {questions.map((q, index) => {
                 const isAnswered =
                   session.userAnswers[q.id] !== null &&
@@ -841,7 +841,7 @@ export default function QuizPage() {
                       });
                       setShowAllQuestions(false);
                     }}
-                    className={`relative h-10 rounded-xl flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass}`}
+                    className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass}`}
                     title={`Question ${index + 1}${
                       isMarked ? " (Marked for review)" : ""
                     }`}
