@@ -13,7 +13,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS questions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT,
-  question_image_url TEXT NOT NULL,
+  question_text TEXT,
+  question_image_url TEXT,
   reference_image_url TEXT,
   answers TEXT[] NOT NULL,
   answer_image_urls TEXT[],
@@ -23,7 +24,12 @@ CREATE TABLE IF NOT EXISTS questions (
   topics TEXT[] NOT NULL,
   points INTEGER NOT NULL DEFAULT 1,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT question_text_or_image_required CHECK (
+    (question_text IS NOT NULL AND question_text != '')
+    OR
+    (question_image_url IS NOT NULL AND question_image_url != '')
+  )
 );
 
 -- Create index on created_at for faster ordering

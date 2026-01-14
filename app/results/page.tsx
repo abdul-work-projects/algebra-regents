@@ -6,6 +6,7 @@ import { loadSession, clearSession } from '@/lib/storage';
 import { calculateResults, getPerformanceLevel, formatTime, getScoreComment, getScaledScore } from '@/lib/results';
 import { fetchQuestionsForQuiz } from '@/lib/supabase';
 import { Question, QuizResult } from '@/lib/types';
+import MathText from '@/components/MathText';
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -225,9 +226,9 @@ export default function ResultsPage() {
                             <span className="block mb-1">Your answer:</span>
                             <div className="ml-4">
                               {questions[index].answers[qResult.userAnswer - 1] && (
-                                <span className="font-medium">
-                                  {questions[index].answers[qResult.userAnswer - 1]}
-                                </span>
+                                <div className="font-medium">
+                                  <MathText text={questions[index].answers[qResult.userAnswer - 1]} />
+                                </div>
                               )}
                               {questions[index].answerImageUrls?.[qResult.userAnswer - 1] && (
                                 <img
@@ -244,9 +245,9 @@ export default function ResultsPage() {
                             <span className="block mb-1">Correct answer:</span>
                             <div className="ml-4">
                               {questions[index].answers[qResult.correctAnswer - 1] && (
-                                <span className="font-medium">
-                                  {questions[index].answers[qResult.correctAnswer - 1]}
-                                </span>
+                                <div className="font-medium">
+                                  <MathText text={questions[index].answers[qResult.correctAnswer - 1]} />
+                                </div>
                               )}
                               {questions[index].answerImageUrls?.[qResult.correctAnswer - 1] && (
                                 <img

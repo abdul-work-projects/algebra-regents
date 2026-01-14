@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from 'react';
  */
 
 interface DrawingCanvasProps {
-  imageUrl: string;
+  imageUrl?: string; // Optional - questions can have text only
   initialDrawing?: string; // Base64 encoded previous drawing to restore
   onDrawingChange: (dataUrl: string) => void; // Callback when drawing changes
 }
@@ -42,7 +42,7 @@ export default function DrawingCanvas({
   const [history, setHistory] = useState<string[]>([]); // Stack of canvas states for undo
   const [canUndo, setCanUndo] = useState(false);
   const [penSize, setPenSize] = useState(2);
-  const [eraserSize, setEraserSize] = useState(20);
+  const [eraserSize, setEraserSize] = useState(15);
   const [penColor, setPenColor] = useState('#22c55e'); // Default green
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
@@ -320,7 +320,7 @@ export default function DrawingCanvas({
   return (
     <div className="w-full">
       {/* Toolbar - Compact Single Row */}
-      <div className="flex items-center gap-1.5 mb-3">
+      <div className="flex items-center gap-1.5 mb-2">
         {/* Pen Tool with Integrated Color Picker */}
         <div className="relative">
           {/* Unified Pen Button */}
@@ -426,7 +426,7 @@ export default function DrawingCanvas({
         <div className="flex items-center gap-1">
           {tool === 'pen' ? (
             <>
-              {[2, 4, 6, 8].map((size) => (
+              {[2, 6].map((size) => (
                 <button
                   key={size}
                   onClick={() => setPenSize(size)}
@@ -436,13 +436,13 @@ export default function DrawingCanvas({
                       : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
                   }`}
                 >
-                  {size === 2 ? 'S' : size === 4 ? 'M' : size === 6 ? 'L' : 'XL'}
+                  {size === 2 ? 'S' : 'L'}
                 </button>
               ))}
             </>
           ) : (
             <>
-              {[10, 20, 30, 40].map((size) => (
+              {[15, 35].map((size) => (
                 <button
                   key={size}
                   onClick={() => setEraserSize(size)}
@@ -452,7 +452,7 @@ export default function DrawingCanvas({
                       : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
                   }`}
                 >
-                  {size === 10 ? 'S' : size === 20 ? 'M' : size === 30 ? 'L' : 'XL'}
+                  {size === 15 ? 'S' : 'L'}
                 </button>
               ))}
             </>
@@ -494,7 +494,7 @@ export default function DrawingCanvas({
       </div>
 
       {/* Canvas Container with Two Layers */}
-      <div className="relative w-full bg-white rounded overflow-hidden border border-gray-200">
+      <div className="relative w-full bg-white overflow-hidden">
         {/* Hidden image element for loading */}
         <img
           ref={imageRef}

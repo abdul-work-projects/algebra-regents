@@ -14,7 +14,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * Table: questions
  * - id: uuid (primary key)
  * - name: text (optional question name/title for admin identification)
- * - question_image_url: text (URL to question image in storage)
+ * - question_text: text (optional question text, can include LaTeX for math)
+ * - question_image_url: text (URL to question image in storage, optional)
  * - reference_image_url: text (URL to reference image in storage, optional)
  * - answers: text[] (array of 4 answer choices)
  * - answer_image_urls: text[] (array of 4 optional image URLs for answer choices)
@@ -37,7 +38,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export interface DatabaseQuestion {
   id: string;
   name: string | null;
-  question_image_url: string;
+  question_text: string | null;
+  question_image_url: string | null;
   reference_image_url: string | null;
   answers: string[]; // Array of 4 answer choices
   answer_image_urls?: (string | null)[]; // Optional array of 4 image URLs for answers
@@ -136,7 +138,8 @@ export async function deleteQuestion(id: string) {
 export function convertToQuizFormat(dbQuestion: DatabaseQuestion): Question {
   return {
     id: dbQuestion.id,
-    imageFilename: dbQuestion.question_image_url,
+    questionText: dbQuestion.question_text || undefined,
+    imageFilename: dbQuestion.question_image_url || undefined,
     referenceImageUrl: dbQuestion.reference_image_url || undefined,
     answers: dbQuestion.answers,
     answerImageUrls: dbQuestion.answer_image_urls?.map(url => url || undefined),

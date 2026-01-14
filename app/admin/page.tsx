@@ -17,6 +17,7 @@ export default function AdminPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [questionName, setQuestionName] = useState("");
+  const [questionText, setQuestionText] = useState("");
   const [questionImage, setQuestionImage] = useState<File | null>(null);
   const [questionImagePreview, setQuestionImagePreview] = useState<string | null>(null);
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
@@ -205,6 +206,7 @@ export default function AdminPage() {
   const resetForm = () => {
     setEditingId(null);
     setQuestionName("");
+    setQuestionText("");
     setQuestionImage(null);
     setQuestionImagePreview(null);
     setReferenceImage(null);
@@ -223,6 +225,7 @@ export default function AdminPage() {
   const loadQuestionForEdit = (question: DatabaseQuestion) => {
     setEditingId(question.id);
     setQuestionName(question.name || "");
+    setQuestionText(question.question_text || "");
     setQuestionImagePreview(question.question_image_url);
     setReferenceImagePreview(question.reference_image_url);
     setExplanationImagePreview(question.explanation_image_url);
@@ -255,8 +258,11 @@ export default function AdminPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!questionImage && !editingId) {
-      setNotification({ type: "error", message: "Question image is required" });
+    // Validate that either question text or image is provided
+    const hasQuestionText = questionText.trim();
+    const hasQuestionImage = questionImage || questionImagePreview;
+    if (!hasQuestionText && !hasQuestionImage) {
+      setNotification({ type: "error", message: "Question must have either text or image (or both)" });
       return;
     }
 
@@ -335,7 +341,8 @@ export default function AdminPage() {
 
       const questionData = {
         name: questionName.trim() || null,
-        question_image_url: questionImageUrl!,
+        question_text: questionText.trim() || null,
+        question_image_url: questionImageUrl || null,
         reference_image_url: referenceImageUrl,
         answers,
         answer_image_urls: answerImageUrls,
@@ -515,11 +522,28 @@ export default function AdminPage() {
                 <p className="text-xs text-gray-500 mt-0.5">Helps you identify this question in the list</p>
               </div>
 
+              {/* Question Text */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Question Text <span className="text-gray-500">(text or image required)</span>
+                </label>
+                <textarea
+                  value={questionText}
+                  onChange={(e) => setQuestionText(e.target.value)}
+                  placeholder="Enter question text. Use LaTeX for math: \\frac{x}{2}, x^{2}, \\sqrt{x}"
+                  rows={3}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 font-mono"
+                />
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Use LaTeX for math equations. Examples: $\frac{`{x}`}{`{2}`}$, $x^{`{2}`}$, $\sqrt{`{x}`}$
+                </p>
+              </div>
+
               {/* Compact Image Uploads */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Question Image {!editingId && <span className="text-red-500">*</span>}
+                    Question Image <span className="text-gray-500">(text or image required)</span>
                   </label>
                   <input
                     type="file"

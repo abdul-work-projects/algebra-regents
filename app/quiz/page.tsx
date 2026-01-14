@@ -9,6 +9,7 @@ import DrawingCanvas from "@/components/DrawingCanvas";
 import Timer from "@/components/Timer";
 import ExplanationSlider from "@/components/ExplanationSlider";
 import ReferenceImageModal from "@/components/ReferenceImageModal";
+import MathText from "@/components/MathText";
 
 export default function QuizPage() {
   const router = useRouter();
@@ -252,7 +253,7 @@ export default function QuizPage() {
   return (
     <>
       <div
-        className={`min-h-screen bg-white pb-32 transition-all duration-300 ${
+        className={`min-h-screen bg-white pb-16 transition-all duration-300 ${
           showCalculator ? "md:mr-[420px]" : ""
         }`}
       >
@@ -265,7 +266,7 @@ export default function QuizPage() {
             />
           </div>
 
-          <div className="max-w-5xl mx-auto px-4 py-4 md:py-3 flex items-center justify-between">
+          <div className="max-w-5xl mx-auto px-4 py-2.5 md:py-2 flex items-center justify-between">
             <button
               onClick={() => {
                 if (
@@ -342,9 +343,9 @@ export default function QuizPage() {
           </div>
         </div>
 
-        <div className="max-w-3xl mx-auto px-4 pt-8">
+        <div className="max-w-3xl mx-auto px-4 pt-4">
           {/* Question Number and Topic Badges Row */}
-          <div className="mb-4 flex items-center gap-2 flex-wrap">
+          <div className="mb-3 flex items-center gap-2 flex-wrap">
             {/* Question Number Badge */}
             <div className="flex items-center gap-2">
               <span className="inline-block text-sm font-bold px-4 py-1.5 rounded-full bg-black text-white">
@@ -401,17 +402,29 @@ export default function QuizPage() {
             )}
           </div>
 
-          {/* Question Image Card */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 mb-6">
-            <DrawingCanvas
-              imageUrl={currentQuestion.imageFilename}
-              initialDrawing={session.drawings[currentQuestion.id]}
-              onDrawingChange={handleDrawingChange}
-            />
-          </div>
+          {/* Question Card - Image and/or Text */}
+          {(currentQuestion.imageFilename || currentQuestion.questionText) && (
+            <div className="mb-4">
+              {currentQuestion.imageFilename && (
+                <DrawingCanvas
+                  imageUrl={currentQuestion.imageFilename}
+                  initialDrawing={session.drawings[currentQuestion.id]}
+                  onDrawingChange={handleDrawingChange}
+                />
+              )}
+              {currentQuestion.questionText && (
+                <div className={currentQuestion.imageFilename ? "mt-3" : ""}>
+                  <MathText
+                    text={currentQuestion.questionText}
+                    className="text-base leading-relaxed"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Answer Choices */}
-          <div className="space-y-3 mb-6">
+          <div className="space-y-2 mb-4">
             {currentQuestion.answers.map((answer, index) => {
               const answerNum = index + 1;
               const isChecked = checkedAnswers.includes(answerNum);
@@ -442,12 +455,15 @@ export default function QuizPage() {
                   <button
                     onClick={() => handleAnswerSelect(answerNum)}
                     className={buttonClass}
-                    style={{ fontFamily: "'Times New Roman', Times, serif" }}
                   >
                     <div className="flex items-start gap-3">
-                      <span className="font-bold shrink-0">({answerNum})</span>
+                      <span className="font-bold shrink-0" style={{ fontFamily: "'Times New Roman', Times, serif" }}>({answerNum})</span>
                       <div className="flex-1">
-                        {answer && <div className="mb-2">{answer}</div>}
+                        {answer && (
+                          <div className="mb-2">
+                            <MathText text={answer} className="text-left" />
+                          </div>
+                        )}
                         {answerImage && (
                           <img
                             src={answerImage}
@@ -526,7 +542,7 @@ export default function QuizPage() {
           />
 
           {/* Panel */}
-          <div className="fixed bottom-24 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white rounded-2xl shadow-2xl p-4 md:p-6 z-50 md:max-w-2xl md:w-full border-2 border-gray-200 max-h-[70vh] md:max-h-[600px] flex flex-col">
+          <div className="fixed bottom-20 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white rounded-2xl shadow-2xl p-4 md:p-6 z-50 md:max-w-2xl md:w-full border-2 border-gray-200 max-h-[70vh] md:max-h-[600px] flex flex-col">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">
@@ -660,7 +676,7 @@ export default function QuizPage() {
           showCalculator ? "md:right-[420px]" : "md:right-0"
         }`}
       >
-        <div className="max-w-5xl mx-auto px-3 md:px-4 py-3 md:py-4">
+        <div className="max-w-5xl mx-auto px-3 md:px-4 py-2 md:py-2.5">
           <div className="flex items-center justify-between gap-2 md:gap-4">
             {/* Left: Navigation */}
             <div className="flex items-center gap-1.5 md:gap-2">

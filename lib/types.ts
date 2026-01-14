@@ -1,6 +1,7 @@
 export interface Question {
   id: string;
-  imageFilename: string;
+  questionText?: string; // Optional question text (can have text, image, or both)
+  imageFilename?: string; // Optional question image (can have text, image, or both)
   referenceImageUrl?: string; // Reference image URL
   answers: string[];
   answerImageUrls?: (string | undefined)[]; // Optional image URLs for each answer (1-4), can be undefined to preserve indices
