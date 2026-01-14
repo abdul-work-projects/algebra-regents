@@ -310,25 +310,24 @@ export default function QuizPage() {
 
   return (
     <>
-      {/* Fullscreen Drawing Canvas Background Layer */}
-      <FullscreenDrawingCanvas
-        initialDrawing={session.drawings[currentDrawingKey]}
-        onDrawingChange={handleDrawingChange}
-        tool={tool}
-        penSize={penSize}
-        eraserSize={eraserSize}
-        penColor={penColor}
-        onUndo={handleUndo}
-        onClear={handleClear}
-        canUndo={canUndo}
-      />
-
       <div
         className={`min-h-screen pb-16 transition-all duration-300 relative ${
           showCalculator ? "md:mr-[420px]" : ""
         }`}
         style={{ backgroundColor: 'transparent', pointerEvents: 'none' }}
       >
+        {/* Drawing Canvas - Scrolls with content */}
+        <FullscreenDrawingCanvas
+          initialDrawing={session.drawings[currentDrawingKey]}
+          onDrawingChange={handleDrawingChange}
+          tool={tool}
+          penSize={penSize}
+          eraserSize={eraserSize}
+          penColor={penColor}
+          onUndo={handleUndo}
+          onClear={handleClear}
+          canUndo={canUndo}
+        />
         {/* Top Progress Bar */}
         <div className="sticky top-0 z-[100] bg-white border-b border-gray-200" style={{ pointerEvents: 'auto' }}>
           <div className="relative h-1 bg-gray-200">
@@ -417,9 +416,9 @@ export default function QuizPage() {
 
         <div className="max-w-3xl mx-auto px-4 pt-4" style={{ pointerEvents: 'auto' }}>
           {/* Question Number and Topic Badges Row */}
-          <div className="mb-3 flex items-center gap-2 flex-wrap relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
+          <div className="mb-3 flex items-center gap-2 flex-wrap relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
             {/* Question Number Badge */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" style={{ pointerEvents: 'auto' }}>
               <span className="inline-block text-sm font-bold px-4 py-1.5 rounded-full bg-black text-white">
                 Question {session.currentQuestionIndex + 1}
               </span>
@@ -475,9 +474,9 @@ export default function QuizPage() {
           </div>
 
           {/* Drawing Toolbar - Compact Single Row */}
-          <div className="flex items-center gap-1.5 mb-2 relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
+          <div className="flex items-center gap-1.5 mb-2 relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
             {/* Pen Tool with Integrated Color Picker */}
-            <div className="relative">
+            <div className="relative" style={{ pointerEvents: 'auto' }}>
               <button
                 onClick={() => {
                   if (tool === 'pen') {
@@ -537,22 +536,24 @@ export default function QuizPage() {
             </div>
 
             {/* Eraser Button */}
-            <button
-              onClick={() => setTool('eraser')}
-              className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
-                tool === 'eraser'
-                  ? 'bg-black border-black text-white'
-                  : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
-              }`}
-              title="Eraser"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z" />
-              </svg>
-            </button>
+            <div style={{ pointerEvents: 'auto' }}>
+              <button
+                onClick={() => setTool('eraser')}
+                className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
+                  tool === 'eraser'
+                    ? 'bg-black border-black text-white'
+                    : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+                }`}
+                title="Eraser"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z" />
+                </svg>
+              </button>
+            </div>
 
             {/* Size Buttons */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1" style={{ pointerEvents: 'auto' }}>
                 {tool === 'pen' ? (
                   <>
                     {[2, 6].map((size) => (
@@ -591,27 +592,31 @@ export default function QuizPage() {
             <div className="flex-1" />
 
             {/* Undo Button */}
-            <button
-              onClick={handleUndo}
-              disabled={!canUndo}
-              className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-black hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
-              title="Undo"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" />
-              </svg>
-            </button>
+            <div style={{ pointerEvents: 'auto' }}>
+              <button
+                onClick={handleUndo}
+                disabled={!canUndo}
+                className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-black hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                title="Undo"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" />
+                </svg>
+              </button>
+            </div>
 
             {/* Clear Button */}
-            <button
-              onClick={handleClear}
-              className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
-              title="Clear all"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
-              </svg>
-            </button>
+            <div style={{ pointerEvents: 'auto' }}>
+              <button
+                onClick={handleClear}
+                className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
+                title="Clear all"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Question Card - Image and/or Text */}
@@ -638,7 +643,7 @@ export default function QuizPage() {
           )}
 
           {/* Answer Choices */}
-          <div className="space-y-2 mb-4 relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
+          <div className="space-y-2 mb-4 relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
             {currentQuestion.answers.map((answer, index) => {
               const answerNum = index + 1;
               const isChecked = checkedAnswers.includes(answerNum);
@@ -665,7 +670,7 @@ export default function QuizPage() {
               const answerImage = currentQuestion.answerImageUrls?.[index];
 
               return (
-                <div key={index} className="relative group">
+                <div key={index} className="relative group" style={{ pointerEvents: 'auto' }}>
                   <button
                     onClick={() => handleAnswerSelect(answerNum)}
                     className={buttonClass}

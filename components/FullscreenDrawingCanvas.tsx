@@ -198,7 +198,7 @@ export default function FullscreenDrawingCanvas({
   };
 
   return (
-    <div ref={containerRef} className="fixed inset-0 pointer-events-none" style={{ zIndex: 50 }}>
+    <div ref={containerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 50, minHeight: '100vh' }}>
       {/* Drawing canvas - for user drawings */}
       <canvas
         ref={canvasRef}
