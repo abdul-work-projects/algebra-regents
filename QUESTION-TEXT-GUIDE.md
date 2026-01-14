@@ -4,23 +4,6 @@
 
 Questions can now include text in addition to or instead of images. The text field supports LaTeX math notation for displaying mathematical equations, fractions, symbols, and more.
 
-## Database Migration
-
-### For New Installations
-If you're setting up the database for the first time, simply run `supabase-setup.sql` which now includes the `question_text` column.
-
-### For Existing Installations
-Run the migration script to add question text support:
-```sql
--- In Supabase SQL Editor, run:
-supabase-migration-question-text.sql
-```
-
-This migration will:
-- Add `question_text` column to the questions table
-- Make `question_image_url` nullable
-- Add a constraint to ensure at least one of text or image is provided
-
 ## Admin Panel Usage
 
 ### Adding Questions with Text
@@ -36,17 +19,21 @@ This migration will:
 Use dollar signs to wrap LaTeX math expressions:
 
 #### Inline Math (within text)
+
 Use single dollar signs: `$expression$`
 
 Examples:
+
 - `$x^{2}$` → x²
 - `$\frac{a}{b}$` → a/b (as fraction)
 - `$\sqrt{x}$` → √x
 
 #### Display Math (centered, larger)
+
 Use double dollar signs: `$$expression$$`
 
 Example:
+
 ```
 $$\frac{-b \pm \sqrt{b^{2} - 4ac}}{2a}$$
 ```
@@ -54,12 +41,14 @@ $$\frac{-b \pm \sqrt{b^{2} - 4ac}}{2a}$$
 ### Common Math Expressions
 
 #### Fractions
+
 ```
 $\frac{numerator}{denominator}$
 $\frac{x+1}{x-1}$
 ```
 
 #### Exponents and Powers
+
 ```
 $x^{2}$          → x²
 $x^{n}$          → xⁿ
@@ -68,6 +57,7 @@ $x^{2y+1}$       → x^(2y+1)
 ```
 
 #### Square Roots
+
 ```
 $\sqrt{x}$           → √x
 $\sqrt{x^{2}+y^{2}}$ → √(x²+y²)
@@ -75,6 +65,7 @@ $\sqrt[3]{x}$        → ³√x (cube root)
 ```
 
 #### Greek Letters
+
 ```
 $\alpha$, $\beta$, $\gamma$, $\delta$
 $\pi$, $\theta$, $\sigma$
@@ -82,6 +73,7 @@ $\Sigma$, $\Delta$, $\Pi$ (uppercase)
 ```
 
 #### Operators and Symbols
+
 ```
 $\times$    → ×
 $\div$      → ÷
@@ -93,6 +85,7 @@ $\approx$   → ≈
 ```
 
 #### Parentheses and Brackets
+
 ```
 $\left( \frac{x}{y} \right)$    → Automatically sized parentheses
 $\left[ x+y \right]$            → Brackets
@@ -100,6 +93,7 @@ $\left\{ x,y \right\}$          → Braces
 ```
 
 #### Subscripts
+
 ```
 $x_{1}$, $x_{2}$, $x_{n}$
 $a_{n+1}$
@@ -108,16 +102,19 @@ $a_{n+1}$
 ### Full Examples
 
 #### Example 1: Linear Equation
+
 ```
 Solve for $x$: $2x + 5 = 15$
 ```
 
 #### Example 2: Quadratic Formula
+
 ```
 Use the quadratic formula to solve: $$x = \frac{-b \pm \sqrt{b^{2} - 4ac}}{2a}$$
 ```
 
 #### Example 3: Systems of Equations
+
 ```
 Solve the system:
 $$\begin{cases}
@@ -127,11 +124,13 @@ x - y = 1
 ```
 
 #### Example 4: Mixed Text and Math
+
 ```
 If $f(x) = x^{2} + 3x - 2$, find $f(5)$.
 ```
 
 #### Example 5: Fractions and Exponents
+
 ```
 Simplify: $\frac{x^{3} \cdot x^{2}}{x^{4}}$
 ```
@@ -163,14 +162,12 @@ All math expressions in the text are rendered beautifully using KaTeX.
 ## Troubleshooting
 
 ### Math Not Rendering
+
 - Ensure you're using dollar signs correctly: `$math$` for inline, `$$math$$` for display
 - Check for unmatched braces `{}` or brackets
 - Verify the LaTeX command is supported by KaTeX
 
 ### Text Appears Raw
+
 - Make sure you used `$` symbols to wrap math expressions
 - Check that special characters are properly escaped
-
-### Database Errors
-- Ensure you ran the migration script
-- Verify the constraint allows either text or image (not requiring both)
