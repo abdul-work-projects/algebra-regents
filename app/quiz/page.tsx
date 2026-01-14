@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Question, QuizSession } from "@/lib/types";
 import { loadSession, saveSession, createNewSession } from "@/lib/storage";
 import { fetchQuestionsForQuiz } from "@/lib/supabase";
 import DrawingCanvas from "@/components/DrawingCanvas";
+import FullscreenDrawingCanvas from "@/components/FullscreenDrawingCanvas";
 import Timer from "@/components/Timer";
 import ExplanationSlider from "@/components/ExplanationSlider";
 import ReferenceImageModal from "@/components/ReferenceImageModal";
@@ -22,6 +23,76 @@ export default function QuizPage() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+
+  // Drawing state for fullscreen canvas
+  const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
+  const [penSize, setPenSize] = useState(2);
+  const [eraserSize, setEraserSize] = useState(15);
+  const [penColor, setPenColor] = useState('#22c55e');
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [drawingHistory, setDrawingHistory] = useState<Record<string, string[]>>({});
+
+  const currentDrawingKey = session ? `fullscreen-${session.currentQuestionIndex}` : '';
+  const currentHistory = drawingHistory[currentDrawingKey] || [];
+  const canUndo = currentHistory.length > 0;
+
+  const handleDrawingChange = (dataUrl: string) => {
+    if (!session) return;
+    const key = `fullscreen-${session.currentQuestionIndex}`;
+    setDrawingHistory(prev => ({
+      ...prev,
+      [key]: [...(prev[key] || []), dataUrl]
+    }));
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        drawings: {
+          ...prev.drawings,
+          [key]: dataUrl,
+        },
+      };
+    });
+  };
+
+  const handleUndo = () => {
+    if (!session || currentHistory.length === 0) return;
+    const key = `fullscreen-${session.currentQuestionIndex}`;
+    const newHistory = currentHistory.slice(0, -1);
+    setDrawingHistory(prev => ({
+      ...prev,
+      [key]: newHistory
+    }));
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        drawings: {
+          ...prev.drawings,
+          [key]: newHistory.length > 0 ? newHistory[newHistory.length - 1] : '',
+        },
+      };
+    });
+  };
+
+  const handleClear = () => {
+    if (!session) return;
+    const key = `fullscreen-${session.currentQuestionIndex}`;
+    setDrawingHistory(prev => ({
+      ...prev,
+      [key]: []
+    }));
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        drawings: {
+          ...prev.drawings,
+          [key]: '',
+        },
+      };
+    });
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -206,19 +277,6 @@ export default function QuizPage() {
     }
   };
 
-  const handleDrawingChange = (dataUrl: string) => {
-    setSession((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        drawings: {
-          ...prev.drawings,
-          [currentQuestion.id]: dataUrl,
-        },
-      };
-    });
-  };
-
   const handleToggleMarkForReview = () => {
     setSession((prev) => {
       if (!prev) return prev;
@@ -252,13 +310,27 @@ export default function QuizPage() {
 
   return (
     <>
+      {/* Fullscreen Drawing Canvas Background Layer */}
+      <FullscreenDrawingCanvas
+        initialDrawing={session.drawings[currentDrawingKey]}
+        onDrawingChange={handleDrawingChange}
+        tool={tool}
+        penSize={penSize}
+        eraserSize={eraserSize}
+        penColor={penColor}
+        onUndo={handleUndo}
+        onClear={handleClear}
+        canUndo={canUndo}
+      />
+
       <div
-        className={`min-h-screen bg-white pb-16 transition-all duration-300 ${
+        className={`min-h-screen pb-16 transition-all duration-300 relative ${
           showCalculator ? "md:mr-[420px]" : ""
         }`}
+        style={{ backgroundColor: 'transparent', pointerEvents: 'none' }}
       >
         {/* Top Progress Bar */}
-        <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
+        <div className="sticky top-0 z-[100] bg-white border-b border-gray-200" style={{ pointerEvents: 'auto' }}>
           <div className="relative h-1 bg-gray-200">
             <div
               className="h-1 bg-black transition-all duration-300"
@@ -343,9 +415,9 @@ export default function QuizPage() {
           </div>
         </div>
 
-        <div className="max-w-3xl mx-auto px-4 pt-4">
+        <div className="max-w-3xl mx-auto px-4 pt-4" style={{ pointerEvents: 'auto' }}>
           {/* Question Number and Topic Badges Row */}
-          <div className="mb-3 flex items-center gap-2 flex-wrap">
+          <div className="mb-3 flex items-center gap-2 flex-wrap relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
             {/* Question Number Badge */}
             <div className="flex items-center gap-2">
               <span className="inline-block text-sm font-bold px-4 py-1.5 rounded-full bg-black text-white">
@@ -402,15 +474,157 @@ export default function QuizPage() {
             )}
           </div>
 
+          {/* Drawing Toolbar - Compact Single Row */}
+          <div className="flex items-center gap-1.5 mb-2 relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
+            {/* Pen Tool with Integrated Color Picker */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  if (tool === 'pen') {
+                    setShowColorPicker(!showColorPicker);
+                  } else {
+                    setTool('pen');
+                  }
+                }}
+                className={`relative p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
+                  tool === 'pen'
+                    ? 'border-2 text-white'
+                    : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                style={tool === 'pen' ? { backgroundColor: penColor, borderColor: penColor } : {}}
+                title="Pen"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                {tool === 'pen' && (
+                  <div className="absolute bottom-0 right-0 w-0 h-0 border-l-4 border-l-transparent border-b-4 border-b-white" />
+                )}
+              </button>
+
+              {/* Color Picker Popup */}
+              {showColorPicker && tool === 'pen' && (
+                <>
+                  <div className="fixed inset-0 z-[110]" onClick={() => setShowColorPicker(false)} />
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white border-2 border-gray-200 rounded-lg shadow-xl p-1.5 z-[120]">
+                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-r-2 border-b-2 border-gray-200 rotate-45" />
+                    <div className="flex items-center gap-1.5">
+                      {[
+                        { name: 'Green', value: '#22c55e' },
+                        { name: 'Blue', value: '#3b82f6' },
+                        { name: 'Red', value: '#ef4444' },
+                        { name: 'Yellow', value: '#eab308' },
+                        { name: 'Purple', value: '#a855f7' },
+                        { name: 'Black', value: '#000000' },
+                      ].map((color) => (
+                        <button
+                          key={color.value}
+                          onClick={() => {
+                            setPenColor(color.value);
+                            setShowColorPicker(false);
+                          }}
+                          className={`w-7 h-7 rounded-md transition-all hover:scale-110 active:scale-95 ${
+                            penColor === color.value ? 'ring-2 ring-black ring-offset-1' : 'border-2 border-gray-300'
+                          }`}
+                          style={{ backgroundColor: color.value }}
+                          title={color.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Eraser Button */}
+            <button
+              onClick={() => setTool('eraser')}
+              className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
+                tool === 'eraser'
+                  ? 'bg-black border-black text-white'
+                  : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+              }`}
+              title="Eraser"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z" />
+              </svg>
+            </button>
+
+            {/* Size Buttons */}
+            <div className="flex items-center gap-1">
+                {tool === 'pen' ? (
+                  <>
+                    {[2, 6].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setPenSize(size)}
+                        className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
+                          penSize === size
+                            ? 'bg-black border-black text-white'
+                            : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+                        }`}
+                      >
+                        {size === 2 ? 'S' : 'L'}
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {[15, 35].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setEraserSize(size)}
+                        className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
+                          eraserSize === size
+                            ? 'bg-black border-black text-white'
+                            : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+                        }`}
+                      >
+                        {size === 15 ? 'S' : 'L'}
+                      </button>
+                    ))}
+                  </>
+                )}
+            </div>
+
+            <div className="flex-1" />
+
+            {/* Undo Button */}
+            <button
+              onClick={handleUndo}
+              disabled={!canUndo}
+              className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-black hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+              title="Undo"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" />
+              </svg>
+            </button>
+
+            {/* Clear Button */}
+            <button
+              onClick={handleClear}
+              className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
+              title="Clear all"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
+              </svg>
+            </button>
+          </div>
+
           {/* Question Card - Image and/or Text */}
           {(currentQuestion.imageFilename || currentQuestion.questionText) && (
             <div className="mb-4">
               {currentQuestion.imageFilename && (
-                <DrawingCanvas
-                  imageUrl={currentQuestion.imageFilename}
-                  initialDrawing={session.drawings[currentQuestion.id]}
-                  onDrawingChange={handleDrawingChange}
-                />
+                <div className="w-full">
+                  <img
+                    src={currentQuestion.imageFilename}
+                    alt="Question"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
               )}
               {currentQuestion.questionText && (
                 <div className={currentQuestion.imageFilename ? "mt-3" : ""}>
@@ -424,7 +638,7 @@ export default function QuizPage() {
           )}
 
           {/* Answer Choices */}
-          <div className="space-y-2 mb-4">
+          <div className="space-y-2 mb-4 relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
             {currentQuestion.answers.map((answer, index) => {
               const answerNum = index + 1;
               const isChecked = checkedAnswers.includes(answerNum);
@@ -490,45 +704,45 @@ export default function QuizPage() {
                 </div>
               );
             })}
-          </div>
-
-          {/* Calculator on Mobile - inline below answers */}
-          {showCalculator && (
-            <div className="md:hidden w-full bg-white border-2 border-gray-200 rounded-xl overflow-hidden mb-6">
-              <div className="flex items-center justify-between p-4 border-b-2 border-gray-200 bg-gray-50">
-                <h3 className="text-base font-bold text-gray-900">
-                  TI-84 Calculator
-                </h3>
-                <button
-                  onClick={() => setShowCalculator(false)}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all"
-                  aria-label="Close calculator"
-                >
-                  <svg
-                    className="w-5 h-5 text-gray-700"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <div className="w-full h-[650px] bg-gray-50 overflow-hidden">
-                <iframe
-                  src="https://ti84.pages.dev/#popup"
-                  className="border-0 w-full h-full"
-                  title="TI-84 Plus CE Calculator"
-                  allow="fullscreen"
-                />
-              </div>
             </div>
-          )}
+
+            {/* Calculator on Mobile - inline below answers */}
+            {showCalculator && (
+              <div className="md:hidden w-full bg-white border-2 border-gray-200 rounded-xl overflow-hidden mb-6 relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
+                <div className="flex items-center justify-between p-4 border-b-2 border-gray-200 bg-gray-50">
+                  <h3 className="text-base font-bold text-gray-900">
+                    TI-84 Calculator
+                  </h3>
+                  <button
+                    onClick={() => setShowCalculator(false)}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all"
+                    aria-label="Close calculator"
+                  >
+                    <svg
+                      className="w-5 h-5 text-gray-700"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div className="w-full h-[650px] bg-gray-50 overflow-hidden">
+                  <iframe
+                    src="https://ti84.pages.dev/#popup"
+                    className="border-0 w-full h-full"
+                    title="TI-84 Plus CE Calculator"
+                    allow="fullscreen"
+                  />
+                </div>
+              </div>
+            )}
         </div>
       </div>
 
@@ -537,12 +751,12 @@ export default function QuizPage() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black bg-opacity-20 z-40"
+            className="fixed inset-0 bg-black bg-opacity-20 z-[110]"
             onClick={() => setShowAllQuestions(false)}
           />
 
           {/* Panel */}
-          <div className="fixed bottom-20 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white rounded-2xl shadow-2xl p-4 md:p-6 z-50 md:max-w-2xl md:w-full border-2 border-gray-200 max-h-[70vh] md:max-h-[600px] flex flex-col">
+          <div className="fixed bottom-20 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white rounded-2xl shadow-2xl p-4 md:p-6 z-[120] md:max-w-2xl md:w-full border-2 border-gray-200 max-h-[70vh] md:max-h-[600px] flex flex-col">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">
@@ -672,9 +886,10 @@ export default function QuizPage() {
 
       {/* Fixed Bottom Section - Duolingo Style */}
       <div
-        className={`fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 z-30 transition-all duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 z-[100] transition-all duration-300 ${
           showCalculator ? "md:right-[420px]" : "md:right-0"
         }`}
+        style={{ pointerEvents: 'auto' }}
       >
         <div className="max-w-5xl mx-auto px-3 md:px-4 py-2 md:py-2.5">
           <div className="flex items-center justify-between gap-2 md:gap-4">
@@ -791,7 +1006,7 @@ export default function QuizPage() {
 
       {/* Calculator Panel - Desktop only (right sidebar) */}
       <div
-        className={`hidden md:block fixed top-0 right-0 w-[420px] h-screen bg-white border-l-2 border-gray-200 shadow-2xl z-40 transition-transform duration-300 ${
+        className={`hidden md:block fixed top-0 right-0 w-[420px] h-screen bg-white border-l-2 border-gray-200 shadow-2xl z-[100] transition-transform duration-300 ${
           showCalculator ? "translate-x-0" : "translate-x-full"
         }`}
       >
