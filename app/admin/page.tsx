@@ -448,11 +448,13 @@ export default function AdminPage() {
                     }`}
                   >
                     <div className="flex items-start gap-2">
-                      <img
-                        src={question.question_image_url}
-                        alt={`Q${index + 1}`}
-                        className="w-12 h-12 object-cover rounded flex-shrink-0"
-                      />
+                      {question.question_image_url && (
+                        <img
+                          src={question.question_image_url}
+                          alt={`Q${index + 1}`}
+                          className="w-12 h-12 object-cover rounded flex-shrink-0"
+                        />
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-1">
                           <div className="flex-1 min-w-0">
