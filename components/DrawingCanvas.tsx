@@ -319,159 +319,178 @@ export default function DrawingCanvas({
 
   return (
     <div className="w-full">
-      {/* Toolbar - Duolingo Style */}
-      <div className="flex flex-col gap-3 mb-3">
-        {/* Tools and Actions Row */}
-        <div className="flex items-center gap-1.5">
-          {/* Pen Tool with Integrated Color Picker */}
-          <div className="relative">
-            {/* Unified Pen Button */}
-            <button
-              onClick={(e) => {
-                if (tool === 'pen') {
-                  // If already pen, toggle color picker
-                  setShowColorPicker(!showColorPicker);
-                } else {
-                  // If not pen, select pen tool
-                  setTool('pen');
-                }
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (tool === 'pen') {
-                  setShowColorPicker(true);
-                }
-              }}
-              className={`relative p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
-                tool === 'pen'
-                  ? 'border-2 text-white'
-                  : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
-              }`}
-              style={tool === 'pen' ? { backgroundColor: penColor, borderColor: penColor } : {}}
-              title="Pen (click again to change color)"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                />
-              </svg>
-
-              {/* Small triangle indicator when pen is selected */}
-              {tool === 'pen' && (
-                <div className="absolute bottom-0 right-0 w-0 h-0 border-l-4 border-l-transparent border-b-4 border-b-white" />
-              )}
-            </button>
-
-            {/* Color Picker Popup - Minimal Horizontal Dropup */}
-            {showColorPicker && tool === 'pen' && (
-              <>
-                {/* Backdrop to close popup */}
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowColorPicker(false)}
-                />
-                {/* Popup Content */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white border-2 border-gray-200 rounded-lg shadow-xl p-1.5 z-20">
-                  {/* Arrow pointing down */}
-                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-r-2 border-b-2 border-gray-200 rotate-45" />
-
-                  {/* Horizontal color swatches */}
-                  <div className="flex items-center gap-1.5">
-                    {colors.map((color) => (
-                      <button
-                        key={color.value}
-                        onClick={() => {
-                          setPenColor(color.value);
-                          setShowColorPicker(false);
-                        }}
-                        className={`w-7 h-7 rounded-md transition-all hover:scale-110 active:scale-95 ${
-                          penColor === color.value ? 'ring-2 ring-black ring-offset-1' : 'border-2 border-gray-300'
-                        }`}
-                        style={{ backgroundColor: color.value }}
-                        title={color.name}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
+      {/* Toolbar - Compact Single Row */}
+      <div className="flex items-center gap-1.5 mb-3">
+        {/* Pen Tool with Integrated Color Picker */}
+        <div className="relative">
+          {/* Unified Pen Button */}
           <button
-            onClick={() => setTool('eraser')}
-            className={`px-2.5 py-1.5 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
-              tool === 'eraser'
-                ? 'bg-black border-black text-white'
-                : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
-            }`}
-            title="Eraser"
-          >
-            Eraser
-          </button>
-
-          <div className="flex-1" />
-
-          <button
-            onClick={handleUndo}
-            disabled={!canUndo}
-            className="px-2.5 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs font-medium text-gray-700 hover:border-black hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
-            title="Undo"
-          >
-            Undo
-          </button>
-
-          <button
-            onClick={handleClear}
-            className="px-2.5 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs font-medium text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
-            title="Clear all"
-          >
-            Clear
-          </button>
-        </div>
-
-        {/* Size Slider Row */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-            {tool === 'pen' ? 'Pen' : 'Eraser'} Size:
-          </span>
-          <input
-            type="range"
-            min={tool === 'pen' ? '1' : '5'}
-            max={tool === 'pen' ? '10' : '50'}
-            value={tool === 'pen' ? penSize : eraserSize}
-            onChange={(e) => {
-              const value = parseInt(e.target.value);
+            onClick={(e) => {
               if (tool === 'pen') {
-                setPenSize(value);
+                // If already pen, toggle color picker
+                setShowColorPicker(!showColorPicker);
               } else {
-                setEraserSize(value);
+                // If not pen, select pen tool
+                setTool('pen');
               }
             }}
-            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
-            style={{
-              background: `linear-gradient(to right, #000 0%, #000 ${
-                tool === 'pen'
-                  ? ((penSize - 1) / 9) * 100
-                  : ((eraserSize - 5) / 45) * 100
-              }%, #e5e7eb ${
-                tool === 'pen'
-                  ? ((penSize - 1) / 9) * 100
-                  : ((eraserSize - 5) / 45) * 100
-              }%, #e5e7eb 100%)`,
+            onContextMenu={(e) => {
+              e.preventDefault();
+              if (tool === 'pen') {
+                setShowColorPicker(true);
+              }
             }}
-          />
-          <span className="text-xs font-bold text-gray-700 min-w-[24px] text-right">
-            {tool === 'pen' ? penSize : eraserSize}
-          </span>
+            className={`relative p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
+              tool === 'pen'
+                ? 'border-2 text-white'
+                : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+            }`}
+            style={tool === 'pen' ? { backgroundColor: penColor, borderColor: penColor } : {}}
+            title="Pen (click again to change color)"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+              />
+            </svg>
+
+            {/* Small triangle indicator when pen is selected */}
+            {tool === 'pen' && (
+              <div className="absolute bottom-0 right-0 w-0 h-0 border-l-4 border-l-transparent border-b-4 border-b-white" />
+            )}
+          </button>
+
+          {/* Color Picker Popup - Minimal Horizontal Dropup */}
+          {showColorPicker && tool === 'pen' && (
+            <>
+              {/* Backdrop to close popup */}
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowColorPicker(false)}
+              />
+              {/* Popup Content */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white border-2 border-gray-200 rounded-lg shadow-xl p-1.5 z-20">
+                {/* Arrow pointing down */}
+                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-r-2 border-b-2 border-gray-200 rotate-45" />
+
+                {/* Horizontal color swatches */}
+                <div className="flex items-center gap-1.5">
+                  {colors.map((color) => (
+                    <button
+                      key={color.value}
+                      onClick={() => {
+                        setPenColor(color.value);
+                        setShowColorPicker(false);
+                      }}
+                      className={`w-7 h-7 rounded-md transition-all hover:scale-110 active:scale-95 ${
+                        penColor === color.value ? 'ring-2 ring-black ring-offset-1' : 'border-2 border-gray-300'
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
+
+        {/* Eraser Button */}
+        <button
+          onClick={() => setTool('eraser')}
+          className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
+            tool === 'eraser'
+              ? 'bg-black border-black text-white'
+              : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+          }`}
+          title="Eraser"
+        >
+          <svg
+            className="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z" />
+          </svg>
+        </button>
+
+        {/* Size Buttons */}
+        <div className="flex items-center gap-1">
+          {tool === 'pen' ? (
+            <>
+              {[2, 4, 6, 8].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setPenSize(size)}
+                  className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
+                    penSize === size
+                      ? 'bg-black border-black text-white'
+                      : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+                  }`}
+                >
+                  {size === 2 ? 'S' : size === 4 ? 'M' : size === 6 ? 'L' : 'XL'}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              {[10, 20, 30, 40].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setEraserSize(size)}
+                  className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
+                    eraserSize === size
+                      ? 'bg-black border-black text-white'
+                      : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+                  }`}
+                >
+                  {size === 10 ? 'S' : size === 20 ? 'M' : size === 30 ? 'L' : 'XL'}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Undo Button */}
+        <button
+          onClick={handleUndo}
+          disabled={!canUndo}
+          className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-black hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+          title="Undo"
+        >
+          <svg
+            className="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" />
+          </svg>
+        </button>
+
+        {/* Clear Button */}
+        <button
+          onClick={handleClear}
+          className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
+          title="Clear all"
+        >
+          <svg
+            className="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
+          </svg>
+        </button>
       </div>
 
       {/* Canvas Container with Two Layers */}
@@ -506,7 +525,7 @@ export default function DrawingCanvas({
             width: '100%',
             height: 'auto',
             display: 'block',
-            cursor: tool === 'pen' ? 'crosshair' : 'none'
+            cursor: tool === 'pen' ? 'default' : 'none'
           }}
         />
 

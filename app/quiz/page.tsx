@@ -294,14 +294,35 @@ export default function QuizPage() {
               </svg>
             </button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowReferenceImage(true)}
+                className="flex flex-col items-center gap-0.5 hover:bg-gray-100 active:scale-95 transition-all rounded-lg p-1"
+                title="Reference Sheet"
+              >
+                <svg
+                  className="w-5 h-5 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <span className="text-[9px] font-medium text-gray-600">Reference</span>
+              </button>
+
               <button
                 onClick={() => setShowCalculator(!showCalculator)}
-                className="p-1.5 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
+                className="flex flex-col items-center gap-0.5 hover:bg-gray-100 active:scale-95 transition-all rounded-lg p-1"
                 title="Calculator"
               >
                 <svg
-                  className="w-4 h-4 text-gray-600"
+                  className="w-5 h-5 text-gray-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -313,6 +334,7 @@ export default function QuizPage() {
                     d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                   />
                 </svg>
+                <span className="text-[9px] font-medium text-gray-600">Calculator</span>
               </button>
 
               <Timer startTime={session.lastQuestionStartTime} />
@@ -332,7 +354,7 @@ export default function QuizPage() {
               {/* Mark for Review Button */}
               <button
                 onClick={handleToggleMarkForReview}
-                className={`p-1.5 rounded-full border-2 active:scale-95 transition-all ${
+                className={`px-3 py-1.5 rounded-full border-2 active:scale-95 transition-all flex items-center gap-1.5 ${
                   isMarkedForReview
                     ? "bg-yellow-50 border-yellow-400 hover:border-yellow-500"
                     : "border-gray-300 hover:border-black hover:bg-gray-100"
@@ -356,6 +378,11 @@ export default function QuizPage() {
                     d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
                   />
                 </svg>
+                <span className={`text-xs font-medium ${
+                  isMarkedForReview ? "text-yellow-700" : "text-gray-700"
+                }`}>
+                  Mark for Review
+                </span>
               </button>
             </div>
 
@@ -376,28 +403,6 @@ export default function QuizPage() {
 
           {/* Question Image Card */}
           <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 mb-6">
-            {/* Always show reference button - shows default PDF if no specific reference */}
-            <button
-              onClick={() => setShowReferenceImage(true)}
-              className="mb-3 text-sm text-black hover:text-green-700 font-medium flex items-center gap-1"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              {currentQuestion.referenceImageUrl
-                ? "View Reference"
-                : "View Reference Sheet"}
-            </button>
             <DrawingCanvas
               imageUrl={currentQuestion.imageFilename}
               initialDrawing={session.drawings[currentQuestion.id]}
@@ -437,6 +442,7 @@ export default function QuizPage() {
                   <button
                     onClick={() => handleAnswerSelect(answerNum)}
                     className={buttonClass}
+                    style={{ fontFamily: "'Times New Roman', Times, serif" }}
                   >
                     <div className="flex items-start gap-3">
                       <span className="font-bold shrink-0">({answerNum})</span>
