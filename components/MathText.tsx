@@ -27,6 +27,10 @@ export default function MathText({ text, className = '' }: MathTextProps) {
     const container = containerRef.current;
     container.innerHTML = '';
 
+    // Use a placeholder for escaped dollar signs to prevent them from being matched as math delimiters
+    const ESCAPED_DOLLAR_PLACEHOLDER = '\u0000ESCAPED_DOLLAR\u0000';
+    let processedText = text.replace(/\\\$/g, ESCAPED_DOLLAR_PLACEHOLDER);
+
     // Parse text to find all math delimiters
     // Supports: $$...$$ (display), \[...\] (display), $...$ (inline), \(...\) (inline)
     const parts: { type: 'text' | 'inline' | 'display'; content: string }[] = [];
@@ -38,12 +42,12 @@ export default function MathText({ text, className = '' }: MathTextProps) {
     let lastIndex = 0;
     let match;
 
-    while ((match = mathRegex.exec(text)) !== null) {
+    while ((match = mathRegex.exec(processedText)) !== null) {
       // Add text before the match
       if (match.index > lastIndex) {
         parts.push({
           type: 'text',
-          content: text.slice(lastIndex, match.index)
+          content: processedText.slice(lastIndex, match.index)
         });
       }
 
@@ -66,15 +70,22 @@ export default function MathText({ text, className = '' }: MathTextProps) {
     }
 
     // Add remaining text
-    if (lastIndex < text.length) {
-      parts.push({ type: 'text', content: text.slice(lastIndex) });
+    if (lastIndex < processedText.length) {
+      parts.push({ type: 'text', content: processedText.slice(lastIndex) });
     }
 
     // If no math found, just display as text
     if (parts.length === 0) {
-      container.textContent = text;
+      container.textContent = text.replace(/\\\$/g, '$');
       return;
     }
+
+    // Restore escaped dollar signs in text parts
+    parts.forEach((part) => {
+      if (part.type === 'text') {
+        part.content = part.content.replace(new RegExp(ESCAPED_DOLLAR_PLACEHOLDER, 'g'), '$');
+      }
+    });
 
     // Render each part
     parts.forEach((part) => {
