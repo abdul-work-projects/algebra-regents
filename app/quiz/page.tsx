@@ -652,7 +652,7 @@ export default function QuizPage() {
               const isSelected = selectedAnswer === answerNum;
 
               let buttonClass =
-                "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 text-sm font-medium active:scale-[0.98]";
+                "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 text-base font-medium active:scale-[0.98]";
 
               if (isChecked) {
                 if (isCorrectAnswer) {
@@ -675,19 +675,17 @@ export default function QuizPage() {
                     onClick={() => handleAnswerSelect(answerNum)}
                     className={buttonClass}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-center gap-3">
                       <span className="font-bold shrink-0" style={{ fontFamily: "'Times New Roman', Times, serif" }}>({answerNum})</span>
-                      <div className="flex-1">
+                      <div className="flex-1" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
                         {answer && (
-                          <div className="mb-2">
-                            <MathText text={answer} className="text-left" />
-                          </div>
+                          <MathText text={answer} className="text-left" />
                         )}
                         {answerImage && (
                           <img
                             src={answerImage}
                             alt={`Answer ${answerNum}`}
-                            className="max-w-full h-auto rounded border border-gray-300"
+                            className="max-w-full h-auto rounded border border-gray-300 mt-2"
                           />
                         )}
                       </div>

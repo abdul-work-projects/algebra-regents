@@ -37,3 +37,42 @@
     @apply relative w-full bg-white rounded-lg overflow-hidden;
   }
 }
+
+/* Force left alignment for all KaTeX content */
+.katex-display {
+  text-align: left !important;
+  margin: 0 !important;
+}
+
+.katex-display > .katex {
+  text-align: left !important;
+}
+
+.katex {
+  text-align: left !important;
+  font-size: 1rem !important;
+}
+
+.katex-html {
+  text-align: left !important;
+}
+
+span.katex-display {
+  text-align: left !important;
+  display: block !important;
+}
+
+div[class*="text-left"] .katex-display,
+.text-left .katex-display {
+  text-align: left !important;
+}
+
+/* Ensure MathText wrapper maintains left alignment */
+.text-left {
+  text-align: left !important;
+  display: block !important;
+}
+
+.text-left > * {
+  text-align: left !important;
+}
