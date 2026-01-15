@@ -416,7 +416,7 @@ export default function QuizPage() {
 
         <div className="max-w-3xl mx-auto px-4 pt-4" style={{ pointerEvents: 'auto' }}>
           {/* Question Number and Topic Badges Row */}
-          <div className="mb-3 flex items-center gap-2 flex-wrap relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
+          <div className="mb-4 flex items-center gap-2 flex-wrap relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
             {/* Question Number Badge */}
             <div className="flex items-center gap-2" style={{ pointerEvents: 'auto' }}>
               <span className="inline-block text-sm font-bold px-4 py-1.5 rounded-full bg-black text-white">
@@ -474,7 +474,7 @@ export default function QuizPage() {
           </div>
 
           {/* Drawing Toolbar - Compact Single Row */}
-          <div className="flex items-center gap-1.5 mb-2 relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
+          <div className="flex items-center gap-2 mb-8 relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
             {/* Pen Tool with Integrated Color Picker */}
             <div className="relative" style={{ pointerEvents: 'auto' }}>
               <button
@@ -553,7 +553,7 @@ export default function QuizPage() {
             </div>
 
             {/* Size Buttons */}
-            <div className="flex items-center gap-1" style={{ pointerEvents: 'auto' }}>
+            <div className="flex items-center gap-1.5" style={{ pointerEvents: 'auto' }}>
                 {tool === 'pen' ? (
                   <>
                     {[2, 6].map((size) => (
@@ -621,7 +621,7 @@ export default function QuizPage() {
 
           {/* Question Card - Image and/or Text */}
           {(currentQuestion.imageFilename || currentQuestion.questionText) && (
-            <div className="mb-4">
+            <div className="mb-3">
               {currentQuestion.imageFilename && (
                 <div className="w-full">
                   <img
@@ -632,7 +632,7 @@ export default function QuizPage() {
                 </div>
               )}
               {currentQuestion.questionText && (
-                <div className={currentQuestion.imageFilename ? "mt-3" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
+                <div className={currentQuestion.imageFilename ? "mt-4" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
                   <MathText
                     text={currentQuestion.questionText}
                     className="leading-relaxed"
@@ -643,7 +643,7 @@ export default function QuizPage() {
           )}
 
           {/* Answer Choices */}
-          <div className="space-y-2 mb-4 relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
+          <div className="space-y-2 mb-6 relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
             {currentQuestion.answers.map((answer, index) => {
               const answerNum = index + 1;
               const isChecked = checkedAnswers.includes(answerNum);
