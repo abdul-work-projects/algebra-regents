@@ -50,7 +50,7 @@
 
 .katex {
   text-align: left !important;
-  font-size: 1rem !important;
+  font-size: inherit !important;
 }
 
 .katex-html {
@@ -75,4 +75,55 @@ div[class*="text-left"] .katex-display,
 
 .text-left > * {
   text-align: left !important;
+}
+
+/* Ensure text wrapping */
+.break-words {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* Allow KaTeX content to wrap */
+.katex-display,
+.katex {
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  max-width: 100% !important;
+  display: inline !important;
+}
+
+.katex-html {
+  white-space: normal !important;
+  display: inline !important;
+}
+
+.katex .base {
+  display: inline !important;
+  white-space: normal !important;
+}
+
+/* Ensure MathText container wraps properly */
+.text-left {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+/* Force answer buttons to constrain content */
+button .flex {
+  max-width: 100%;
+  width: 100%;
+}
+
+button .flex > div {
+  max-width: calc(100% - 3rem);
 }

@@ -83,12 +83,23 @@ export default function MathText({ text, className = '' }: MathTextProps) {
         container.appendChild(textNode);
       } else {
         const span = document.createElement('span');
+        span.style.display = 'inline';
+        span.style.wordBreak = 'break-word';
+        span.style.overflowWrap = 'anywhere';
         try {
           katex.render(part.content, span, {
             displayMode: part.type === 'display',
             throwOnError: false,
             errorColor: '#cc0000',
           });
+
+          // Add break opportunities after operators for inline math
+          if (part.type === 'inline') {
+            const katexHtml = span.querySelector('.katex-html');
+            if (katexHtml) {
+              katexHtml.setAttribute('style', 'display: inline; word-break: break-all; white-space: normal;');
+            }
+          }
         } catch (e) {
           console.error('KaTeX render error:', e);
           span.textContent = part.type === 'display' ? `\\[${part.content}\\]` : `$${part.content}$`;

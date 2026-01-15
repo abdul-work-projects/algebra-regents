@@ -632,10 +632,10 @@ export default function QuizPage() {
                 </div>
               )}
               {currentQuestion.questionText && (
-                <div className={currentQuestion.imageFilename ? "mt-3" : ""}>
+                <div className={currentQuestion.imageFilename ? "mt-3" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
                   <MathText
                     text={currentQuestion.questionText}
-                    className="text-base leading-relaxed"
+                    className="leading-relaxed"
                   />
                 </div>
               )}
@@ -652,7 +652,7 @@ export default function QuizPage() {
               const isSelected = selectedAnswer === answerNum;
 
               let buttonClass =
-                "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 text-base font-medium active:scale-[0.98]";
+                "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 font-medium active:scale-[0.98]";
 
               if (isChecked) {
                 if (isCorrectAnswer) {
@@ -675,11 +675,13 @@ export default function QuizPage() {
                     onClick={() => handleAnswerSelect(answerNum)}
                     className={buttonClass}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold shrink-0" style={{ fontFamily: "'Times New Roman', Times, serif" }}>({answerNum})</span>
-                      <div className="flex-1" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                    <div className="flex items-start gap-3" style={{ fontSize: '1.125rem' }}>
+                      <span className="font-bold shrink-0 leading-normal" style={{ fontFamily: "'Times New Roman', Times, serif" }}>({answerNum})</span>
+                      <div className="flex-1 min-w-0 overflow-hidden" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
                         {answer && (
-                          <MathText text={answer} className="text-left" />
+                          <div className="break-words overflow-wrap-anywhere">
+                            <MathText text={answer} className="text-left" />
+                          </div>
                         )}
                         {answerImage && (
                           <img
