@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import MathText from './MathText';
 
 /**
  * ExplanationSlider Component
@@ -72,18 +73,20 @@ export default function ExplanationSlider({
                         <span className="text-rose-600">✗ Incorrect</span>
                       )}
                     </h2>
-                    <p className="text-xs text-gray-600 mt-1.5 font-medium">
-                      Correct answer: <span className="font-bold text-gray-800">{correctAnswer}</span>
-                    </p>
+                    <div className="text-sm text-gray-600 mt-1.5 font-medium flex items-baseline gap-1 flex-wrap">
+                      <span>Correct answer:</span>
+                      <MathText text={correctAnswer} className="font-bold text-gray-800 inline text-base" />
+                    </div>
                   </>
                 ) : (
                   <>
                     <h2 className="text-xl font-bold text-gray-700">
                       Explanation
                     </h2>
-                    <p className="text-xs text-gray-600 mt-1.5 font-medium">
-                      Correct answer: <span className="font-bold text-gray-800">{correctAnswer}</span>
-                    </p>
+                    <div className="text-sm text-gray-600 mt-1.5 font-medium flex items-baseline gap-1 flex-wrap">
+                      <span>Correct answer:</span>
+                      <MathText text={correctAnswer} className="font-bold text-gray-800 inline text-base" />
+                    </div>
                   </>
                 )}
               </div>
@@ -115,9 +118,10 @@ export default function ExplanationSlider({
               <h3 className="text-base font-bold text-gray-900 mb-2">
                 Explanation
               </h3>
-              <p className="text-gray-700 leading-relaxed text-sm">
-                {explanationText}
-              </p>
+              <MathText
+                text={explanationText}
+                className="text-gray-700 leading-relaxed text-sm"
+              />
             </div>
 
             {explanationImageUrl && (
