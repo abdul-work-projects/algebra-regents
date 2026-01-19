@@ -24,6 +24,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * - explanation_image_url: text (optional)
  * - topics: text[] (array of topic strings)
  * - points: integer (points for this question, default: 1)
+ * - display_order: integer (order of question in the quiz)
  * - created_at: timestamp
  * - updated_at: timestamp
  *
@@ -48,6 +49,7 @@ export interface DatabaseQuestion {
   explanation_image_url: string | null;
   topics: string[];
   points: number;
+  display_order?: number;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +59,7 @@ export async function fetchQuestions(): Promise<DatabaseQuestion[]> {
   const { data, error } = await supabase
     .from('questions')
     .select('*')
+    .order('display_order', { ascending: true })
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -128,6 +131,26 @@ export async function deleteQuestion(id: string) {
 
   if (error) {
     console.error('Error deleting question:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Update the display order of multiple questions
+export async function updateQuestionOrders(orders: { id: string; display_order: number }[]) {
+  const updates = orders.map(({ id, display_order }) =>
+    supabase
+      .from('questions')
+      .update({ display_order, updated_at: new Date().toISOString() })
+      .eq('id', id)
+  );
+
+  const results = await Promise.all(updates);
+  const hasError = results.some(result => result.error);
+
+  if (hasError) {
+    console.error('Error updating question orders');
     return false;
   }
 

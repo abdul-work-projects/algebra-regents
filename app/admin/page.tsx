@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { uploadImage, createQuestion, updateQuestion, deleteQuestion, fetchQuestions, DatabaseQuestion } from "@/lib/supabase";
+import { uploadImage, createQuestion, updateQuestion, deleteQuestion, fetchQuestions, updateQuestionOrders, DatabaseQuestion } from "@/lib/supabase";
 import { getCurrentUser, signOut, onAuthStateChange } from "@/lib/auth";
 import TagInput from "@/components/TagInput";
 
@@ -40,6 +40,9 @@ export default function AdminPage() {
   } | null>(null);
   const [draggedOver, setDraggedOver] = useState<string | null>(null);
   const [answerDraggedOver, setAnswerDraggedOver] = useState<number | null>(null);
+  const [draggedQuestionId, setDraggedQuestionId] = useState<string | null>(null);
+  const [originalQuestions, setOriginalQuestions] = useState<DatabaseQuestion[] | null>(null);
+  const dropSuccessRef = useRef(false);
 
   useEffect(() => {
     async function checkAuth() {
@@ -255,6 +258,64 @@ export default function AdminPage() {
     }
   };
 
+  const handleQuestionDragStart = (e: React.DragEvent, questionId: string) => {
+    dropSuccessRef.current = false;
+    setDraggedQuestionId(questionId);
+    setOriginalQuestions([...questions]);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', questionId);
+  };
+
+  const handleQuestionDragOver = (e: React.DragEvent, questionId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    if (!draggedQuestionId || draggedQuestionId === questionId) return;
+
+    const draggedIndex = questions.findIndex(q => q.id === draggedQuestionId);
+    const targetIndex = questions.findIndex(q => q.id === questionId);
+
+    if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) return;
+
+    // Reorder the list visually
+    const newQuestions = [...questions];
+    const [draggedQuestion] = newQuestions.splice(draggedIndex, 1);
+    newQuestions.splice(targetIndex, 0, draggedQuestion);
+    setQuestions(newQuestions);
+  };
+
+  const handleQuestionDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    dropSuccessRef.current = true;
+
+    const currentQuestions = [...questions];
+
+    // Clear drag state
+    setDraggedQuestionId(null);
+    setOriginalQuestions(null);
+
+    // Save the new order to database
+    const orders = currentQuestions.map((q, index) => ({
+      id: q.id,
+      display_order: index + 1,
+    }));
+
+    const success = await updateQuestionOrders(orders);
+    if (!success) {
+      setNotification({ type: "error", message: "Failed to save question order" });
+      loadQuestions();
+    }
+  };
+
+  const handleQuestionDragEnd = () => {
+    // Only restore if drop didn't succeed (drag was cancelled)
+    if (!dropSuccessRef.current && originalQuestions) {
+      setQuestions(originalQuestions);
+    }
+    setDraggedQuestionId(null);
+    setOriginalQuestions(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -440,63 +501,81 @@ export default function AdminPage() {
               ) : questions.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">No questions yet</div>
               ) : (
-                <div className="space-y-2 overflow-y-auto flex-1">
+                <div
+                  className="space-y-1 overflow-y-auto flex-1"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleQuestionDrop}
+                >
                 {questions.map((question, index) => (
                   <div
                     key={question.id}
-                    className={`border-2 rounded-xl p-3 hover:bg-gray-50 transition-all ${
+                    draggable
+                    onDragStart={(e) => handleQuestionDragStart(e, question.id)}
+                    onDragOver={(e) => handleQuestionDragOver(e, question.id)}
+                    onDrop={handleQuestionDrop}
+                    onDragEnd={handleQuestionDragEnd}
+                    className={`border-2 rounded-xl p-3 hover:bg-gray-50 transition-all cursor-grab active:cursor-grabbing ${
                       editingId === question.id ? "border-black bg-gray-50" : "border-gray-200"
-                    }`}
+                    } ${draggedQuestionId === question.id ? "opacity-40 bg-blue-50 border-blue-300" : ""}`}
                   >
-                    <div className="flex items-start gap-2">
-                      {question.question_image_url && (
-                        <img
-                          src={question.question_image_url}
-                          alt={`Q${index + 1}`}
-                          className="w-12 h-12 object-cover rounded flex-shrink-0"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-gray-900 truncate">
-                              {question.name || `Q${index + 1}`}
-                            </p>
-                            {question.name && (
-                              <p className="text-[10px] text-gray-400">
-                                Q{index + 1}
-                              </p>
-                            )}
-                            <p className="text-xs text-gray-600 truncate">
-                              {question.topics.join(", ")}
-                            </p>
-                            <p className="text-xs text-gray-500 truncate">
-                              ✓ {question.answers[question.correct_answer - 1]}
-                            </p>
+                        <div className="flex items-start gap-2">
+                          {/* Drag Handle */}
+                          <div className="flex-shrink-0 text-gray-400 hover:text-gray-600 pt-1">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+                            </svg>
                           </div>
-                          <div className="flex gap-1 flex-shrink-0">
-                            <button
-                              onClick={() => loadQuestionForEdit(question)}
-                              className="p-1.5 text-gray-700 hover:bg-gray-200 rounded-lg active:scale-95 transition-all"
-                              title="Edit question"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleDelete(question.id)}
-                              className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
-                              title="Delete question"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
+                          {/* Question Info - Always on left */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-gray-900 truncate">
+                                  {question.name || `Q${index + 1}`}
+                                </p>
+                                {question.name && (
+                                  <p className="text-[10px] text-gray-400">
+                                    Q{index + 1}
+                                  </p>
+                                )}
+                                <p className="text-xs text-gray-600 truncate">
+                                  {question.topics.join(", ")}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">
+                                  ✓ {question.answers[question.correct_answer - 1]}
+                                </p>
+                              </div>
+                              {/* Image thumbnail - on right of text */}
+                              {question.question_image_url && (
+                                <img
+                                  src={question.question_image_url}
+                                  alt={`Q${index + 1}`}
+                                  className="w-10 h-10 object-cover rounded flex-shrink-0"
+                                />
+                              )}
+                              {/* Action buttons */}
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => loadQuestionForEdit(question)}
+                                  className="p-1.5 text-gray-700 hover:bg-gray-200 rounded-lg active:scale-95 transition-all"
+                                  title="Edit question"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(question.id)}
+                                  className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
+                                  title="Delete question"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
                   </div>
                 ))}
               </div>

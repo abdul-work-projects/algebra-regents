@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS questions (
   explanation_image_url TEXT,
   topics TEXT[] NOT NULL,
   points INTEGER NOT NULL DEFAULT 1,
+  display_order INTEGER,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT question_text_or_image_required CHECK (
@@ -34,6 +35,9 @@ CREATE TABLE IF NOT EXISTS questions (
 
 -- Create index on created_at for faster ordering
 CREATE INDEX IF NOT EXISTS idx_questions_created_at ON questions(created_at);
+
+-- Create index on display_order for faster ordering
+CREATE INDEX IF NOT EXISTS idx_questions_display_order ON questions(display_order);
 
 -- Create index on topics for faster topic-based queries
 CREATE INDEX IF NOT EXISTS idx_questions_topics ON questions USING GIN(topics);
