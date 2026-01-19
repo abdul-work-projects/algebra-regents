@@ -627,7 +627,7 @@ export default function QuizPage() {
                   <img
                     src={currentQuestion.imageFilename}
                     alt="Question"
-                    className="w-full h-auto rounded-lg"
+                    className="w-full h-auto max-h-64 object-contain rounded-lg"
                   />
                 </div>
               )}
