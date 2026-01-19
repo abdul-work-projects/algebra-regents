@@ -75,7 +75,7 @@ export default function ExplanationSlider({
                     </h2>
                     <div className="text-sm text-gray-600 mt-1.5 font-medium flex items-baseline gap-1 flex-wrap">
                       <span>Correct answer:</span>
-                      <MathText text={correctAnswer} className="font-bold text-gray-800 inline text-base" />
+                      <MathText text={correctAnswer} className="text-gray-800 inline text-base" />
                     </div>
                   </>
                 ) : (
@@ -85,7 +85,7 @@ export default function ExplanationSlider({
                     </h2>
                     <div className="text-sm text-gray-600 mt-1.5 font-medium flex items-baseline gap-1 flex-wrap">
                       <span>Correct answer:</span>
-                      <MathText text={correctAnswer} className="font-bold text-gray-800 inline text-base" />
+                      <MathText text={correctAnswer} className="text-gray-800 inline text-base" />
                     </div>
                   </>
                 )}

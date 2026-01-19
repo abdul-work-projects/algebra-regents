@@ -418,28 +418,29 @@ export default function AdminPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left: Questions List */}
-          <div className="lg:col-span-1 bg-white border-2 border-gray-200 rounded-xl shadow-sm p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-bold text-gray-900">
-                Questions ({questions.length})
-              </h2>
-              {editingId && (
-                <button
-                  onClick={resetForm}
-                  className="text-xs px-3 py-2 font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
-                  title="Clear form and add new question"
-                >
-                  + NEW
-                </button>
-              )}
-            </div>
+          <div className="lg:col-span-1">
+            <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-32px)] flex flex-col">
+              <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                <h2 className="text-base font-bold text-gray-900">
+                  Questions ({questions.length})
+                </h2>
+                {editingId && (
+                  <button
+                    onClick={resetForm}
+                    className="text-xs px-3 py-2 font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
+                    title="Clear form and add new question"
+                  >
+                    + NEW
+                  </button>
+                )}
+              </div>
 
-            {isLoadingQuestions ? (
-              <div className="text-center py-8 text-gray-500 text-sm">Loading...</div>
-            ) : questions.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">No questions yet</div>
-            ) : (
-              <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+              {isLoadingQuestions ? (
+                <div className="text-center py-8 text-gray-500 text-sm">Loading...</div>
+              ) : questions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">No questions yet</div>
+              ) : (
+                <div className="space-y-2 overflow-y-auto flex-1">
                 {questions.map((question, index) => (
                   <div
                     key={question.id}
@@ -500,6 +501,7 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+            </div>
           </div>
 
           {/* Right: Form */}
