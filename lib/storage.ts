@@ -36,9 +36,10 @@ export const clearSession = (): void => {
   }
 };
 
-export const createNewSession = (): QuizSession => {
+export const createNewSession = (testId?: string): QuizSession => {
   const now = Date.now();
   return {
+    testId,
     currentQuestionIndex: 0,
     userAnswers: {},
     checkedAnswers: {},

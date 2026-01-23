@@ -1,7 +1,7 @@
 import { Question, QuizSession, QuizResult } from './types';
 
-// Raw Score to Scaled Score mapping table
-const rawToScaledScoreMap: { [key: number]: number } = {
+// Default Raw Score to Scaled Score mapping table (fallback if test doesn't have one)
+const defaultRawToScaledScoreMap: { [key: number]: number } = {
   82: 100, 81: 100, 80: 98, 79: 97, 78: 95, 77: 94, 76: 93, 75: 92, 74: 90, 73: 89,
   72: 88, 71: 87, 70: 86, 69: 86, 68: 85, 67: 84, 66: 83, 65: 83, 64: 82, 63: 81,
   62: 81, 61: 80, 60: 79, 59: 79, 58: 78, 57: 78, 56: 77, 55: 77, 54: 76, 53: 76,
@@ -12,11 +12,36 @@ const rawToScaledScoreMap: { [key: number]: number } = {
   12: 45, 11: 42, 10: 40, 9: 37, 8: 34, 7: 31, 6: 28, 5: 24, 4: 20, 3: 16, 2: 11, 1: 6, 0: 0
 };
 
-// Convert raw score to scaled score
-export function getScaledScore(rawScore: number): number {
+// Convert raw score to scaled score using custom or default table
+export function getScaledScore(
+  rawScore: number,
+  customScoreTable?: { [key: number]: number }
+): number {
+  const scoreTable = customScoreTable || defaultRawToScaledScoreMap;
+  const maxRaw = Math.max(...Object.keys(scoreTable).map(Number));
+
   // Clamp raw score to valid range
-  const clampedScore = Math.max(0, Math.min(82, rawScore));
-  return rawToScaledScoreMap[clampedScore] || 0;
+  const clampedScore = Math.max(0, Math.min(maxRaw, rawScore));
+
+  // If exact match exists, use it
+  if (scoreTable[clampedScore] !== undefined) {
+    return scoreTable[clampedScore];
+  }
+
+  // Otherwise, find the closest lower value (interpolation fallback)
+  const sortedKeys = Object.keys(scoreTable).map(Number).sort((a, b) => a - b);
+  for (let i = sortedKeys.length - 1; i >= 0; i--) {
+    if (sortedKeys[i] <= clampedScore) {
+      return scoreTable[sortedKeys[i]];
+    }
+  }
+
+  return 0;
+}
+
+// Get the default score table (for UI display or copying)
+export function getDefaultScoreTable(): { [key: number]: number } {
+  return { ...defaultRawToScaledScoreMap };
 }
 
 export function calculateResults(

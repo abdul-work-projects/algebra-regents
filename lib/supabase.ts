@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Question } from './types';
+import { Question, Test } from './types';
 
 // Supabase client configuration
 // Make sure to set these environment variables in .env.local
@@ -178,4 +178,373 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion): Question {
 export async function fetchQuestionsForQuiz(): Promise<Question[]> {
   const dbQuestions = await fetchQuestions();
   return dbQuestions.map(convertToQuizFormat);
+}
+
+// =====================================================
+// Tests Management
+// =====================================================
+
+// Type definition for database test
+export interface DatabaseTest {
+  id: string;
+  name: string;
+  description: string | null;
+  scaled_score_table: { [key: string]: number } | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Type for test with question count
+export interface DatabaseTestWithCount extends DatabaseTest {
+  question_count?: number;
+}
+
+// Fetch all tests
+export async function fetchTests(): Promise<DatabaseTestWithCount[]> {
+  const { data, error } = await supabase
+    .from('tests')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching tests:', error);
+    return [];
+  }
+
+  // Get question counts for each test
+  const testsWithCounts = await Promise.all(
+    (data || []).map(async (test) => {
+      const { count } = await supabase
+        .from('test_questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('test_id', test.id);
+
+      return {
+        ...test,
+        question_count: count || 0,
+      };
+    })
+  );
+
+  return testsWithCounts;
+}
+
+// Fetch active tests only (for students)
+export async function fetchActiveTests(): Promise<DatabaseTestWithCount[]> {
+  const { data, error } = await supabase
+    .from('tests')
+    .select('*')
+    .eq('is_active', true)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching active tests:', error);
+    return [];
+  }
+
+  // Get question counts for each test
+  const testsWithCounts = await Promise.all(
+    (data || []).map(async (test) => {
+      const { count } = await supabase
+        .from('test_questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('test_id', test.id);
+
+      return {
+        ...test,
+        question_count: count || 0,
+      };
+    })
+  );
+
+  return testsWithCounts;
+}
+
+// Fetch a single test by ID
+export async function fetchTestById(testId: string): Promise<DatabaseTest | null> {
+  const { data, error } = await supabase
+    .from('tests')
+    .select('*')
+    .eq('id', testId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching test:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Create a new test
+export async function createTest(test: {
+  name: string;
+  description?: string;
+  scaled_score_table?: { [key: string]: number };
+  is_active?: boolean;
+}): Promise<DatabaseTest | null> {
+  const { data, error } = await supabase
+    .from('tests')
+    .insert([{
+      name: test.name,
+      description: test.description || null,
+      scaled_score_table: test.scaled_score_table || null,
+      is_active: test.is_active ?? true,
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating test:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Update a test
+export async function updateTest(
+  id: string,
+  updates: Partial<{
+    name: string;
+    description: string | null;
+    scaled_score_table: { [key: string]: number } | null;
+    is_active: boolean;
+  }>
+): Promise<DatabaseTest | null> {
+  const { data, error } = await supabase
+    .from('tests')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating test:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Delete a test
+export async function deleteTest(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('tests')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting test:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// =====================================================
+// Test-Questions Management
+// =====================================================
+
+// Fetch questions for a specific test
+export async function fetchQuestionsForTest(testId: string): Promise<DatabaseQuestion[]> {
+  const { data, error } = await supabase
+    .from('test_questions')
+    .select(`
+      display_order,
+      questions (*)
+    `)
+    .eq('test_id', testId)
+    .order('display_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching questions for test:', error);
+    return [];
+  }
+
+  // Extract questions from the joined data and sort by display_order
+  const questions = (data || [])
+    .map((tq: any) => ({
+      ...tq.questions,
+      display_order: tq.display_order,
+    }))
+    .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
+
+  return questions;
+}
+
+// Fetch questions for a test in quiz format
+export async function fetchQuestionsForTestQuiz(testId: string): Promise<Question[]> {
+  const dbQuestions = await fetchQuestionsForTest(testId);
+  return dbQuestions.map(convertToQuizFormat);
+}
+
+// Add a question to a test
+export async function addQuestionToTest(
+  testId: string,
+  questionId: string,
+  displayOrder?: number
+): Promise<boolean> {
+  // If no display order provided, get the max and add 1
+  let order = displayOrder;
+  if (order === undefined) {
+    const { data } = await supabase
+      .from('test_questions')
+      .select('display_order')
+      .eq('test_id', testId)
+      .order('display_order', { ascending: false })
+      .limit(1);
+
+    order = (data?.[0]?.display_order || 0) + 1;
+  }
+
+  const { error } = await supabase
+    .from('test_questions')
+    .insert([{
+      test_id: testId,
+      question_id: questionId,
+      display_order: order,
+    }]);
+
+  if (error) {
+    console.error('Error adding question to test:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Remove a question from a test
+export async function removeQuestionFromTest(
+  testId: string,
+  questionId: string
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('test_questions')
+    .delete()
+    .eq('test_id', testId)
+    .eq('question_id', questionId);
+
+  if (error) {
+    console.error('Error removing question from test:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Update question order within a test
+export async function updateTestQuestionOrders(
+  testId: string,
+  orders: { questionId: string; displayOrder: number }[]
+): Promise<boolean> {
+  const updates = orders.map(({ questionId, displayOrder }) =>
+    supabase
+      .from('test_questions')
+      .update({ display_order: displayOrder })
+      .eq('test_id', testId)
+      .eq('question_id', questionId)
+  );
+
+  const results = await Promise.all(updates);
+  const hasError = results.some((result) => result.error);
+
+  if (hasError) {
+    console.error('Error updating test question orders');
+    return false;
+  }
+
+  return true;
+}
+
+// Get which tests a question belongs to
+export async function getTestsForQuestion(questionId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('test_questions')
+    .select('test_id')
+    .eq('question_id', questionId);
+
+  if (error) {
+    console.error('Error fetching tests for question:', error);
+    return [];
+  }
+
+  return (data || []).map((tq) => tq.test_id);
+}
+
+// Set which tests a question belongs to (replaces existing assignments)
+export async function setTestsForQuestion(
+  questionId: string,
+  testIds: string[]
+): Promise<boolean> {
+  // First, remove all existing test assignments for this question
+  const { error: deleteError } = await supabase
+    .from('test_questions')
+    .delete()
+    .eq('question_id', questionId);
+
+  if (deleteError) {
+    console.error('Error removing existing test assignments:', deleteError);
+    return false;
+  }
+
+  // Then, add the new test assignments
+  if (testIds.length > 0) {
+    const inserts = testIds.map((testId) => ({
+      test_id: testId,
+      question_id: questionId,
+    }));
+
+    const { error: insertError } = await supabase
+      .from('test_questions')
+      .insert(inserts);
+
+    if (insertError) {
+      console.error('Error adding test assignments:', insertError);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Get all question-test mappings (for admin filtering)
+export async function getAllQuestionTestMappings(): Promise<{ [questionId: string]: string[] }> {
+  const { data, error } = await supabase
+    .from('test_questions')
+    .select('test_id, question_id');
+
+  if (error) {
+    console.error('Error fetching question-test mappings:', error);
+    return {};
+  }
+
+  const mappings: { [questionId: string]: string[] } = {};
+  (data || []).forEach((row) => {
+    if (!mappings[row.question_id]) {
+      mappings[row.question_id] = [];
+    }
+    mappings[row.question_id].push(row.test_id);
+  });
+
+  return mappings;
+}
+
+// Convert database test to app format
+export function convertToTestFormat(dbTest: DatabaseTestWithCount): Test {
+  return {
+    id: dbTest.id,
+    name: dbTest.name,
+    description: dbTest.description || undefined,
+    scaledScoreTable: dbTest.scaled_score_table
+      ? Object.fromEntries(
+          Object.entries(dbTest.scaled_score_table).map(([k, v]) => [parseInt(k), v])
+        )
+      : undefined,
+    isActive: dbTest.is_active,
+    questionCount: dbTest.question_count,
+    createdAt: dbTest.created_at,
+    updatedAt: dbTest.updated_at,
+  };
 }

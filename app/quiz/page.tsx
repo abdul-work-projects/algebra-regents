@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Question, QuizSession } from "@/lib/types";
 import { loadSession, saveSession, createNewSession } from "@/lib/storage";
-import { fetchQuestionsForQuiz } from "@/lib/supabase";
+import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz } from "@/lib/supabase";
 import DrawingCanvas from "@/components/DrawingCanvas";
 import FullscreenDrawingCanvas from "@/components/FullscreenDrawingCanvas";
 import Timer from "@/components/Timer";
@@ -12,8 +12,9 @@ import ExplanationSlider from "@/components/ExplanationSlider";
 import ReferenceImageModal from "@/components/ReferenceImageModal";
 import MathText from "@/components/MathText";
 
-export default function QuizPage() {
+function QuizPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<QuizSession | null>(null);
   const [mounted, setMounted] = useState(false);
   const [hoveredAnswer, setHoveredAnswer] = useState<number | null>(null);
@@ -97,10 +98,54 @@ export default function QuizPage() {
   useEffect(() => {
     setMounted(true);
 
-    async function loadQuestions() {
+    const testIdFromUrl = searchParams.get('testId');
+    const existingSession = loadSession();
+
+    async function loadQuestionsAndSession() {
       try {
-        const dbQuestions = await fetchQuestionsForQuiz();
+        // Determine which test to load
+        let testId = testIdFromUrl;
+
+        // If no testId in URL but we have a session with a testId, use that
+        if (!testId && existingSession?.testId) {
+          testId = existingSession.testId;
+        }
+
+        // Load questions for the specific test or all questions if no test specified
+        let dbQuestions: Question[];
+        if (testId) {
+          dbQuestions = await fetchQuestionsForTestQuiz(testId);
+        } else {
+          // Fallback to loading all questions (backward compatibility)
+          dbQuestions = await fetchQuestionsForQuiz();
+        }
         setQuestions(dbQuestions);
+
+        // Handle session
+        if (existingSession && existingSession.testId === testId) {
+          // Continue existing session for the same test
+          // Ensure backward compatibility - add checkedAnswers if it doesn't exist
+          if (!existingSession.checkedAnswers) {
+            existingSession.checkedAnswers = {};
+          }
+          // Add markedForReview if it doesn't exist (backward compatibility)
+          if (!existingSession.markedForReview) {
+            existingSession.markedForReview = {};
+          }
+          // Convert old format (single number) to new format (array)
+          Object.keys(existingSession.checkedAnswers).forEach((key) => {
+            const value = existingSession.checkedAnswers[key];
+            if (typeof value === "number") {
+              existingSession.checkedAnswers[key] = [value];
+            }
+          });
+          setSession(existingSession);
+        } else {
+          // Create new session for this test
+          const newSession = createNewSession(testId || undefined);
+          setSession(newSession);
+          saveSession(newSession);
+        }
       } catch (error) {
         console.error("Error fetching questions from Supabase:", error);
       } finally {
@@ -108,32 +153,8 @@ export default function QuizPage() {
       }
     }
 
-    loadQuestions();
-
-    const existingSession = loadSession();
-    if (existingSession) {
-      // Ensure backward compatibility - add checkedAnswers if it doesn't exist
-      if (!existingSession.checkedAnswers) {
-        existingSession.checkedAnswers = {};
-      }
-      // Add markedForReview if it doesn't exist (backward compatibility)
-      if (!existingSession.markedForReview) {
-        existingSession.markedForReview = {};
-      }
-      // Convert old format (single number) to new format (array)
-      Object.keys(existingSession.checkedAnswers).forEach((key) => {
-        const value = existingSession.checkedAnswers[key];
-        if (typeof value === "number") {
-          existingSession.checkedAnswers[key] = [value];
-        }
-      });
-      setSession(existingSession);
-    } else {
-      const newSession = createNewSession();
-      setSession(newSession);
-      saveSession(newSession);
-    }
-  }, []);
+    loadQuestionsAndSession();
+  }, [searchParams]);
 
   useEffect(() => {
     if (session) {
@@ -1027,5 +1048,17 @@ export default function QuizPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function QuizPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    }>
+      <QuizPageContent />
+    </Suspense>
   );
 }

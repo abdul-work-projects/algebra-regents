@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { loadSession, clearSession } from '@/lib/storage';
 import { calculateResults, getPerformanceLevel, formatTime, getScoreComment, getScaledScore } from '@/lib/results';
-import { fetchQuestionsForQuiz } from '@/lib/supabase';
-import { Question, QuizResult } from '@/lib/types';
+import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById, convertToTestFormat } from '@/lib/supabase';
+import { Question, QuizResult, Test } from '@/lib/types';
 import MathText from '@/components/MathText';
 
 export default function ResultsPage() {
@@ -13,6 +13,8 @@ export default function ResultsPage() {
   const [result, setResult] = useState<QuizResult | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [test, setTest] = useState<Test | null>(null);
+  const [testId, setTestId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     async function loadResults() {
@@ -23,8 +25,28 @@ export default function ResultsPage() {
       }
 
       try {
-        const dbQuestions = await fetchQuestionsForQuiz();
+        // Store testId for retake functionality
+        setTestId(session.testId);
+
+        // Load test info if we have a testId
+        let currentTest: Test | null = null;
+        if (session.testId) {
+          const dbTest = await fetchTestById(session.testId);
+          if (dbTest) {
+            currentTest = convertToTestFormat({ ...dbTest, question_count: 0 });
+            setTest(currentTest);
+          }
+        }
+
+        // Load questions for this test or all questions
+        let dbQuestions: Question[];
+        if (session.testId) {
+          dbQuestions = await fetchQuestionsForTestQuiz(session.testId);
+        } else {
+          dbQuestions = await fetchQuestionsForQuiz();
+        }
         setQuestions(dbQuestions);
+
         const calculatedResult = calculateResults(dbQuestions, session);
         setResult(calculatedResult);
       } catch (error) {
@@ -45,12 +67,18 @@ export default function ResultsPage() {
   }
 
   const rawScore = result.earnedPoints;
-  const scaledScore = getScaledScore(rawScore);
+  // Use test-specific scaled score table if available
+  const scaledScore = getScaledScore(rawScore, test?.scaledScoreTable);
   const scoreComment = getScoreComment(scaledScore);
 
   const handleRetakeQuiz = () => {
     clearSession();
-    router.push('/quiz');
+    // If we have a testId, go back to that specific test
+    if (testId) {
+      router.push(`/quiz?testId=${testId}`);
+    } else {
+      router.push('/quiz');
+    }
   };
 
   const handleBackHome = () => {
@@ -67,7 +95,7 @@ export default function ResultsPage() {
             Quiz Complete!
           </h1>
           <p className="text-gray-600">
-            Here's how you performed on the Algebra I Regents practice test
+            {test ? test.name : 'Algebra I Regents practice test'}
           </p>
         </div>
 

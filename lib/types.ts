@@ -12,7 +12,26 @@ export interface Question {
   points?: number; // Points for this question (default: 2)
 }
 
+export interface Test {
+  id: string;
+  name: string;
+  description?: string;
+  scaledScoreTable?: { [rawScore: number]: number }; // raw score -> scaled score mapping
+  isActive: boolean;
+  questionCount?: number; // computed field, not stored in DB
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TestQuestion {
+  id: string;
+  testId: string;
+  questionId: string;
+  displayOrder?: number;
+}
+
 export interface QuizSession {
+  testId?: string; // ID of the test being taken
   currentQuestionIndex: number;
   userAnswers: { [questionId: string]: number | null };
   checkedAnswers: { [questionId: string]: number[] }; // Array of checked answers

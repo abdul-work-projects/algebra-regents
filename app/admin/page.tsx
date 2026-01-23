@@ -2,9 +2,30 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { uploadImage, createQuestion, updateQuestion, deleteQuestion, fetchQuestions, updateQuestionOrders, DatabaseQuestion } from "@/lib/supabase";
+import {
+  uploadImage,
+  createQuestion,
+  updateQuestion,
+  deleteQuestion,
+  fetchQuestions,
+  updateQuestionOrders,
+  DatabaseQuestion,
+  fetchTests,
+  createTest,
+  updateTest,
+  deleteTest,
+  convertToTestFormat,
+  getTestsForQuestion,
+  setTestsForQuestion,
+  addQuestionToTest,
+  DatabaseTestWithCount,
+  getAllQuestionTestMappings,
+} from "@/lib/supabase";
 import { getCurrentUser, signOut, onAuthStateChange } from "@/lib/auth";
 import TagInput from "@/components/TagInput";
+import TestModal from "@/components/TestModal";
+import TestMultiSelect from "@/components/TestMultiSelect";
+import { Test } from "@/lib/types";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -44,6 +65,17 @@ export default function AdminPage() {
   const [originalQuestions, setOriginalQuestions] = useState<DatabaseQuestion[] | null>(null);
   const dropSuccessRef = useRef(false);
 
+  // Tests management state
+  const [activeTab, setActiveTab] = useState<"questions" | "tests">("questions");
+  const [tests, setTests] = useState<Test[]>([]);
+  const [isLoadingTests, setIsLoadingTests] = useState(true);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [editingTest, setEditingTest] = useState<Test | null>(null);
+  const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
+  const [filterTestId, setFilterTestId] = useState<string>("all"); // "all" or a test ID
+  const [questionTestMap, setQuestionTestMap] = useState<{ [questionId: string]: string[] }>({});
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
   useEffect(() => {
     async function checkAuth() {
       const currentUser = await getCurrentUser();
@@ -72,6 +104,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadQuestions();
+    loadTestsData();
   }, []);
 
   const loadQuestions = async () => {
@@ -84,7 +117,68 @@ export default function AdminPage() {
     const uniqueTags = Array.from(new Set(allTopics)).sort();
     setAvailableTags(uniqueTags);
 
+    // Load question-test mappings
+    const mappings = await getAllQuestionTestMappings();
+    setQuestionTestMap(mappings);
+
     setIsLoadingQuestions(false);
+  };
+
+  const loadTestsData = async () => {
+    setIsLoadingTests(true);
+    const data = await fetchTests();
+    setTests(data.map(convertToTestFormat));
+    setIsLoadingTests(false);
+  };
+
+  const handleSaveTest = async (testData: {
+    name: string;
+    description?: string;
+    scaled_score_table?: { [key: string]: number };
+    is_active: boolean;
+  }) => {
+    if (editingTest) {
+      const result = await updateTest(editingTest.id, testData);
+      if (result) {
+        setNotification({ type: "success", message: "Test updated successfully" });
+        loadTestsData();
+      } else {
+        throw new Error("Failed to update test");
+      }
+    } else {
+      const result = await createTest(testData);
+      if (result) {
+        setNotification({ type: "success", message: "Test created successfully" });
+        loadTestsData();
+      } else {
+        throw new Error("Failed to create test");
+      }
+    }
+    setEditingTest(null);
+  };
+
+  const handleDeleteTest = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this test? This will remove all question associations.")) {
+      return;
+    }
+
+    const success = await deleteTest(id);
+    if (success) {
+      setNotification({ type: "success", message: "Test deleted successfully" });
+      loadTestsData();
+    } else {
+      setNotification({ type: "error", message: "Failed to delete test" });
+    }
+  };
+
+  const handleEditTest = (test: Test) => {
+    setEditingTest(test);
+    setShowTestModal(true);
+  };
+
+  const handleCreateTest = () => {
+    setEditingTest(null);
+    setShowTestModal(true);
   };
 
   const handleLogout = async () => {
@@ -223,9 +317,11 @@ export default function AdminPage() {
     setExplanationText("");
     setSelectedTopics([]);
     setPoints(1);
+    // Auto-select the filtered test for new questions
+    setSelectedTestIds(filterTestId !== "all" ? [filterTestId] : []);
   };
 
-  const loadQuestionForEdit = (question: DatabaseQuestion) => {
+  const loadQuestionForEdit = async (question: DatabaseQuestion) => {
     setEditingId(question.id);
     setQuestionName(question.name || "");
     setQuestionText(question.question_text || "");
@@ -238,6 +334,11 @@ export default function AdminPage() {
     setExplanationText(question.explanation_text);
     setSelectedTopics(question.topics);
     setPoints(question.points || 1);
+
+    // Load tests this question belongs to
+    const questionTestIds = await getTestsForQuestion(question.id);
+    setSelectedTestIds(questionTestIds);
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -415,17 +516,28 @@ export default function AdminPage() {
       };
 
       let result;
+      let questionId: string;
       if (editingId) {
         result = await updateQuestion(editingId, questionData);
-        setNotification({ type: "success", message: "Question updated successfully!" });
+        questionId = editingId;
       } else {
         result = await createQuestion(questionData);
-        setNotification({ type: "success", message: "Question created successfully!" });
+        questionId = result?.id || "";
       }
 
       if (result) {
+        // Save test assignments
+        if (questionId) {
+          await setTestsForQuestion(questionId, selectedTestIds);
+        }
+
+        setNotification({
+          type: "success",
+          message: editingId ? "Question updated successfully!" : "Question created successfully!"
+        });
         resetForm();
         loadQuestions();
+        loadTestsData(); // Refresh test question counts
         setTimeout(() => setNotification(null), 3000);
       } else {
         throw new Error("Failed to save question");
@@ -453,7 +565,7 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-4">
         {/* Compact Header */}
         <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-4 mb-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
               {user && <p className="text-sm text-gray-600">{user.email}</p>}
@@ -475,15 +587,141 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
+          {/* Tabs */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setActiveTab("questions");
+                setNotification(null);
+              }}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                activeTab === "questions"
+                  ? "bg-black text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Questions
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("tests");
+                setNotification(null);
+              }}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                activeTab === "tests"
+                  ? "bg-black text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Tests ({tests.length})
+            </button>
+          </div>
         </div>
 
+        {/* Tests Tab Content */}
+        {activeTab === "tests" && (
+          <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Manage Tests</h2>
+              <button
+                onClick={handleCreateTest}
+                className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
+              >
+                + NEW TEST
+              </button>
+            </div>
+
+            {isLoadingTests ? (
+              <div className="text-center py-8 text-gray-500">Loading tests...</div>
+            ) : tests.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No tests yet. Create your first test to get started.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {tests.map((test) => (
+                  <div
+                    key={test.id}
+                    className="border-2 border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-all"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-gray-900 truncate">{test.name}</h3>
+                          {!test.isActive && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        {test.description && (
+                          <p className="text-sm text-gray-600 truncate mb-2">{test.description}</p>
+                        )}
+                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            {test.questionCount || 0} questions
+                          </span>
+                          {test.scaledScoreTable && (
+                            <span className="flex items-center gap-1">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                              </svg>
+                              Custom score table
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => handleEditTest(test)}
+                          className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg active:scale-95 transition-all"
+                          title="Edit test"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTest(test.id)}
+                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
+                          title="Delete test"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Questions Tab Content */}
+        {activeTab === "questions" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left: Questions List */}
           <div className="lg:col-span-1">
             <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-32px)] flex flex-col">
               <div className="flex items-center justify-between mb-3 flex-shrink-0">
                 <h2 className="text-base font-bold text-gray-900">
-                  Questions ({questions.length})
+                  Questions ({questions.filter((q) => {
+                    const matchesTest = filterTestId === "all" || questionTestMap[q.id]?.includes(filterTestId);
+                    if (!matchesTest) return false;
+                    if (!searchQuery.trim()) return true;
+                    const query = searchQuery.toLowerCase();
+                    return (
+                      (q.name?.toLowerCase().includes(query)) ||
+                      (q.question_text?.toLowerCase().includes(query)) ||
+                      q.topics.some(t => t.toLowerCase().includes(query)) ||
+                      q.answers.some(a => a?.toLowerCase().includes(query))
+                    );
+                  }).length})
                 </h2>
                 {editingId && (
                   <button
@@ -496,6 +734,59 @@ export default function AdminPage() {
                 )}
               </div>
 
+              {/* Search and Filter */}
+              <div className="mb-3 flex-shrink-0 space-y-2">
+                {/* Search Input */}
+                <div className="relative">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search questions..."
+                    className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full"
+                    >
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                {/* Test Filter Dropdown */}
+                <select
+                  value={filterTestId}
+                  onChange={(e) => {
+                    const newTestId = e.target.value;
+                    setFilterTestId(newTestId);
+                    // Reset form when changing filter (clears edit mode)
+                    resetForm();
+                    // Set the new test as selected for new questions
+                    setSelectedTestIds(newTestId !== "all" ? [newTestId] : []);
+                  }}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                >
+                  <option value="all">All Questions</option>
+                  {tests.map((test) => (
+                    <option key={test.id} value={test.id}>
+                      {test.name} ({test.questionCount || 0})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {isLoadingQuestions ? (
                 <div className="text-center py-8 text-gray-500 text-sm">Loading...</div>
               ) : questions.length === 0 ? (
@@ -506,7 +797,23 @@ export default function AdminPage() {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleQuestionDrop}
                 >
-                {questions.map((question, index) => (
+                {questions
+                  .filter((q) => {
+                    // Test filter
+                    const matchesTest = filterTestId === "all" || questionTestMap[q.id]?.includes(filterTestId);
+                    if (!matchesTest) return false;
+
+                    // Search filter
+                    if (!searchQuery.trim()) return true;
+                    const query = searchQuery.toLowerCase();
+                    return (
+                      (q.name?.toLowerCase().includes(query)) ||
+                      (q.question_text?.toLowerCase().includes(query)) ||
+                      q.topics.some(t => t.toLowerCase().includes(query)) ||
+                      q.answers.some(a => a?.toLowerCase().includes(query))
+                    );
+                  })
+                  .map((question, index) => (
                   <div
                     key={question.id}
                     draggable
@@ -540,6 +847,28 @@ export default function AdminPage() {
                                 <p className="text-xs text-gray-600 truncate">
                                   {question.topics.join(", ")}
                                 </p>
+                                {/* Test badges */}
+                                {questionTestMap[question.id]?.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-0.5">
+                                    {questionTestMap[question.id].slice(0, 2).map((testId) => {
+                                      const test = tests.find((t) => t.id === testId);
+                                      return test ? (
+                                        <span
+                                          key={testId}
+                                          className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium truncate max-w-[80px]"
+                                          title={test.name}
+                                        >
+                                          {test.name}
+                                        </span>
+                                      ) : null;
+                                    })}
+                                    {questionTestMap[question.id].length > 2 && (
+                                      <span className="text-[10px] text-gray-500">
+                                        +{questionTestMap[question.id].length - 2}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                                 <p className="text-xs text-gray-500 truncate">
                                   ✓ {question.answers[question.correct_answer - 1]}
                                 </p>
@@ -874,6 +1203,26 @@ export default function AdminPage() {
                 />
               </div>
 
+              {/* Assign to Tests */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Assign to Tests
+                </label>
+                {tests.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic">No tests available. Create a test first.</p>
+                ) : (
+                  <TestMultiSelect
+                    tests={tests}
+                    selectedTestIds={selectedTestIds}
+                    onChange={setSelectedTestIds}
+                    placeholder="Select tests..."
+                  />
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Select which tests this question should appear in
+                </p>
+              </div>
+
               {/* Points */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -913,6 +1262,18 @@ export default function AdminPage() {
             </form>
           </div>
         </div>
+        )}
+
+        {/* Test Modal */}
+        <TestModal
+          isOpen={showTestModal}
+          onClose={() => {
+            setShowTestModal(false);
+            setEditingTest(null);
+          }}
+          onSave={handleSaveTest}
+          editingTest={editingTest}
+        />
       </div>
     </div>
   );
