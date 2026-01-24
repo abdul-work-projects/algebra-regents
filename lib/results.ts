@@ -51,11 +51,23 @@ export function calculateResults(
   let correctCount = 0;
   let earnedPoints = 0;
   let totalPoints = 0;
+  let missedOnFirstAttemptCount = 0;
+
+  // Ensure firstAttemptAnswers exists (backward compatibility)
+  const firstAttemptAnswers = session.firstAttemptAnswers || {};
 
   const questionResults = questions.map((question) => {
     const userAnswer = session.userAnswers[question.id] || null;
     const isCorrect = userAnswer === question.correctAnswer;
     const points = question.points || 1; // Default 1 point per question
+
+    // First attempt tracking
+    const firstAttemptAnswer = firstAttemptAnswers[question.id] ?? null;
+    const missedOnFirstAttempt = firstAttemptAnswer !== null && firstAttemptAnswer !== question.correctAnswer;
+
+    if (missedOnFirstAttempt) {
+      missedOnFirstAttemptCount++;
+    }
 
     totalPoints += points;
     if (isCorrect) {
@@ -71,6 +83,8 @@ export function calculateResults(
       timeSpent: session.questionTimes[question.id] || 0,
       topics: question.topics,
       points,
+      firstAttemptAnswer,
+      missedOnFirstAttempt,
     };
   });
 
@@ -113,6 +127,7 @@ export function calculateResults(
     earnedPoints,
     totalPoints,
     averageTime,
+    missedOnFirstAttemptCount,
     questionResults,
     topicAccuracy,
   };

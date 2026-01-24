@@ -15,6 +15,7 @@ export default function ResultsPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [test, setTest] = useState<Test | null>(null);
   const [testId, setTestId] = useState<string | undefined>(undefined);
+  const [questionFilter, setQuestionFilter] = useState<'all' | 'correct' | 'incorrect' | 'unanswered' | 'missed_first' | 'second_attempt_correct'>('all');
 
   useEffect(() => {
     async function loadResults() {
@@ -60,8 +61,17 @@ export default function ResultsPage() {
 
   if (!result) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading results...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
+            <svg className="animate-spin w-12 h-12 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Analyzing your test...</h2>
+          <p className="text-gray-500">Generating your score and performance insights</p>
+        </div>
       </div>
     );
   }
@@ -130,7 +140,7 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pt-8 border-t-2 border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 pt-8 border-t-2 border-gray-200">
             <div className="text-center">
               <div className="text-3xl font-bold text-gray-900 mb-1">
                 {formatTime(result.averageTime)}
@@ -142,6 +152,12 @@ export default function ResultsPage() {
                 {Object.keys(result.topicAccuracy).length}
               </div>
               <div className="text-sm text-gray-600 font-medium">Topics Covered</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-amber-600 mb-1">
+                {result.missedOnFirstAttemptCount}
+              </div>
+              <div className="text-sm text-gray-600 font-medium">Missed on 1st Attempt</div>
             </div>
           </div>
         </div>
@@ -210,15 +226,50 @@ export default function ResultsPage() {
           </button>
 
           {showDetails && (
-            <div className="mt-6 space-y-3">
-              {result.questionResults.map((qResult, index) => (
+            <div className="mt-6">
+              {/* Filter Dropdown */}
+              <div className="mb-4">
+                <select
+                  value={questionFilter}
+                  onChange={(e) => setQuestionFilter(e.target.value as typeof questionFilter)}
+                  className="px-4 py-2 border-2 border-gray-300 rounded-lg text-sm font-medium focus:border-black focus:outline-none"
+                >
+                  <option value="all">All Questions ({result.questionResults.length})</option>
+                  <option value="correct">Correct ({result.questionResults.filter(q => q.isCorrect).length})</option>
+                  <option value="incorrect">Incorrect ({result.questionResults.filter(q => !q.isCorrect && q.userAnswer !== null).length})</option>
+                  <option value="unanswered">Unanswered ({result.questionResults.filter(q => q.userAnswer === null).length})</option>
+                  <option value="missed_first">Missed 1st Attempt ({result.questionResults.filter(q => q.missedOnFirstAttempt).length})</option>
+                  <option value="second_attempt_correct">2nd Attempt Correct ({result.questionResults.filter(q => q.isCorrect && q.missedOnFirstAttempt).length})</option>
+                </select>
+              </div>
+
+              <div className="space-y-3">
+              {result.questionResults
+                .map((qResult, index) => ({ qResult, index }))
+                .filter(({ qResult }) => {
+                  switch (questionFilter) {
+                    case 'correct':
+                      return qResult.isCorrect;
+                    case 'incorrect':
+                      return !qResult.isCorrect && qResult.userAnswer !== null;
+                    case 'unanswered':
+                      return qResult.userAnswer === null;
+                    case 'missed_first':
+                      return qResult.missedOnFirstAttempt;
+                    case 'second_attempt_correct':
+                      return qResult.isCorrect && qResult.missedOnFirstAttempt;
+                    default:
+                      return true;
+                  }
+                })
+                .map(({ qResult, index }) => (
                 <div
                   key={qResult.questionId}
                   className={`p-4 rounded-lg border-2 ${
                     qResult.isCorrect
                       ? 'bg-green-50 border-green-200'
                       : qResult.userAnswer === null
-                      ? 'bg-gray-50 border-gray-200'
+                      ? 'bg-slate-100 border-slate-400'
                       : 'bg-red-50 border-red-200'
                   }`}
                 >
@@ -236,12 +287,17 @@ export default function ResultsPage() {
                             ✓ Correct
                           </span>
                         ) : qResult.userAnswer === null ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-200 text-slate-700 border border-slate-400">
                             Not Answered
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
                             ✗ Incorrect
+                          </span>
+                        )}
+                        {qResult.missedOnFirstAttempt && (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+                            Missed 1st attempt
                           </span>
                         )}
                         <span className="text-xs text-gray-500">
@@ -295,6 +351,7 @@ export default function ResultsPage() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           )}
         </div>

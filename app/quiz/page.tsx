@@ -132,6 +132,10 @@ function QuizPageContent() {
           if (!existingSession.markedForReview) {
             existingSession.markedForReview = {};
           }
+          // Add firstAttemptAnswers if it doesn't exist (backward compatibility)
+          if (!existingSession.firstAttemptAnswers) {
+            existingSession.firstAttemptAnswers = {};
+          }
           // Convert old format (single number) to new format (array)
           Object.keys(existingSession.checkedAnswers).forEach((key) => {
             const value = existingSession.checkedAnswers[key];
@@ -223,21 +227,21 @@ function QuizPageContent() {
       if (!prev) return prev;
       const currentChecked = prev.checkedAnswers[currentQuestion.id] || [];
 
-      // Add to checked answers if not already checked
-      if (!currentChecked.includes(answerIndex)) {
-        return {
-          ...prev,
-          userAnswers: {
-            ...prev.userAnswers,
-            [currentQuestion.id]: answerIndex,
-          },
-          checkedAnswers: {
-            ...prev.checkedAnswers,
-            [currentQuestion.id]: [...currentChecked, answerIndex],
-          },
-        };
-      }
-      return prev;
+      // Only allow 1 check per question
+      if (currentChecked.length >= 1) return prev;
+
+      // Record this check attempt
+      return {
+        ...prev,
+        checkedAnswers: {
+          ...prev.checkedAnswers,
+          [currentQuestion.id]: [answerIndex],
+        },
+        firstAttemptAnswers: {
+          ...prev.firstAttemptAnswers,
+          [currentQuestion.id]: answerIndex,
+        },
+      };
     });
   };
 
@@ -327,7 +331,11 @@ function QuizPageContent() {
 
   const isCorrect =
     checkedAnswers.length > 0 &&
-    checkedAnswers[checkedAnswers.length - 1] === currentQuestion.correctAnswer;
+    checkedAnswers.includes(currentQuestion.correctAnswer);
+  const attemptsUsed = checkedAnswers.length;
+  const maxAttempts = 1;
+  const canAttempt = !isCorrect && attemptsUsed < maxAttempts;
+  const hasChecked = attemptsUsed > 0;
 
   return (
     <>
@@ -715,8 +723,8 @@ function QuizPageContent() {
                     </div>
                   </button>
 
-                  {/* Check button when selected - show on any option that hasn't been checked yet */}
-                  {isSelected && !isChecked && (
+                  {/* Check button when selected - show only if can still attempt and not already checked */}
+                  {isSelected && !isChecked && canAttempt && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -919,70 +927,52 @@ function QuizPageContent() {
       >
         <div className="max-w-5xl mx-auto px-3 md:px-4 py-2 md:py-2.5">
           <div className="flex items-center justify-between gap-2 md:gap-4">
-            {/* Left: Navigation */}
-            <div className="flex items-center gap-1.5 md:gap-2">
-              {/* Previous Button */}
-              <button
-                onClick={handlePrevious}
-                disabled={session.currentQuestionIndex === 0}
-                className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 hover:border-black hover:bg-gray-100 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                title="Previous"
+            {/* Left: Question Navigator */}
+            <button
+              onClick={() => setShowAllQuestions(true)}
+              className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border-2 border-gray-300 hover:border-black hover:bg-gray-100 text-xs md:text-sm font-bold text-gray-700 active:scale-95 transition-all flex items-center gap-1.5"
+            >
+              <span>
+                {session.currentQuestionIndex + 1}/{questions.length}
+              </span>
+              <svg
+                className="w-3 h-3 md:w-3.5 md:h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-700"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 15l7-7 7 7"
+                />
+              </svg>
+            </button>
 
-              {/* Question Navigator */}
+            {/* Right: Explanation + Next Button */}
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowAllQuestions(true)}
-                className="px-2 py-1.5 md:px-3 md:py-2 rounded-full border-2 border-gray-300 hover:border-black hover:bg-gray-100 text-xs font-bold text-gray-700 active:scale-95 transition-all flex items-center gap-1"
+                onClick={() => setShowExplanation(true)}
+                className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-gray-700 bg-white border-2 border-gray-300 hover:border-black hover:bg-gray-50 active:scale-95 rounded-lg md:rounded-xl transition-all"
               >
-                <span>
-                  {session.currentQuestionIndex + 1}/{questions.length}
-                </span>
-                <svg
-                  className="w-2.5 h-2.5 md:w-3 md:h-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 15l7-7 7 7"
-                  />
-                </svg>
+                EXPLANATION
               </button>
-
-              {/* Next/Finish Button */}
               {session.currentQuestionIndex === questions.length - 1 ? (
                 <button
                   onClick={handleNext}
-                  className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border-2 border-black bg-black text-white hover:bg-gray-800 active:scale-95 text-xs font-bold transition-all"
-                  title="Finish Quiz"
+                  className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
                 >
                   FINISH
                 </button>
               ) : (
                 <button
                   onClick={handleNext}
-                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 hover:border-black hover:bg-gray-100 active:scale-95 transition-all"
-                  title="Next"
+                  className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all flex items-center gap-1"
                 >
+                  NEXT
                   <svg
-                    className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-700"
+                    className="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -997,15 +987,6 @@ function QuizPageContent() {
                 </button>
               )}
             </div>
-
-            {/* Right: Explanation Button */}
-            <button
-              onClick={() => setShowExplanation(true)}
-              className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
-            >
-              <span className="hidden sm:inline">EXPLANATION</span>
-              <span className="sm:hidden">EXPLANATION</span>
-            </button>
           </div>
         </div>
       </div>

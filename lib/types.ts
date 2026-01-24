@@ -35,6 +35,7 @@ export interface QuizSession {
   currentQuestionIndex: number;
   userAnswers: { [questionId: string]: number | null };
   checkedAnswers: { [questionId: string]: number[] }; // Array of checked answers
+  firstAttemptAnswers: { [questionId: string]: number | null }; // First attempt answer (for tracking)
   questionTimes: { [questionId: string]: number }; // time spent in seconds
   drawings: { [questionId: string]: string }; // base64 encoded canvas data
   markedForReview: { [questionId: string]: boolean }; // Questions marked for review
@@ -48,6 +49,7 @@ export interface QuizResult {
   earnedPoints: number;
   totalPoints: number;
   averageTime: number;
+  missedOnFirstAttemptCount: number; // Count of questions missed on first attempt
   questionResults: {
     questionId: string;
     userAnswer: number | null;
@@ -56,6 +58,8 @@ export interface QuizResult {
     timeSpent: number;
     topics: string[];
     points: number;
+    firstAttemptAnswer: number | null; // What they answered on first attempt
+    missedOnFirstAttempt: boolean; // True if first attempt was wrong
   }[];
   topicAccuracy: {
     [topic: string]: {

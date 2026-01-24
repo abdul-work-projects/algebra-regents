@@ -298,46 +298,42 @@ export default function TestModal({
                   {/* Score Table */}
                   {scoreTableRows.length > 0 && (
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      {/* Header */}
+                      <div className="grid grid-cols-2 bg-gray-50 border-b border-gray-200">
+                        <div className="px-3 py-2 text-left font-medium text-gray-700 text-sm">
+                          Raw Score
+                        </div>
+                        <div className="px-3 py-2 text-left font-medium text-gray-700 text-sm">
+                          Scaled Score
+                        </div>
+                      </div>
+                      {/* Body */}
                       <div className="max-h-64 overflow-y-auto">
-                        <table className="w-full text-sm table-fixed">
-                          <thead className="bg-gray-50 sticky top-0 z-10">
-                            <tr>
-                              <th className="w-1/2 px-3 py-2 text-left font-medium text-gray-700 border-b bg-gray-50">
-                                Raw Score
-                              </th>
-                              <th className="w-1/2 px-3 py-2 text-left font-medium text-gray-700 border-b bg-gray-50">
-                                Scaled Score
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {scoreTableRows.map((row, index) => (
-                              <tr
-                                key={row.raw}
-                                className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                              >
-                                <td className="px-3 py-1.5 text-gray-900 font-medium border-b border-gray-100">
-                                  {row.raw}
-                                </td>
-                                <td className="px-3 py-1.5 border-b border-gray-100">
-                                  <input
-                                    type="number"
-                                    value={row.scaled}
-                                    onChange={(e) =>
-                                      handleScaledScoreChange(
-                                        row.raw,
-                                        parseInt(e.target.value) || 0
-                                      )
-                                    }
-                                    min={0}
-                                    max={100}
-                                    className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                  />
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        {scoreTableRows.map((row, index) => (
+                          <div
+                            key={row.raw}
+                            className={`grid grid-cols-2 border-b border-gray-100 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+                          >
+                            <div className="px-3 py-1.5 text-gray-900 font-medium text-sm">
+                              {row.raw}
+                            </div>
+                            <div className="px-3 py-1.5">
+                              <input
+                                type="number"
+                                value={row.scaled}
+                                onChange={(e) =>
+                                  handleScaledScoreChange(
+                                    row.raw,
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
+                                min={0}
+                                max={100}
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
