@@ -441,7 +441,7 @@ export default function ResultsPage() {
           >
             RETAKE QUIZ
           </button>
-          <ReportGenerator result={result} test={test} scaledScore={scaledScore} />
+          <ReportGenerator result={result} test={test} scaledScore={scaledScore} questions={questions} />
           <button
             onClick={handleBackHome}
             className="flex-1 px-6 py-3 text-sm font-bold text-gray-700 bg-white border-2 border-gray-300 hover:border-black hover:bg-gray-50 active:scale-95 rounded-xl transition-all"

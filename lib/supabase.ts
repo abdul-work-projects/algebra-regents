@@ -44,6 +44,7 @@ export interface DatabaseQuestion {
   reference_image_url: string | null;
   answers: string[]; // Array of 4 answer choices
   answer_image_urls?: (string | null)[]; // Optional array of 4 image URLs for answers
+  answer_layout?: 'grid' | 'list'; // 'grid' = 2x2, 'list' = 1x4 (default)
   correct_answer: number;
   explanation_text: string;
   explanation_image_url: string | null;
@@ -166,6 +167,7 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion): Question {
     referenceImageUrl: dbQuestion.reference_image_url || undefined,
     answers: dbQuestion.answers,
     answerImageUrls: dbQuestion.answer_image_urls?.map(url => url || undefined),
+    answerLayout: dbQuestion.answer_layout || 'list',
     correctAnswer: dbQuestion.correct_answer,
     explanation: dbQuestion.explanation_text,
     explanationImageUrl: dbQuestion.explanation_image_url || undefined,

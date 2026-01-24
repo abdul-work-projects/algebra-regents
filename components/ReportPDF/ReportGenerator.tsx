@@ -3,15 +3,16 @@
 import { useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import ReportDocument from './ReportDocument';
-import { QuizResult, Test } from '@/lib/types';
+import { QuizResult, Test, Question } from '@/lib/types';
 
 interface ReportGeneratorProps {
   result: QuizResult;
   test?: Test | null;
   scaledScore: number;
+  questions: Question[];
 }
 
-export default function ReportGenerator({ result, test, scaledScore }: ReportGeneratorProps) {
+export default function ReportGenerator({ result, test, scaledScore, questions }: ReportGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleDownload = async () => {
@@ -20,7 +21,7 @@ export default function ReportGenerator({ result, test, scaledScore }: ReportGen
     try {
       // Generate PDF blob
       const blob = await pdf(
-        <ReportDocument result={result} test={test} scaledScore={scaledScore} />
+        <ReportDocument result={result} test={test} scaledScore={scaledScore} questions={questions} />
       ).toBlob();
 
       // Create download link

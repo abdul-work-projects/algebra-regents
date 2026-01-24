@@ -57,12 +57,14 @@ export default function AdminPage() {
   const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
   const [answerImages, setAnswerImages] = useState<(File | null)[]>([null, null, null, null]);
   const [answerImagePreviews, setAnswerImagePreviews] = useState<(string | null)[]>([null, null, null, null]);
+  const [answerLayout, setAnswerLayout] = useState<'grid' | 'list'>('list');
   const [correctAnswer, setCorrectAnswer] = useState<number>(1);
   const [explanationText, setExplanationText] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [points, setPoints] = useState<number>(1);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [notification, setNotification] = useState<{
     type: "success" | "error";
     message: string;
@@ -391,6 +393,7 @@ export default function AdminPage() {
     setAnswers(["", "", "", ""]);
     setAnswerImages([null, null, null, null]);
     setAnswerImagePreviews([null, null, null, null]);
+    setAnswerLayout('list');
     setCorrectAnswer(1);
     setExplanationText("");
     setSelectedTopics([]);
@@ -408,6 +411,7 @@ export default function AdminPage() {
     setExplanationImagePreview(question.explanation_image_url);
     setAnswers(question.answers);
     setAnswerImagePreviews(question.answer_image_urls || [null, null, null, null]);
+    setAnswerLayout(question.answer_layout || 'list');
     setCorrectAnswer(question.correct_answer);
     setExplanationText(question.explanation_text);
     setSelectedTopics(question.topics);
@@ -586,6 +590,7 @@ export default function AdminPage() {
         reference_image_url: referenceImageUrl,
         answers,
         answer_image_urls: answerImageUrls,
+        answer_layout: answerLayout,
         correct_answer: correctAnswer,
         explanation_text: explanationText,
         explanation_image_url: explanationImageUrl,
@@ -1288,9 +1293,116 @@ export default function AdminPage() {
 
           {/* Right: Form */}
           <div className="lg:col-span-2 bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">
-              {editingId ? "Edit Question" : "Add New Question"}
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">
+                {editingId ? "Edit Question" : "Add New Question"}
+              </h2>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(!showPreview)}
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                    showPreview
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                  }`}
+                >
+                  i
+                </button>
+
+                {/* Preview Tooltip */}
+                {showPreview && (
+                  <div className="absolute right-0 top-full mt-2 w-96 max-h-[70vh] overflow-y-auto bg-white rounded-2xl shadow-2xl border border-gray-200 z-50">
+                    {/* Tooltip Arrow */}
+                    <div className="absolute -top-2 right-3 w-4 h-4 bg-white border-l border-t border-gray-200 transform rotate-45"></div>
+
+                    <div className="p-4 space-y-3">
+                      {/* Question Preview */}
+                      {(questionText || questionImagePreview) && (
+                        <div className="mb-3">
+                          {questionImagePreview && (
+                            <div className="w-full">
+                              <img
+                                src={questionImagePreview}
+                                alt="Question"
+                                className="w-full h-auto max-h-64 object-contain rounded-lg"
+                              />
+                            </div>
+                          )}
+                          {questionText && (
+                            <div className={questionImagePreview ? "mt-4" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
+                              <MathText text={questionText} className="leading-relaxed" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Answers Preview - Same as quiz page */}
+                      {answers.some(a => a.trim() || answerImagePreviews[answers.indexOf(a)]) && (
+                        <div
+                          className={`${
+                            answerLayout === 'grid'
+                              ? 'grid grid-cols-2 gap-2'
+                              : 'space-y-2'
+                          }`}
+                        >
+                          {answers.map((answer, index) => {
+                            const answerNum = index + 1;
+                            const isCorrect = correctAnswer === answerNum;
+                            const gridOrder = answerLayout === 'grid'
+                              ? [0, 2, 1, 3][index]
+                              : index;
+
+                            let buttonClass = "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 font-medium";
+                            if (isCorrect) {
+                              buttonClass += " bg-green-50 border-green-500 text-green-900";
+                            } else {
+                              buttonClass += " bg-white border-gray-300 text-gray-700";
+                            }
+
+                            const answerImage = answerImagePreviews[index];
+
+                            return (
+                              <div
+                                key={index}
+                                style={{ order: gridOrder }}
+                              >
+                                <div className={buttonClass}>
+                                  <div className="flex items-start gap-3" style={{ fontSize: '1.125rem' }}>
+                                    <span className="font-bold shrink-0 leading-normal" style={{ fontFamily: "'Times New Roman', Times, serif" }}>({answerNum})</span>
+                                    <div className="flex-1 min-w-0 overflow-hidden" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                                      {answer && (
+                                        <div className="break-words overflow-wrap-anywhere">
+                                          <MathText text={answer} className="text-left" />
+                                        </div>
+                                      )}
+                                      {answerImage && (
+                                        <img
+                                          src={answerImage}
+                                          alt={`Answer ${answerNum}`}
+                                          className="max-w-full h-auto rounded border border-gray-300 mt-2"
+                                        />
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Empty state */}
+                      {!questionText && !questionImagePreview && !answers.some(a => a.trim()) && (
+                        <div className="text-center text-gray-400 py-8 text-sm">
+                          Start typing to see preview
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* Question Name */}
@@ -1446,9 +1558,36 @@ export default function AdminPage() {
 
               {/* Answers with optional images */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Answers <span className="text-red-500">*</span> <span className="text-gray-500 font-normal">(text or image or both required)</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-gray-700">
+                    Answers <span className="text-red-500">*</span> <span className="text-gray-500 font-normal">(text or image or both required)</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Layout:</span>
+                    <button
+                      type="button"
+                      onClick={() => setAnswerLayout('list')}
+                      className={`px-2 py-1 text-xs rounded transition-all ${
+                        answerLayout === 'list'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      List (1×4)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAnswerLayout('grid')}
+                      className={`px-2 py-1 text-xs rounded transition-all ${
+                        answerLayout === 'grid'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      Grid (2×2)
+                    </button>
+                  </div>
+                </div>
                 <div className="space-y-3">
                   {answers.map((answer, index) => (
                     <div key={index} className="border border-gray-200 rounded-lg p-3">

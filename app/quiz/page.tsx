@@ -789,7 +789,14 @@ function QuizPageContent() {
           )}
 
           {/* Answer Choices */}
-          <div className="space-y-2 mb-6 relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
+          <div
+            className={`mb-6 relative ${
+              currentQuestion.answerLayout === 'grid'
+                ? 'grid grid-cols-2 gap-2'
+                : 'space-y-2'
+            }`}
+            style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}
+          >
             {currentQuestion.answers.map((answer, index) => {
               const answerNum = index + 1;
               const isChecked = checkedAnswers.includes(answerNum);
@@ -815,8 +822,18 @@ function QuizPageContent() {
 
               const answerImage = currentQuestion.answerImageUrls?.[index];
 
+              // For grid layout: (1)(3) on top row, (2)(4) on bottom row
+              // CSS order: index 0->0, 1->2, 2->1, 3->3
+              const gridOrder = currentQuestion.answerLayout === 'grid'
+                ? [0, 2, 1, 3][index]
+                : index;
+
               return (
-                <div key={index} className="relative group" style={{ pointerEvents: 'auto' }}>
+                <div
+                  key={index}
+                  className="relative group"
+                  style={{ pointerEvents: 'auto', order: gridOrder }}
+                >
                   <button
                     onClick={() => handleAnswerSelect(answerNum)}
                     className={buttonClass}
