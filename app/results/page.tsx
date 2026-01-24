@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import confetti from 'canvas-confetti';
 import { loadSession, clearSession } from '@/lib/storage';
 import { calculateResults, getPerformanceLevel, formatTime, getScoreComment, getScaledScore } from '@/lib/results';
 import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById, convertToTestFormat } from '@/lib/supabase';
@@ -59,6 +60,43 @@ export default function ResultsPage() {
     loadResults();
   }, [router]);
 
+  // Trigger confetti when results load
+  const fireConfetti = useCallback(() => {
+    const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+    // Initial burst
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: colors,
+    });
+
+    // Side cannons
+    setTimeout(() => {
+      confetti({
+        particleCount: 50,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: colors,
+      });
+      confetti({
+        particleCount: 50,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: colors,
+      });
+    }, 200);
+  }, []);
+
+  useEffect(() => {
+    if (result) {
+      fireConfetti();
+    }
+  }, [result, fireConfetti]);
+
   if (!result) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -100,64 +138,69 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-white py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Quiz Complete!
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {test ? test.name : 'Algebra I Regents Practice Test'}
           </h1>
-          <p className="text-gray-600">
-            {test ? test.name : 'Algebra I Regents practice test'}
-          </p>
         </div>
 
-        {/* Score Card */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-8 mb-6">
-          <div className="text-center">
-            {/* Circle with Remark */}
-            <div className={`inline-flex flex-col items-center justify-center w-48 h-48 rounded-full ${scoreComment.circleColor} mb-4 text-white`}>
-              <span className="font-bold text-2xl text-center px-4">
+        {/* Score Card - Main Display */}
+        <div className="bg-white rounded-xl p-8 mb-6">
+          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
+            {/* Left: Pass/Fail Circle */}
+            <div className={`flex-shrink-0 w-52 h-52 md:w-60 md:h-60 rounded-full ${scoreComment.circleColor} flex items-center justify-center`}>
+              <span className="font-bold text-4xl md:text-5xl text-white text-center">
                 {scoreComment.status}
               </span>
             </div>
 
-            {/* Score Details */}
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Raw Score: {rawScore} / {result.totalPoints}
-            </h2>
-            <p className="text-xl font-semibold text-gray-700 mb-2">
-              Scaled Score: {scaledScore} / 100
-            </p>
-            <p className="text-sm text-gray-600 mb-4">
-              {result.score} / {result.totalQuestions} Questions Correct
-            </p>
+            {/* Right: Score Details */}
+            <div className="flex-1 text-center md:text-left">
+              {/* Main Score */}
+              <div className="mb-3">
+                <span className="text-5xl md:text-6xl font-bold text-gray-900">
+                  {scaledScore}
+                </span>
+                <span className="text-2xl text-gray-400 ml-1">/100</span>
+              </div>
 
-            {/* Message */}
-            <div
-              className={`inline-block px-6 py-3 rounded-xl border-2 ${scoreComment.bgColor} mb-4`}
-            >
-              <div className={`text-sm ${scoreComment.color}`}>
-                {scoreComment.message}
+              {/* Score Breakdown */}
+              <div className="space-y-1 text-gray-600 mb-4">
+                <p>Scaled score: <span className="font-semibold text-gray-900">{scaledScore}</span></p>
+                <p>Raw score: <span className="font-semibold text-gray-900">{rawScore}</span> / {result.totalPoints}</p>
+                <p className="text-sm text-gray-400 pt-1">
+                  {result.score} / {result.totalQuestions} questions correct
+                </p>
+              </div>
+
+              {/* Message */}
+              <div className={`inline-block px-5 py-2 rounded-xl ${scoreComment.bgColor}`}>
+                <p className={`text-sm font-medium ${scoreComment.color}`}>
+                  {scoreComment.message}
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 pt-8 border-t-2 border-gray-200">
+          {/* Stats Row */}
+          <div className="grid grid-cols-3 gap-6 mt-8 pt-8 border-t border-gray-100">
             <div className="text-center">
-              <div className="text-3xl font-bold text-gray-900 mb-1">
+              <div className="text-2xl font-bold text-gray-900 mb-1">
                 {formatTime(result.averageTime)}
               </div>
-              <div className="text-sm text-gray-600 font-medium">Average Time per Question</div>
+              <div className="text-xs text-gray-500">Avg. Time</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-gray-900 mb-1">
+              <div className="text-2xl font-bold text-gray-900 mb-1">
                 {Object.keys(result.topicAccuracy).length}
               </div>
-              <div className="text-sm text-gray-600 font-medium">Topics Covered</div>
+              <div className="text-xs text-gray-500">Topics</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-amber-600 mb-1">
+              <div className="text-2xl font-bold text-amber-500 mb-1">
                 {result.missedOnFirstAttemptCount}
               </div>
-              <div className="text-sm text-gray-600 font-medium">Missed on 1st Attempt</div>
+              <div className="text-xs text-gray-500">Missed 1st Try</div>
             </div>
           </div>
         </div>

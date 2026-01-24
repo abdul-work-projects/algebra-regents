@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
+import { useEffect, useState, useRef, Suspense, useCallback } from "react";
+import confetti from "canvas-confetti";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Question, QuizSession } from "@/lib/types";
-import { loadSession, saveSession, createNewSession } from "@/lib/storage";
+import { loadSession, saveSession, createNewSession, updateSkillProgress } from "@/lib/storage";
 import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz } from "@/lib/supabase";
 import DrawingCanvas from "@/components/DrawingCanvas";
 import FullscreenDrawingCanvas from "@/components/FullscreenDrawingCanvas";
@@ -24,6 +25,11 @@ function QuizPageContent() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+
+  // Practice mode - multiple questions from question bank
+  const practiceMode = searchParams.get('mode');
+  const isPracticeMode = practiceMode === 'practice';
+  const [practiceSkill, setPracticeSkill] = useState<string | null>(null);
 
   // Drawing state for fullscreen canvas
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
@@ -99,10 +105,40 @@ function QuizPageContent() {
     setMounted(true);
 
     const testIdFromUrl = searchParams.get('testId');
+    const practiceModeFromUrl = searchParams.get('mode');
+    const skillFilter = searchParams.get('skill');
     const existingSession = loadSession();
 
     async function loadQuestionsAndSession() {
       try {
+        // Practice mode - questions filtered by skill
+        if (practiceModeFromUrl === 'practice') {
+          const allQuestions = await fetchQuestionsForQuiz();
+
+          // Filter by skill if provided
+          let filteredQuestions = allQuestions;
+          if (skillFilter) {
+            filteredQuestions = allQuestions.filter(q =>
+              q.topics.includes(skillFilter)
+            );
+            setPracticeSkill(skillFilter);
+          }
+
+          if (filteredQuestions.length === 0) {
+            // No questions match skill, redirect to home
+            router.push('/');
+            return;
+          }
+
+          setQuestions(filteredQuestions);
+          // Create a fresh session for practice (don't save to localStorage)
+          const practiceSession = createNewSession();
+          setSession(practiceSession);
+          setIsLoadingQuestions(false);
+          return;
+        }
+
+        // Full test mode
         // Determine which test to load
         let testId = testIdFromUrl;
 
@@ -158,13 +194,14 @@ function QuizPageContent() {
     }
 
     loadQuestionsAndSession();
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   useEffect(() => {
-    if (session) {
+    // Don't save session for practice mode
+    if (session && !isPracticeMode) {
       saveSession(session);
     }
-  }, [session]);
+  }, [session, isPracticeMode]);
 
   if (!mounted || !session || isLoadingQuestions) {
     return (
@@ -223,6 +260,13 @@ function QuizPageContent() {
   };
 
   const handleCheckAnswer = (answerIndex: number) => {
+    const isCorrect = answerIndex === currentQuestion.correctAnswer;
+
+    // Update skill progress in practice mode
+    if (isPracticeMode && practiceSkill) {
+      updateSkillProgress(practiceSkill, currentQuestion.id, isCorrect);
+    }
+
     setSession((prev) => {
       if (!prev) return prev;
       const currentChecked = prev.checkedAnswers[currentQuestion.id] || [];
@@ -265,6 +309,7 @@ function QuizPageContent() {
         };
       });
     } else {
+      // Last question
       setSession((prev) => {
         if (!prev) return prev;
         return {
@@ -276,7 +321,12 @@ function QuizPageContent() {
           },
         };
       });
-      router.push("/results");
+      // In practice mode, go back to home; in test mode, go to results
+      if (isPracticeMode) {
+        router.push("/");
+      } else {
+        router.push("/results");
+      }
     }
   };
 
@@ -359,17 +409,21 @@ function QuizPageContent() {
         />
         {/* Top Progress Bar */}
         <div className="sticky top-0 z-[100] bg-white border-b border-gray-200" style={{ pointerEvents: 'auto' }}>
-          <div className="relative h-1 bg-gray-200">
-            <div
-              className="h-1 bg-black transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          {!isPracticeMode && (
+            <div className="relative h-2 bg-gray-200">
+              <div
+                className="h-2 bg-green-500 transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
 
           <div className="max-w-5xl mx-auto px-4 py-2.5 md:py-2 flex items-center justify-between">
             <button
               onClick={() => {
-                if (
+                if (isPracticeMode) {
+                  router.push("/");
+                } else if (
                   window.confirm(
                     "Are you sure you want to exit? Your progress will be saved."
                   )
@@ -378,7 +432,7 @@ function QuizPageContent() {
                 }
               }}
               className="p-1.5 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
-              title="Exit"
+              title={isPracticeMode ? "Back to Questions" : "Exit"}
             >
               <svg
                 className="w-5 h-5 text-gray-600"
@@ -394,6 +448,13 @@ function QuizPageContent() {
                 />
               </svg>
             </button>
+
+            {/* Practice Mode Label */}
+            {isPracticeMode && (
+              <span className="text-sm font-bold text-gray-700">
+                {practiceSkill ? practiceSkill : 'Practice'} ({questions.length} questions)
+              </span>
+            )}
 
             <div className="flex items-center gap-3">
               <button
@@ -452,39 +513,41 @@ function QuizPageContent() {
                 Question {session.currentQuestionIndex + 1}
               </span>
 
-              {/* Mark for Review Button */}
-              <button
-                onClick={handleToggleMarkForReview}
-                className={`px-3 py-1.5 rounded-full border-2 active:scale-95 transition-all flex items-center gap-1.5 ${
-                  isMarkedForReview
-                    ? "bg-yellow-50 border-yellow-400 hover:border-yellow-500"
-                    : "border-gray-300 hover:border-black hover:bg-gray-100"
-                }`}
-                title={
-                  isMarkedForReview ? "Unmark for review" : "Mark for review"
-                }
-              >
-                <svg
-                  className={`w-4 h-4 ${
-                    isMarkedForReview ? "text-yellow-600" : "text-gray-700"
+              {/* Mark for Review Button - only in test mode */}
+              {!isPracticeMode && (
+                <button
+                  onClick={handleToggleMarkForReview}
+                  className={`px-3 py-1.5 rounded-full border-2 active:scale-95 transition-all flex items-center gap-1.5 ${
+                    isMarkedForReview
+                      ? "bg-yellow-50 border-yellow-400 hover:border-yellow-500"
+                      : "border-gray-300 hover:border-black hover:bg-gray-100"
                   }`}
-                  fill={isMarkedForReview ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                  title={
+                    isMarkedForReview ? "Unmark for review" : "Mark for review"
+                  }
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                  />
-                </svg>
-                <span className={`text-xs font-medium ${
-                  isMarkedForReview ? "text-yellow-700" : "text-gray-700"
-                }`}>
-                  Mark for Review
-                </span>
-              </button>
+                  <svg
+                    className={`w-4 h-4 ${
+                      isMarkedForReview ? "text-yellow-600" : "text-gray-700"
+                    }`}
+                    fill={isMarkedForReview ? "currentColor" : "none"}
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                    />
+                  </svg>
+                  <span className={`text-xs font-medium ${
+                    isMarkedForReview ? "text-yellow-700" : "text-gray-700"
+                  }`}>
+                    Mark for Review
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* Topic Badges */}
@@ -823,21 +886,24 @@ function QuizPageContent() {
             {/* Question Grid */}
             <div className="flex flex-wrap gap-2 overflow-y-auto pr-2 flex-1 min-h-0">
               {questions.map((q, index) => {
-                const isAnswered =
-                  session.userAnswers[q.id] !== null &&
-                  session.userAnswers[q.id] !== undefined;
+                const userAnswer = session.userAnswers[q.id];
+                const isAnswered = userAnswer !== null && userAnswer !== undefined;
                 const isCurrent = index === session.currentQuestionIndex;
                 const checkedArray = session.checkedAnswers[q.id] || [];
                 const isChecked = checkedArray.length > 0;
-                const isCorrect =
-                  isChecked &&
-                  checkedArray[checkedArray.length - 1] === q.correctAnswer;
+
+                // In practice mode, mark based on selection; in test mode, only mark if checked
+                const isCorrectAnswer = userAnswer === q.correctAnswer;
+                const shouldShowResult = isPracticeMode ? isAnswered : isChecked;
+                const isCorrect = isPracticeMode
+                  ? isCorrectAnswer
+                  : (isChecked && checkedArray[checkedArray.length - 1] === q.correctAnswer);
                 const isMarked = session.markedForReview[q.id] || false;
 
                 let bgClass = "bg-white border-2 border-gray-200 text-gray-700";
                 if (isCurrent) {
                   bgClass = "bg-slate-700 border-slate-700 text-white";
-                } else if (isChecked) {
+                } else if (shouldShowResult) {
                   if (isCorrect) {
                     bgClass = "bg-green-50 border-black text-green-700";
                   } else {
@@ -959,12 +1025,32 @@ function QuizPageContent() {
                 EXPLANATION
               </button>
               {session.currentQuestionIndex === questions.length - 1 ? (
-                <button
-                  onClick={handleNext}
-                  className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
-                >
-                  FINISH
-                </button>
+                isPracticeMode ? (
+                  <button
+                    onClick={() => router.push('/')}
+                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
+                  >
+                    DONE
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = (rect.left + rect.width / 2) / window.innerWidth;
+                      const y = (rect.top + rect.height / 2) / window.innerHeight;
+                      confetti({
+                        particleCount: 80,
+                        spread: 70,
+                        origin: { x, y },
+                        colors: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'],
+                      });
+                      handleNext();
+                    }}
+                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
+                  >
+                    FINISH
+                  </button>
+                )
               ) : (
                 <button
                   onClick={handleNext}
