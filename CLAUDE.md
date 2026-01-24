@@ -73,3 +73,6 @@ Uses KaTeX for rendering. Inline: `$expression$`, Display: `$$expression$$`. See
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
+
+IMPORTANT NOTES THAT YOU MUST FOLLOW:
+- DON'T give any credits to claude for commits or comments
