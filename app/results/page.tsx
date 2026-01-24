@@ -93,9 +93,14 @@ export default function ResultsPage() {
 
   useEffect(() => {
     if (result) {
-      fireConfetti();
+      // Only fire confetti for passing scores (65+)
+      const rawScore = result.earnedPoints;
+      const scaled = getScaledScore(rawScore, test?.scaledScoreTable);
+      if (scaled >= 65) {
+        fireConfetti();
+      }
     }
-  }, [result, fireConfetti]);
+  }, [result, test, fireConfetti]);
 
   if (!result) {
     return (
@@ -108,7 +113,7 @@ export default function ResultsPage() {
             </svg>
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Analyzing your test...</h2>
-          <p className="text-gray-500">Generating your score and performance insights</p>
+          <p className="text-gray-500">Generating question-by-question analysis</p>
         </div>
       </div>
     );

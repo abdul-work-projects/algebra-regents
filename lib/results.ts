@@ -57,8 +57,9 @@ export function calculateResults(
   const firstAttemptAnswers = session.firstAttemptAnswers || {};
 
   const questionResults = questions.map((question) => {
-    const userAnswer = session.userAnswers[question.id] || null;
-    const isCorrect = userAnswer === question.correctAnswer;
+    const userAnswer = session.userAnswers[question.id] ?? null;
+    // Only correct if user actually answered and the answer matches
+    const isCorrect = userAnswer !== null && userAnswer === question.correctAnswer;
     const points = question.points || 1; // Default 1 point per question
 
     // First attempt tracking

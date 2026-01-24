@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense, useCallback } from "react";
-import confetti from "canvas-confetti";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Question, QuizSession } from "@/lib/types";
 import { loadSession, saveSession, createNewSession, updateSkillProgress } from "@/lib/storage";
@@ -1034,18 +1033,7 @@ function QuizPageContent() {
                   </button>
                 ) : (
                   <button
-                    onClick={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const x = (rect.left + rect.width / 2) / window.innerWidth;
-                      const y = (rect.top + rect.height / 2) / window.innerHeight;
-                      confetti({
-                        particleCount: 80,
-                        spread: 70,
-                        origin: { x, y },
-                        colors: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'],
-                      });
-                      handleNext();
-                    }}
+                    onClick={handleNext}
                     className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
                   >
                     FINISH

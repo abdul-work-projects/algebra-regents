@@ -180,6 +180,18 @@ export async function fetchQuestionsForQuiz(): Promise<Question[]> {
   return dbQuestions.map(convertToQuizFormat);
 }
 
+// Fetch all unique topics from questions
+export async function fetchAllTopics(): Promise<string[]> {
+  const dbQuestions = await fetchQuestions();
+  const topicsSet = new Set<string>();
+  dbQuestions.forEach(q => {
+    if (q.topics && Array.isArray(q.topics)) {
+      q.topics.forEach(topic => topicsSet.add(topic));
+    }
+  });
+  return Array.from(topicsSet).sort();
+}
+
 // =====================================================
 // Tests Management
 // =====================================================
