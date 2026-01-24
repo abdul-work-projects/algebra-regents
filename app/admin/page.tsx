@@ -20,6 +20,7 @@ import {
   addQuestionToTest,
   DatabaseTestWithCount,
   getAllQuestionTestMappings,
+  bulkCreateQuestions,
 } from "@/lib/supabase";
 import { getCurrentUser, signOut, onAuthStateChange } from "@/lib/auth";
 import {
@@ -93,6 +94,18 @@ export default function AdminPage() {
   const [bugCounts, setBugCounts] = useState({ open: 0, reviewed: 0, resolved: 0 });
   const [expandedBugId, setExpandedBugId] = useState<string | null>(null);
   const [testNamesMap, setTestNamesMap] = useState<{ [id: string]: string }>({});
+
+  // CSV bulk upload state
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvPreview, setCsvPreview] = useState<Array<{
+    question_text: string;
+    answers: string[];
+    correct_answer: number;
+  }>>([]);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
+  const [csvSelectedTestIds, setCsvSelectedTestIds] = useState<string[]>([]);
 
   useEffect(() => {
     async function checkAuth() {
@@ -259,6 +272,154 @@ export default function AdminPage() {
   const handleCreateTest = () => {
     setEditingTest(null);
     setShowTestModal(true);
+  };
+
+  // CSV parsing function
+  const parseCSV = (text: string) => {
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+    if (lines.length < 2) {
+      throw new Error('CSV must have a header row and at least one data row');
+    }
+
+    // Parse header to find column indices
+    const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const questionIdx = header.findIndex(h => h === 'question');
+    const correctIdx = header.findIndex(h => h === 'correct');
+
+    // Find answer columns (1, 2, 3, 4)
+    const answerIndices = [
+      header.findIndex(h => h === '1'),
+      header.findIndex(h => h === '2'),
+      header.findIndex(h => h === '3'),
+      header.findIndex(h => h === '4'),
+    ];
+
+    if (questionIdx === -1) throw new Error('CSV must have a "Question" column');
+    if (correctIdx === -1) throw new Error('CSV must have a "Correct" column');
+    if (answerIndices.some(i => i === -1)) throw new Error('CSV must have columns "1", "2", "3", "4" for answers');
+
+    const questions: Array<{
+      question_text: string;
+      answers: string[];
+      correct_answer: number;
+    }> = [];
+
+    // Parse each data row
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      // Handle CSV with commas inside quoted fields
+      const values: string[] = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let j = 0; j < line.length; j++) {
+        const char = line[j];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim()); // Push last value
+
+      const questionText = values[questionIdx] || '';
+      const answers = answerIndices.map(idx => values[idx] || '');
+      const correctAnswer = parseInt(values[correctIdx]) || 1;
+
+      if (!questionText.trim()) continue; // Skip empty rows
+
+      questions.push({
+        question_text: questionText,
+        answers,
+        correct_answer: correctAnswer,
+      });
+    }
+
+    return questions;
+  };
+
+  const handleCsvFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCsvFile(file);
+    setCsvError(null);
+    setCsvPreview([]);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsed = parseCSV(text);
+        setCsvPreview(parsed);
+      } catch (err) {
+        setCsvError(err instanceof Error ? err.message : 'Failed to parse CSV');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCsvUpload = async () => {
+    if (csvPreview.length === 0) return;
+
+    setIsUploadingCsv(true);
+    setCsvError(null);
+
+    try {
+      // Convert preview to database format
+      const questionsToCreate = csvPreview.map((q, index) => ({
+        name: null,
+        question_text: q.question_text,
+        question_image_url: null,
+        reference_image_url: null,
+        answers: q.answers,
+        answer_image_urls: [null, null, null, null],
+        answer_layout: 'list' as const,
+        correct_answer: q.correct_answer,
+        explanation_text: 'See solution in your notes.',
+        explanation_image_url: null,
+        topics: [],
+        points: 1,
+        display_order: questions.length + index + 1,
+      }));
+
+      const result = await bulkCreateQuestions(questionsToCreate);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create questions');
+      }
+
+      // Assign questions to tests if any selected
+      if (csvSelectedTestIds.length > 0 && result.data) {
+        for (const question of result.data) {
+          await setTestsForQuestion(question.id, csvSelectedTestIds);
+        }
+      }
+
+      setNotification({
+        type: 'success',
+        message: `Successfully uploaded ${csvPreview.length} questions!`,
+      });
+
+      // Reset modal state
+      setShowCsvModal(false);
+      setCsvFile(null);
+      setCsvPreview([]);
+      setCsvSelectedTestIds([]);
+
+      // Reload questions
+      loadQuestions();
+      loadTestsData();
+
+      setTimeout(() => setNotification(null), 3000);
+    } catch (err) {
+      setCsvError(err instanceof Error ? err.message : 'Failed to upload questions');
+    } finally {
+      setIsUploadingCsv(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -1104,15 +1265,24 @@ export default function AdminPage() {
                     );
                   }).length})
                 </h2>
-                {editingId && (
+                <div className="flex gap-2">
                   <button
-                    onClick={resetForm}
-                    className="text-xs px-3 py-2 font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
-                    title="Clear form and add new question"
+                    onClick={() => setShowCsvModal(true)}
+                    className="text-xs px-3 py-2 font-bold border-2 border-gray-300 text-gray-700 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
+                    title="Bulk upload questions from CSV"
                   >
-                    + NEW
+                    CSV
                   </button>
-                )}
+                  {editingId && (
+                    <button
+                      onClick={resetForm}
+                      className="text-xs px-3 py-2 font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
+                      title="Clear form and add new question"
+                    >
+                      + NEW
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Search and Filter */}
@@ -1789,6 +1959,132 @@ export default function AdminPage() {
           onSave={handleSaveTest}
           editingTest={editingTest}
         />
+
+        {/* CSV Upload Modal */}
+        {showCsvModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h2 className="text-lg font-bold text-gray-900">Bulk Upload Questions</h2>
+                <button
+                  onClick={() => {
+                    setShowCsvModal(false);
+                    setCsvFile(null);
+                    setCsvPreview([]);
+                    setCsvError(null);
+                    setCsvSelectedTestIds([]);
+                  }}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-4 overflow-y-auto max-h-[calc(90vh-140px)]">
+                {/* File Upload */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    CSV File
+                  </label>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCsvFileSelect}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Format: Problem, Question, 1, 2, 3, 4, Correct
+                  </p>
+                </div>
+
+                {/* Assign to Tests */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Assign to Tests
+                  </label>
+                  {tests.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">No tests available</p>
+                  ) : (
+                    <TestMultiSelect
+                      tests={tests}
+                      selectedTestIds={csvSelectedTestIds}
+                      onChange={setCsvSelectedTestIds}
+                      placeholder="Select tests..."
+                    />
+                  )}
+                </div>
+
+                {/* Error Message */}
+                {csvError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    {csvError}
+                  </div>
+                )}
+
+                {/* Preview */}
+                {csvPreview.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">
+                      Preview ({csvPreview.length} questions)
+                    </h3>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      {/* Fixed Header */}
+                      <div className="grid grid-cols-12 bg-gray-50 border-b border-gray-200">
+                        <div className="col-span-1 px-3 py-2 text-left text-xs font-bold text-gray-700">#</div>
+                        <div className="col-span-7 px-3 py-2 text-left text-xs font-bold text-gray-700">Question</div>
+                        <div className="col-span-4 px-3 py-2 text-left text-xs font-bold text-gray-700">Correct</div>
+                      </div>
+                      {/* Scrollable Body */}
+                      <div className="max-h-64 overflow-y-auto">
+                        {csvPreview.map((q, i) => (
+                          <div
+                            key={i}
+                            className={`grid grid-cols-12 border-b border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                          >
+                            <div className="col-span-1 px-3 py-2 text-sm text-gray-500">{i + 1}</div>
+                            <div className="col-span-7 px-3 py-2 text-sm text-gray-900 truncate">
+                              {q.question_text}
+                            </div>
+                            <div className="col-span-4 px-3 py-2 text-sm text-gray-600 truncate">
+                              ({q.correct_answer}) {q.answers[q.correct_answer - 1]}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => {
+                    setShowCsvModal(false);
+                    setCsvFile(null);
+                    setCsvPreview([]);
+                    setCsvError(null);
+                    setCsvSelectedTestIds([]);
+                  }}
+                  className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCsvUpload}
+                  disabled={csvPreview.length === 0 || isUploadingCsv}
+                  className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isUploadingCsv ? 'Uploading...' : `Upload ${csvPreview.length} Questions`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

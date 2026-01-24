@@ -110,6 +110,21 @@ export async function createQuestion(question: Omit<DatabaseQuestion, 'id' | 'cr
   return data?.[0] || null;
 }
 
+// Bulk create questions
+export async function bulkCreateQuestions(questions: Omit<DatabaseQuestion, 'id' | 'created_at' | 'updated_at'>[]) {
+  const { data, error } = await supabase
+    .from('questions')
+    .insert(questions)
+    .select();
+
+  if (error) {
+    console.error('Error bulk creating questions:', error);
+    return { success: false, error: error.message, data: null };
+  }
+
+  return { success: true, error: null, data };
+}
+
 // Update an existing question
 export async function updateQuestion(id: string, updates: Partial<DatabaseQuestion>) {
   const { data, error } = await supabase
