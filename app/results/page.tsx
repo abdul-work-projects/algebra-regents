@@ -24,6 +24,7 @@ export default function ResultsPage() {
   const [test, setTest] = useState<Test | null>(null);
   const [testId, setTestId] = useState<string | undefined>(undefined);
   const [questionFilter, setQuestionFilter] = useState<'all' | 'correct' | 'incorrect' | 'unanswered' | 'missed_first' | 'second_attempt_correct'>('all');
+  const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadResults() {
@@ -339,95 +340,142 @@ export default function ResultsPage() {
                       return true;
                   }
                 })
-                .map(({ qResult, index }) => (
-                <div
-                  key={qResult.questionId}
-                  className={`p-4 rounded-lg border-2 ${
-                    qResult.isCorrect
-                      ? 'bg-green-50 border-green-200'
-                      : qResult.userAnswer === null
-                      ? 'bg-slate-100 border-slate-400'
-                      : 'bg-red-50 border-red-200'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <span className="font-bold text-gray-900">
-                          Question {index + 1}
-                        </span>
-                        <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-black text-white">
-                          {qResult.isCorrect ? qResult.points : 0}/{qResult.points} pts
-                        </span>
-                        {qResult.isCorrect ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
-                            ✓ Correct
-                          </span>
-                        ) : qResult.userAnswer === null ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-200 text-slate-700 border border-slate-400">
-                            Not Answered
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
-                            ✗ Incorrect
-                          </span>
-                        )}
-                        {qResult.missedOnFirstAttempt && (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
-                            Missed 1st attempt
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-500">
-                          {qResult.topics.join(', ')}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-700">
-                        {qResult.userAnswer !== null && (
-                          <div className="mb-2">
-                            <span className="block mb-1">Your answer:</span>
-                            <div className="ml-4">
-                              {questions[index].answers[qResult.userAnswer - 1] && (
-                                <div className="font-medium">
-                                  <MathText text={questions[index].answers[qResult.userAnswer - 1]} />
+                .map(({ qResult, index }) => {
+                  const question = questions[index];
+                  const isExpanded = expandedQuestionId === qResult.questionId;
+
+                  return (
+                    <div
+                      key={qResult.questionId}
+                      className={`p-4 rounded-lg border-2 ${
+                        qResult.isCorrect
+                          ? 'bg-green-50 border-green-200'
+                          : qResult.userAnswer === null
+                          ? 'bg-slate-100 border-slate-400'
+                          : 'bg-red-50 border-red-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
+                            <span className="font-bold text-gray-900">
+                              Question {index + 1}
+                            </span>
+                            <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-black text-white">
+                              {qResult.isCorrect ? qResult.points : 0}/{qResult.points} pts
+                            </span>
+                            {qResult.isCorrect ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                ✓ Correct
+                              </span>
+                            ) : qResult.userAnswer === null ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-200 text-slate-700 border border-slate-400">
+                                Not Answered
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+                                ✗ Incorrect
+                              </span>
+                            )}
+                            {qResult.missedOnFirstAttempt && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                                Missed 1st attempt
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              {qResult.topics.join(', ')}
+                            </span>
+                          </div>
+
+                          {/* View Question Toggle */}
+                          <button
+                            onClick={() => setExpandedQuestionId(isExpanded ? null : qResult.questionId)}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium mb-2 flex items-center gap-1"
+                          >
+                            <svg
+                              className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                            {isExpanded ? 'Hide Question' : 'View Question'}
+                          </button>
+
+                          {/* Expanded Question View */}
+                          {isExpanded && (
+                            <div className="mb-4 p-3 bg-white rounded-lg border border-gray-200">
+                              {question.imageFilename && (
+                                <img
+                                  src={question.imageFilename}
+                                  alt="Question"
+                                  className="w-full h-auto max-h-64 object-contain rounded-lg mb-2"
+                                />
+                              )}
+                              {question.questionText && (
+                                <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
+                                  <MathText text={question.questionText} className="leading-relaxed" />
                                 </div>
                               )}
-                              {questions[index].answerImageUrls?.[qResult.userAnswer - 1] && (
+                              {question.referenceImageUrl && (
                                 <img
-                                  src={questions[index].answerImageUrls[qResult.userAnswer - 1]}
-                                  alt={`Your answer ${qResult.userAnswer}`}
-                                  className="max-w-[200px] h-auto rounded border border-gray-300 mt-1"
+                                  src={question.referenceImageUrl}
+                                  alt="Reference"
+                                  className="w-full h-auto max-h-48 object-contain rounded-lg mt-2 border border-gray-300"
                                 />
                               )}
                             </div>
-                          </div>
-                        )}
-                        {!qResult.isCorrect && (
-                          <div className="text-green-700">
-                            <span className="block mb-1">Correct answer:</span>
-                            <div className="ml-4">
-                              {questions[index].answers[qResult.correctAnswer - 1] && (
-                                <div className="font-medium">
-                                  <MathText text={questions[index].answers[qResult.correctAnswer - 1]} />
+                          )}
+
+                          <div className="text-sm text-gray-700">
+                            {qResult.userAnswer !== null && (
+                              <div className="mb-2">
+                                <span className="block mb-1">Your answer:</span>
+                                <div className="ml-4">
+                                  {question.answers[qResult.userAnswer - 1] && (
+                                    <div className="font-medium">
+                                      <MathText text={question.answers[qResult.userAnswer - 1]} />
+                                    </div>
+                                  )}
+                                  {question.answerImageUrls?.[qResult.userAnswer - 1] && (
+                                    <img
+                                      src={question.answerImageUrls[qResult.userAnswer - 1]}
+                                      alt={`Your answer ${qResult.userAnswer}`}
+                                      className="max-w-[200px] h-auto rounded border border-gray-300 mt-1"
+                                    />
+                                  )}
                                 </div>
-                              )}
-                              {questions[index].answerImageUrls?.[qResult.correctAnswer - 1] && (
-                                <img
-                                  src={questions[index].answerImageUrls[qResult.correctAnswer - 1]}
-                                  alt={`Correct answer ${qResult.correctAnswer}`}
-                                  className="max-w-[200px] h-auto rounded border border-gray-300 mt-1"
-                                />
-                              )}
-                            </div>
+                              </div>
+                            )}
+                            {!qResult.isCorrect && (
+                              <div className="text-green-700">
+                                <span className="block mb-1">Correct answer:</span>
+                                <div className="ml-4">
+                                  {question.answers[qResult.correctAnswer - 1] && (
+                                    <div className="font-medium">
+                                      <MathText text={question.answers[qResult.correctAnswer - 1]} />
+                                    </div>
+                                  )}
+                                  {question.answerImageUrls?.[qResult.correctAnswer - 1] && (
+                                    <img
+                                      src={question.answerImageUrls[qResult.correctAnswer - 1]}
+                                      alt={`Correct answer ${qResult.correctAnswer}`}
+                                      className="max-w-[200px] h-auto rounded border border-gray-300 mt-1"
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
+                        <div className="text-sm text-gray-500 ml-4">
+                          {formatTime(qResult.timeSpent)}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-sm text-gray-500 ml-4">
-                      {formatTime(qResult.timeSpent)}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
               </div>
             </div>
           )}

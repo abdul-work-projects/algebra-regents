@@ -63,8 +63,10 @@ export function calculateResults(
     const points = question.points || 1; // Default 1 point per question
 
     // First attempt tracking
+    // missedOnFirstAttempt is only true when first attempt was wrong BUT final answer is correct
+    // (i.e., student recovered on second attempt)
     const firstAttemptAnswer = firstAttemptAnswers[question.id] ?? null;
-    const missedOnFirstAttempt = firstAttemptAnswer !== null && firstAttemptAnswer !== question.correctAnswer;
+    const missedOnFirstAttempt = firstAttemptAnswer !== null && firstAttemptAnswer !== question.correctAnswer && isCorrect;
 
     if (missedOnFirstAttempt) {
       missedOnFirstAttemptCount++;
