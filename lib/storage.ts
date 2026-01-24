@@ -117,6 +117,7 @@ export const createNewSession = (testId?: string): QuizSession => {
     firstAttemptAnswers: {},
     questionTimes: {},
     drawings: {},
+    graphs: {},
     markedForReview: {},
     startTime: now,
     lastQuestionStartTime: now,

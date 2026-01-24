@@ -22,10 +22,18 @@ import {
   getAllQuestionTestMappings,
 } from "@/lib/supabase";
 import { getCurrentUser, signOut, onAuthStateChange } from "@/lib/auth";
+import {
+  fetchBugReports,
+  updateBugReportStatus,
+  deleteBugReport,
+  getBugReportCounts,
+  DatabaseBugReport,
+} from "@/lib/bugReports";
 import TagInput from "@/components/TagInput";
 import TestModal from "@/components/TestModal";
 import TestMultiSelect from "@/components/TestMultiSelect";
 import { Test } from "@/lib/types";
+import MathText from "@/components/MathText";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -66,7 +74,7 @@ export default function AdminPage() {
   const dropSuccessRef = useRef(false);
 
   // Tests management state
-  const [activeTab, setActiveTab] = useState<"questions" | "tests">("questions");
+  const [activeTab, setActiveTab] = useState<"questions" | "tests" | "bugs">("questions");
   const [tests, setTests] = useState<Test[]>([]);
   const [isLoadingTests, setIsLoadingTests] = useState(true);
   const [showTestModal, setShowTestModal] = useState(false);
@@ -75,6 +83,14 @@ export default function AdminPage() {
   const [filterTestId, setFilterTestId] = useState<string>("all"); // "all" or a test ID
   const [questionTestMap, setQuestionTestMap] = useState<{ [questionId: string]: string[] }>({});
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Bug reports state
+  const [bugReports, setBugReports] = useState<DatabaseBugReport[]>([]);
+  const [isLoadingBugs, setIsLoadingBugs] = useState(true);
+  const [bugStatusFilter, setBugStatusFilter] = useState<'all' | 'open' | 'reviewed' | 'resolved'>('all');
+  const [bugCounts, setBugCounts] = useState({ open: 0, reviewed: 0, resolved: 0 });
+  const [expandedBugId, setExpandedBugId] = useState<string | null>(null);
+  const [testNamesMap, setTestNamesMap] = useState<{ [id: string]: string }>({});
 
   useEffect(() => {
     async function checkAuth() {
@@ -105,6 +121,8 @@ export default function AdminPage() {
   useEffect(() => {
     loadQuestions();
     loadTestsData();
+    // Load bug counts for the tab badge
+    getBugReportCounts().then(counts => setBugCounts(counts));
   }, []);
 
   const loadQuestions = async () => {
@@ -129,6 +147,66 @@ export default function AdminPage() {
     const data = await fetchTests();
     setTests(data.map(convertToTestFormat));
     setIsLoadingTests(false);
+  };
+
+  const loadBugReports = async () => {
+    setIsLoadingBugs(true);
+    const filter = bugStatusFilter === 'all' ? undefined : bugStatusFilter;
+    const data = await fetchBugReports(filter);
+    setBugReports(data);
+
+    const counts = await getBugReportCounts();
+    setBugCounts(counts);
+
+    // Build test names map
+    const uniqueTestIds = [...new Set(data.filter(r => r.test_id).map(r => r.test_id!))];
+    const namesMap: { [id: string]: string } = {};
+    tests.forEach(t => {
+      if (uniqueTestIds.includes(t.id)) {
+        namesMap[t.id] = t.name;
+      }
+    });
+    setTestNamesMap(namesMap);
+
+    setIsLoadingBugs(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'bugs') {
+      loadBugReports();
+    }
+  }, [activeTab, bugStatusFilter]);
+
+  const handleBugStatusChange = async (reportId: string, newStatus: 'open' | 'reviewed' | 'resolved') => {
+    const success = await updateBugReportStatus(reportId, newStatus);
+    if (success) {
+      loadBugReports();
+    }
+  };
+
+  const handleDeleteBug = async (reportId: string) => {
+    if (!window.confirm('Are you sure you want to delete this report?')) {
+      return;
+    }
+    const success = await deleteBugReport(reportId);
+    if (success) {
+      loadBugReports();
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
+  const getQuestionPreview = (questionId: string | null) => {
+    if (!questionId) return null;
+    return questions.find(q => q.id === questionId);
   };
 
   const handleSaveTest = async (testData: {
@@ -615,6 +693,26 @@ export default function AdminPage() {
             >
               Tests ({tests.length})
             </button>
+            <button
+              onClick={() => {
+                setActiveTab("bugs");
+                setNotification(null);
+              }}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
+                activeTab === "bugs"
+                  ? "bg-black text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Bug Reports
+              {bugCounts.open > 0 && (
+                <span className={`px-1.5 py-0.5 text-xs rounded-full ${
+                  activeTab === "bugs" ? "bg-white text-black" : "bg-red-500 text-white"
+                }`}>
+                  {bugCounts.open}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -697,6 +795,282 @@ export default function AdminPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Bug Reports Tab Content */}
+        {activeTab === "bugs" && (
+          <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Bug Reports</h2>
+              <p className="text-sm text-gray-500">
+                {bugCounts.open + bugCounts.reviewed + bugCounts.resolved} total reports
+              </p>
+            </div>
+
+            {/* Status Filter Tabs */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <button
+                onClick={() => setBugStatusFilter('all')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  bugStatusFilter === 'all'
+                    ? 'bg-black text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All ({bugCounts.open + bugCounts.reviewed + bugCounts.resolved})
+              </button>
+              <button
+                onClick={() => setBugStatusFilter('open')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  bugStatusFilter === 'open'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-red-50 text-red-700 hover:bg-red-100'
+                }`}
+              >
+                Open ({bugCounts.open})
+              </button>
+              <button
+                onClick={() => setBugStatusFilter('reviewed')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  bugStatusFilter === 'reviewed'
+                    ? 'bg-yellow-500 text-white'
+                    : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                }`}
+              >
+                Reviewed ({bugCounts.reviewed})
+              </button>
+              <button
+                onClick={() => setBugStatusFilter('resolved')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  bugStatusFilter === 'resolved'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-green-50 text-green-700 hover:bg-green-100'
+                }`}
+              >
+                Resolved ({bugCounts.resolved})
+              </button>
+            </div>
+
+            {/* Bug Reports List */}
+            {isLoadingBugs ? (
+              <div className="text-center py-8 text-gray-500">Loading reports...</div>
+            ) : bugReports.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                {bugStatusFilter === 'all'
+                  ? 'No bug reports yet.'
+                  : `No ${bugStatusFilter} reports.`}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {bugReports.map((report) => {
+                  const question = getQuestionPreview(report.question_id);
+                  const isExpanded = expandedBugId === report.id;
+
+                  return (
+                    <div
+                      key={report.id}
+                      className="border-2 border-gray-200 rounded-xl overflow-hidden"
+                    >
+                      {/* Report Header */}
+                      <div
+                        className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => setExpandedBugId(isExpanded ? null : report.id)}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              {/* Status Badge */}
+                              <span
+                                className={`px-2 py-0.5 text-xs font-bold rounded ${
+                                  report.status === 'open'
+                                    ? 'bg-red-100 text-red-700'
+                                    : report.status === 'reviewed'
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-green-100 text-green-700'
+                                }`}
+                              >
+                                {report.status.toUpperCase()}
+                              </span>
+
+                              {/* Question Number */}
+                              {report.question_number && (
+                                <span className="px-2 py-0.5 text-xs font-bold bg-gray-100 text-gray-700 rounded">
+                                  Q#{report.question_number}
+                                </span>
+                              )}
+
+                              {/* Test Name */}
+                              {report.test_id && testNamesMap[report.test_id] && (
+                                <span className="px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 rounded">
+                                  {testNamesMap[report.test_id]}
+                                </span>
+                              )}
+
+                              {/* Has Screenshot */}
+                              {report.screenshot_url && (
+                                <span className="px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700 rounded">
+                                  Has Screenshot
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Description Preview */}
+                            <p className="text-sm text-gray-900 line-clamp-2">
+                              {report.description}
+                            </p>
+
+                            {/* Date */}
+                            <p className="text-xs text-gray-500 mt-1">
+                              {formatDate(report.created_at)}
+                            </p>
+                          </div>
+
+                          {/* Expand Icon */}
+                          <svg
+                            className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
+                              isExpanded ? 'rotate-180' : ''
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+
+                      {/* Expanded Content */}
+                      {isExpanded && (
+                        <div className="border-t border-gray-200 p-4 bg-gray-50">
+                          {/* Full Description */}
+                          <div className="mb-4">
+                            <h4 className="text-xs font-bold text-gray-700 mb-1">Description</h4>
+                            <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                              {report.description}
+                            </p>
+                          </div>
+
+                          {/* Screenshot */}
+                          {report.screenshot_url && (
+                            <div className="mb-4">
+                              <h4 className="text-xs font-bold text-gray-700 mb-2">Screenshot</h4>
+                              <a
+                                href={report.screenshot_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <img
+                                  src={report.screenshot_url}
+                                  alt="Bug screenshot"
+                                  className="max-w-sm rounded-lg border border-gray-300 hover:opacity-90 transition-opacity"
+                                />
+                              </a>
+                            </div>
+                          )}
+
+                          {/* Question Preview */}
+                          {question && (
+                            <div className="mb-4">
+                              <h4 className="text-xs font-bold text-gray-700 mb-2">Question Preview</h4>
+                              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                {/* Question Info Header */}
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                  {report.question_number && (
+                                    <span className="px-2 py-0.5 text-xs font-bold bg-black text-white rounded">
+                                      Question #{report.question_number}
+                                    </span>
+                                  )}
+                                  {report.test_id && testNamesMap[report.test_id] && (
+                                    <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                                      {testNamesMap[report.test_id]}
+                                    </span>
+                                  )}
+                                  {question.topics && question.topics.length > 0 && (
+                                    <span className="px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 rounded">
+                                      {question.topics.join(', ')}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {question.question_image_url && (
+                                  <img
+                                    src={question.question_image_url}
+                                    alt="Question"
+                                    className="max-w-xs rounded mb-2"
+                                  />
+                                )}
+                                {question.question_text && (
+                                  <div className="text-sm text-gray-800 mb-2">
+                                    <MathText text={question.question_text} />
+                                  </div>
+                                )}
+                                <div className="text-xs text-green-700 mt-2 pt-2 border-t border-gray-100">
+                                  <span className="font-semibold">Correct Answer:</span>{' '}
+                                  ({question.correct_answer}){' '}
+                                  <MathText text={question.answers[question.correct_answer - 1]} />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {report.status !== 'reviewed' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleBugStatusChange(report.id, 'reviewed');
+                                }}
+                                className="px-3 py-1.5 text-xs font-bold bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 active:scale-95 transition-all"
+                              >
+                                Mark Reviewed
+                              </button>
+                            )}
+                            {report.status !== 'resolved' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleBugStatusChange(report.id, 'resolved');
+                                }}
+                                className="px-3 py-1.5 text-xs font-bold bg-green-600 text-white rounded-lg hover:bg-green-700 active:scale-95 transition-all"
+                              >
+                                Mark Resolved
+                              </button>
+                            )}
+                            {report.status === 'resolved' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleBugStatusChange(report.id, 'open');
+                                }}
+                                className="px-3 py-1.5 text-xs font-bold bg-gray-500 text-white rounded-lg hover:bg-gray-600 active:scale-95 transition-all"
+                              >
+                                Reopen
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteBug(report.id);
+                              }}
+                              className="px-3 py-1.5 text-xs font-bold text-red-600 border-2 border-red-200 rounded-lg hover:bg-red-50 active:scale-95 transition-all"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

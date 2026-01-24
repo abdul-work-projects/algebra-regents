@@ -4,13 +4,16 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Question, QuizSession } from "@/lib/types";
 import { loadSession, saveSession, createNewSession, updateSkillProgress } from "@/lib/storage";
-import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz } from "@/lib/supabase";
+import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById } from "@/lib/supabase";
 import DrawingCanvas from "@/components/DrawingCanvas";
 import FullscreenDrawingCanvas from "@/components/FullscreenDrawingCanvas";
 import Timer from "@/components/Timer";
 import ExplanationSlider from "@/components/ExplanationSlider";
 import ReferenceImageModal from "@/components/ReferenceImageModal";
 import MathText from "@/components/MathText";
+import BugReportModal from "@/components/BugReport/BugReportModal";
+import GraphingToolModal from "@/components/GraphingTool/GraphingToolModal";
+import { GraphData } from "@/lib/types";
 
 function QuizPageContent() {
   const router = useRouter();
@@ -22,8 +25,11 @@ function QuizPageContent() {
   const [showReferenceImage, setShowReferenceImage] = useState(false);
   const [showAllQuestions, setShowAllQuestions] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showBugReport, setShowBugReport] = useState(false);
+  const [showGraphingTool, setShowGraphingTool] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+  const [testName, setTestName] = useState<string | undefined>(undefined);
 
   // Practice mode - multiple questions from question bank
   const practiceMode = searchParams.get('mode');
@@ -150,6 +156,11 @@ function QuizPageContent() {
         let dbQuestions: Question[];
         if (testId) {
           dbQuestions = await fetchQuestionsForTestQuiz(testId);
+          // Fetch test name for bug reports
+          const testData = await fetchTestById(testId);
+          if (testData) {
+            setTestName(testData.name);
+          }
         } else {
           // Fallback to loading all questions (backward compatibility)
           dbQuestions = await fetchQuestionsForQuiz();
@@ -170,6 +181,10 @@ function QuizPageContent() {
           // Add firstAttemptAnswers if it doesn't exist (backward compatibility)
           if (!existingSession.firstAttemptAnswers) {
             existingSession.firstAttemptAnswers = {};
+          }
+          // Add graphs if it doesn't exist (backward compatibility)
+          if (!existingSession.graphs) {
+            existingSession.graphs = {};
           }
           // Convert old format (single number) to new format (array)
           Object.keys(existingSession.checkedAnswers).forEach((key) => {
@@ -547,6 +562,28 @@ function QuizPageContent() {
                   </span>
                 </button>
               )}
+
+              {/* Report Bug Button */}
+              <button
+                onClick={() => setShowBugReport(true)}
+                className="px-3 py-1.5 rounded-full border-2 border-gray-300 hover:border-red-400 hover:bg-red-50 active:scale-95 transition-all flex items-center gap-1.5"
+                title="Report an issue with this question"
+              >
+                <svg
+                  className="w-4 h-4 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"
+                  />
+                </svg>
+                <span className="text-xs font-medium text-gray-700">Report</span>
+              </button>
             </div>
 
             {/* Topic Badges */}
@@ -705,6 +742,24 @@ function QuizPageContent() {
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Graph Button */}
+            <div style={{ pointerEvents: 'auto' }}>
+              <button
+                onClick={() => setShowGraphingTool(true)}
+                className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
+                  session.graphs?.[currentQuestion.id]
+                    ? 'border-blue-500 bg-blue-50 text-blue-600'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-blue-500 hover:bg-blue-50'
+                }`}
+                title="Graphing Tool"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 14l4-4 4 4 5-5" />
                 </svg>
               </button>
             </div>
@@ -1083,6 +1138,36 @@ function QuizPageContent() {
         isOpen={showReferenceImage}
         onClose={() => setShowReferenceImage(false)}
         imageUrl={currentQuestion.referenceImageUrl}
+      />
+
+      {/* Bug Report Modal */}
+      <BugReportModal
+        isOpen={showBugReport}
+        onClose={() => setShowBugReport(false)}
+        questionNumber={session.currentQuestionIndex + 1}
+        questionId={currentQuestion.id}
+        testId={session.testId}
+        testName={testName}
+      />
+
+      {/* Graphing Tool Modal */}
+      <GraphingToolModal
+        isOpen={showGraphingTool}
+        onClose={() => setShowGraphingTool(false)}
+        initialData={session.graphs?.[currentQuestion.id]}
+        onSave={(data: GraphData) => {
+          setSession((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              graphs: {
+                ...prev.graphs,
+                [currentQuestion.id]: data,
+              },
+            };
+          });
+        }}
+        questionNumber={session.currentQuestionIndex + 1}
       />
 
       {/* Calculator Panel - Desktop only (right sidebar) */}

@@ -8,6 +8,13 @@ import { calculateResults, getPerformanceLevel, formatTime, getScoreComment, get
 import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById, convertToTestFormat } from '@/lib/supabase';
 import { Question, QuizResult, Test } from '@/lib/types';
 import MathText from '@/components/MathText';
+import dynamic from 'next/dynamic';
+
+// Dynamic import for PDF generator to avoid SSR issues with @react-pdf/renderer
+const ReportGenerator = dynamic(
+  () => import('@/components/ReportPDF/ReportGenerator'),
+  { ssr: false, loading: () => <div className="flex-1 px-6 py-3 text-sm font-bold text-gray-400 bg-gray-100 rounded-xl text-center">Loading PDF...</div> }
+);
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -171,8 +178,30 @@ export default function ResultsPage() {
 
               {/* Score Breakdown */}
               <div className="space-y-1 text-gray-600 mb-4">
-                <p>Scaled score: <span className="font-semibold text-gray-900">{scaledScore}</span></p>
-                <p>Raw score: <span className="font-semibold text-gray-900">{rawScore}</span> / {result.totalPoints}</p>
+                <p className="flex items-center gap-1.5">
+                  Scaled score: <span className="font-semibold text-gray-900">{scaledScore}</span>
+                  <span className="relative group">
+                    <svg className="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                      Your final score, based on your points
+                      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></span>
+                    </span>
+                  </span>
+                </p>
+                <p className="flex items-center gap-1.5">
+                  Raw score: <span className="font-semibold text-gray-900">{rawScore}</span> / {result.totalPoints}
+                  <span className="relative group">
+                    <svg className="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                      How many points you earned
+                      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></span>
+                    </span>
+                  </span>
+                </p>
                 <p className="text-sm text-gray-400 pt-1">
                   {result.score} / {result.totalQuestions} questions correct
                 </p>
@@ -412,6 +441,7 @@ export default function ResultsPage() {
           >
             RETAKE QUIZ
           </button>
+          <ReportGenerator result={result} test={test} scaledScore={scaledScore} />
           <button
             onClick={handleBackHome}
             className="flex-1 px-6 py-3 text-sm font-bold text-gray-700 bg-white border-2 border-gray-300 hover:border-black hover:bg-gray-50 active:scale-95 rounded-xl transition-all"
