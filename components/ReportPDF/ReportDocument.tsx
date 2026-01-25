@@ -245,46 +245,12 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
   };
   const message = getMessage();
 
-  // Helper to clean LaTeX/HTML and make readable plain text
-  const cleanText = (text: string, maxLen: number = 60) => {
-    let clean = text;
-    // Remove $$ delimiters but keep content
-    clean = clean.replace(/\$\$([\s\S]*?)\$\$/g, '$1');
-    // Remove $ delimiters but keep content
-    clean = clean.replace(/\$(.*?)\$/g, '$1');
-    // Clean up common LaTeX commands
-    clean = clean.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1/$2)');
-    clean = clean.replace(/\\sqrt\{([^}]*)\}/g, '√($1)');
-    clean = clean.replace(/\\cdot/g, '·');
-    clean = clean.replace(/\\times/g, '×');
-    clean = clean.replace(/\\div/g, '÷');
-    clean = clean.replace(/\\pm/g, '±');
-    clean = clean.replace(/\\leq/g, '≤');
-    clean = clean.replace(/\\geq/g, '≥');
-    clean = clean.replace(/\\neq/g, '≠');
-    clean = clean.replace(/\\pi/g, 'π');
-    clean = clean.replace(/\\infty/g, '∞');
-    clean = clean.replace(/\^{([^}]*)}/g, '^$1');
-    clean = clean.replace(/_{([^}]*)}/g, '_$1');
-    clean = clean.replace(/\\left/g, '');
-    clean = clean.replace(/\\right/g, '');
-    clean = clean.replace(/\\[a-zA-Z]+/g, ''); // Remove remaining LaTeX commands
-    clean = clean.replace(/[{}]/g, ''); // Remove braces
-    // Remove HTML tags
-    clean = clean.replace(/<[^>]+>/g, '');
-    // Clean up whitespace
-    clean = clean.replace(/\s+/g, ' ').trim();
-    // Truncate
-    if (clean.length > maxLen) clean = clean.substring(0, maxLen) + '...';
-    return clean;
-  };
-
   const allQuestions = result.questionResults.map((qr, i) => {
     const question = questions.find(q => q.id === qr.questionId);
     return {
       ...qr,
       num: i + 1,
-      text: question ? cleanText(question.questionText || '') : '',
+      skill: question?.topics?.join(', ') || '',
     };
   });
 
@@ -310,7 +276,7 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
   const QuestionRow = ({ q }: { q: typeof allQuestions[0] }) => (
     <View style={[styles.questionRow, q.isCorrect ? styles.correctRow : styles.incorrectRow]}>
       <Text style={styles.qNum}>Q{q.num}</Text>
-      <Text style={styles.qText}>{q.text}</Text>
+      <Text style={styles.qText}>{q.skill}</Text>
       <Text style={[styles.qYour, q.isCorrect ? styles.correctText : styles.incorrectText]}>
         ({q.userAnswer !== null ? q.userAnswer : '-'})
       </Text>
@@ -333,7 +299,7 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
       borderRadius: 2,
     }}>
       <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', width: 18 }}>#</Text>
-      <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', flex: 1, marginRight: 4 }}>Question</Text>
+      <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', flex: 1, marginRight: 4 }}>Skill</Text>
       <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', width: 16, textAlign: 'center' }}>You</Text>
       <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', width: 16, textAlign: 'center' }}>Ans</Text>
       <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', width: 10, textAlign: 'center' }}></Text>
