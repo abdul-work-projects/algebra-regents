@@ -151,10 +151,12 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-white py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
+        <div className="flex items-center justify-between mb-6">
+          <div className="w-14"></div>
+          <h1 className="text-2xl font-bold text-gray-900 text-center flex-1">
             {test ? test.name : 'Algebra I Regents Practice Test'}
           </h1>
+          <ReportGenerator result={result} test={test} scaledScore={scaledScore} questions={questions} iconOnly />
         </div>
 
         {/* Score Card - Main Display */}
@@ -489,7 +491,6 @@ export default function ResultsPage() {
           >
             RETAKE QUIZ
           </button>
-          <ReportGenerator result={result} test={test} scaledScore={scaledScore} questions={questions} />
           <button
             onClick={handleBackHome}
             className="flex-1 px-6 py-3 text-sm font-bold text-gray-700 bg-white border-2 border-gray-300 hover:border-black hover:bg-gray-50 active:scale-95 rounded-xl transition-all"
