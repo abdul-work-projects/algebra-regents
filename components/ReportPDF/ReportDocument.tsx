@@ -219,6 +219,16 @@ interface ReportDocumentProps {
   questions: Question[];
 }
 
+// Format time for PDF (same as results page)
+const formatTimeForPdf = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins > 0) {
+    return `${mins}m ${secs}s`;
+  }
+  return `${secs}s`;
+};
+
 export default function ReportDocument({ result, test, scaledScore, questions }: ReportDocumentProps) {
   const isPassing = scaledScore >= 65;
   const currentDate = new Date().toLocaleDateString('en-US', {
@@ -357,17 +367,20 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
                 </Text>
               </View>
 
-              {/* Score Details */}
+              {/* Score Details - Match results page exactly */}
               <View style={styles.scoreDetails}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 2 }}>
                   <Text style={styles.mainScore}>{scaledScore}</Text>
                   <Text style={[styles.scoreOf100, { marginBottom: 2 }]}>/100</Text>
                 </View>
                 <Text style={styles.scoreLine}>
-                  Raw: <Text style={styles.scoreValue}>{result.earnedPoints}/{result.totalPoints}</Text>
+                  Scaled score: <Text style={styles.scoreValue}>{scaledScore}</Text>
                 </Text>
-                <Text style={[styles.scoreLine, { marginBottom: 6 }]}>
-                  Correct: <Text style={styles.scoreValue}>{result.score}/{result.totalQuestions}</Text>
+                <Text style={styles.scoreLine}>
+                  Raw score: <Text style={styles.scoreValue}>{result.earnedPoints}</Text> / {result.totalPoints}
+                </Text>
+                <Text style={[styles.scoreLine, { color: '#9ca3af', marginBottom: 4 }]}>
+                  {result.score} / {result.totalQuestions} questions correct
                 </Text>
                 {/* Message - inline */}
                 <View style={[styles.messageBox, { backgroundColor: message.bg, alignSelf: 'flex-start' }]}>
@@ -376,19 +389,19 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
               </View>
             </View>
 
-            {/* Stats Row */}
+            {/* Stats Row - Match results page */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{result.score}</Text>
-                <Text style={styles.statLabel}>Correct</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{result.totalQuestions - result.score}</Text>
-                <Text style={styles.statLabel}>Wrong</Text>
+                <Text style={styles.statValue}>{formatTimeForPdf(result.averageTime)}</Text>
+                <Text style={styles.statLabel}>Avg. Time</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{Object.keys(result.topicAccuracy).length}</Text>
                 <Text style={styles.statLabel}>Topics</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: '#f59e0b' }]}>{result.missedOnFirstAttemptCount}</Text>
+                <Text style={styles.statLabel}>Missed 1st Try</Text>
               </View>
             </View>
           </View>
