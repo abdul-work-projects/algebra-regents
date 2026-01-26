@@ -25,6 +25,7 @@ export default function ResultsPage() {
   const [testId, setTestId] = useState<string | undefined>(undefined);
   const [questionFilter, setQuestionFilter] = useState<'all' | 'correct' | 'incorrect' | 'unanswered' | 'missed_first' | 'second_attempt_correct'>('all');
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
+  const [showTopics, setShowTopics] = useState(true);
 
   useEffect(() => {
     async function loadResults() {
@@ -148,43 +149,43 @@ export default function ResultsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white py-8">
+    <div className="min-h-screen bg-white py-4">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="w-14"></div>
-          <h1 className="text-2xl font-bold text-gray-900 text-center flex-1">
+        <div className="flex items-center justify-between mb-4">
+          <div className="w-12"></div>
+          <h1 className="text-lg md:text-xl font-bold text-gray-900 text-center flex-1">
             {test ? test.name : 'Algebra I Regents Practice Test'}
           </h1>
           <ReportGenerator result={result} test={test} scaledScore={scaledScore} questions={questions} iconOnly />
         </div>
 
-        {/* Score Card - Main Display */}
-        <div className="bg-white rounded-xl p-8 mb-6">
-          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
-            {/* Left: Pass/Fail Circle */}
-            <div className={`flex-shrink-0 w-52 h-52 md:w-60 md:h-60 rounded-full ${scoreComment.circleColor} flex items-center justify-center`}>
-              <span className="font-bold text-4xl md:text-5xl text-white text-center">
+        {/* Score Card - Compact Display */}
+        <div className="bg-white rounded-xl p-4 md:p-6 mb-4">
+          <div className="flex items-center gap-4 md:gap-8">
+            {/* Left: Pass/Fail Circle - Smaller */}
+            <div className={`flex-shrink-0 w-28 h-28 md:w-36 md:h-36 rounded-full ${scoreComment.circleColor} flex items-center justify-center`}>
+              <span className="font-bold text-2xl md:text-3xl text-white text-center">
                 {scoreComment.status}
               </span>
             </div>
 
-            {/* Right: Score Details */}
-            <div className="flex-1 text-center md:text-left">
+            {/* Right: Score Details - More Compact */}
+            <div className="flex-1">
               {/* Main Score */}
-              <div className="mb-3">
-                <span className="text-5xl md:text-6xl font-bold text-gray-900">
+              <div className="mb-1">
+                <span className="text-3xl md:text-4xl font-bold text-gray-900">
                   {scaledScore}
                 </span>
-                <span className="text-2xl text-gray-400 ml-1">/100</span>
+                <span className="text-lg text-gray-400 ml-1">/100</span>
               </div>
 
-              {/* Score Breakdown */}
-              <div className="space-y-1 text-gray-600 mb-4">
-                <p className="flex items-center gap-1.5">
+              {/* Score Breakdown - Inline */}
+              <div className="text-sm text-gray-600 space-y-0.5">
+                <p className="flex items-center gap-1">
                   Scaled score: <span className="font-semibold text-gray-900">{scaledScore}</span>
                   <span className="relative group">
-                    <svg className="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
@@ -193,10 +194,10 @@ export default function ResultsPage() {
                     </span>
                   </span>
                 </p>
-                <p className="flex items-center gap-1.5">
+                <p className="flex items-center gap-1">
                   Raw score: <span className="font-semibold text-gray-900">{rawScore}</span> / {result.totalPoints}
                   <span className="relative group">
-                    <svg className="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
@@ -205,36 +206,36 @@ export default function ResultsPage() {
                     </span>
                   </span>
                 </p>
-                <p className="text-sm text-gray-400 pt-1">
+                <p className="text-xs text-gray-400">
                   {result.score} / {result.totalQuestions} questions correct
                 </p>
               </div>
 
-              {/* Message */}
-              <div className={`inline-block px-5 py-2 rounded-xl ${scoreComment.bgColor}`}>
-                <p className={`text-sm font-medium ${scoreComment.color}`}>
+              {/* Message - Smaller */}
+              <div className={`inline-block px-3 py-1 rounded-lg mt-2 ${scoreComment.bgColor}`}>
+                <p className={`text-xs font-medium ${scoreComment.color}`}>
                   {scoreComment.message}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Stats Row */}
-          <div className="grid grid-cols-3 gap-6 mt-8 pt-8 border-t border-gray-100">
+          {/* Stats Row - More Compact */}
+          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
             <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900 mb-1">
+              <div className="text-lg font-bold text-gray-900">
                 {formatTime(result.averageTime)}
               </div>
               <div className="text-xs text-gray-500">Avg. Time</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900 mb-1">
+              <div className="text-lg font-bold text-gray-900">
                 {Object.keys(result.topicAccuracy).length}
               </div>
               <div className="text-xs text-gray-500">Topics</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-amber-500 mb-1">
+              <div className="text-lg font-bold text-amber-500">
                 {result.missedOnFirstAttemptCount}
               </div>
               <div className="text-xs text-gray-500">Missed 1st Try</div>
@@ -242,54 +243,69 @@ export default function ResultsPage() {
           </div>
         </div>
 
-        {/* Topic Performance */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-6 mb-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">
-            Performance by Topic
-          </h3>
-          <div className="space-y-4">
-            {Object.entries(result.topicAccuracy)
-              .sort((a, b) => b[1].percentage - a[1].percentage)
-              .map(([topic, stats]) => {
-                return (
-                  <div key={topic}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-bold text-gray-900">{topic}</span>
-                      <span className="text-xs text-gray-600 font-medium">
-                        {stats.correct} / {stats.total} correct ({stats.percentage}%)
-                      </span>
+        {/* Topic Performance - Collapsible */}
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-4">
+          <button
+            onClick={() => setShowTopics(!showTopics)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <h3 className="text-base font-bold text-gray-900">
+              Performance by Topic
+            </h3>
+            <svg
+              className={`w-5 h-5 transition-transform ${showTopics ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showTopics && (
+            <div className="space-y-3 mt-4">
+              {Object.entries(result.topicAccuracy)
+                .sort((a, b) => b[1].percentage - a[1].percentage)
+                .map(([topic, stats]) => {
+                  return (
+                    <div key={topic}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-sm text-gray-900">{topic}</span>
+                        <span className="text-xs text-gray-500">
+                          {stats.correct} / {stats.total} correct ({stats.percentage}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div
+                          className={`h-1.5 rounded-full transition-all ${
+                            stats.percentage >= 80
+                              ? 'bg-green-500'
+                              : stats.percentage >= 65
+                              ? 'bg-blue-500'
+                              : stats.percentage >= 50
+                              ? 'bg-yellow-500'
+                              : 'bg-rose-500'
+                          }`}
+                          style={{ width: `${stats.percentage}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all ${
-                          stats.percentage >= 80
-                            ? 'bg-green-500'
-                            : stats.percentage >= 65
-                            ? 'bg-blue-500'
-                            : stats.percentage >= 50
-                            ? 'bg-yellow-500'
-                            : 'bg-rose-500'
-                        }`}
-                        style={{ width: `${stats.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
 
         {/* Question-by-Question Details */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-6 mb-6">
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-4">
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="w-full flex items-center justify-between text-left active:scale-95 transition-all"
+            className="w-full flex items-center justify-between text-left"
           >
-            <h3 className="text-xl font-bold text-gray-900">
+            <h3 className="text-base font-bold text-gray-900">
               Question-by-Question Breakdown
             </h3>
             <svg
-              className={`w-6 h-6 transition-transform ${
+              className={`w-5 h-5 transition-transform ${
                 showDetails ? 'rotate-180' : ''
               }`}
               fill="none"
@@ -306,7 +322,7 @@ export default function ResultsPage() {
           </button>
 
           {showDetails && (
-            <div className="mt-6">
+            <div className="mt-4">
               {/* Filter Dropdown */}
               <div className="mb-4">
                 <select
