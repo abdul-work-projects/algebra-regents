@@ -3,7 +3,8 @@
 import { loadSession, clearSession, loadMarkedForReview } from '@/lib/storage';
 import { fetchActiveTests, convertToTestFormat, fetchQuestionsForQuiz } from '@/lib/supabase';
 import { Test, Question } from '@/lib/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 type Tab = 'question-bank' | 'full-length-tests';
 
@@ -14,8 +15,12 @@ interface SkillInfo {
   markedCount: number;
 }
 
-export default function Home() {
-  const [activeTab, setActiveTab] = useState<Tab>('full-length-tests');
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<Tab>(
+    tabParam === 'question-bank' ? 'question-bank' : 'full-length-tests'
+  );
   const [tests, setTests] = useState<Test[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
@@ -27,6 +32,11 @@ export default function Home() {
     const session = loadSession();
     if (session?.testId) {
       setExistingSessionTestId(session.testId);
+    }
+
+    // Update tab if URL parameter changes
+    if (tabParam === 'question-bank') {
+      setActiveTab('question-bank');
     }
 
     async function loadData() {
@@ -325,5 +335,17 @@ export default function Home() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

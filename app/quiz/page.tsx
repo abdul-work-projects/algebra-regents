@@ -352,9 +352,9 @@ function QuizPageContent() {
           },
         };
       });
-      // In practice mode, go back to home; in test mode, go to results
+      // In practice mode, go back to question bank; in test mode, go to results
       if (isPracticeMode) {
-        router.push("/");
+        router.push("/?tab=question-bank");
       } else {
         router.push("/results");
       }
@@ -1057,7 +1057,9 @@ function QuizPageContent() {
                 const isCorrect = isPracticeMode
                   ? isCorrectAnswer
                   : (isChecked && checkedArray[checkedArray.length - 1] === q.correctAnswer);
-                const isMarked = session.markedForReview[q.id] || false;
+                const isMarked = isPracticeMode
+                  ? practiceMarkedQuestions.has(q.id)
+                  : session.markedForReview[q.id] || false;
 
                 let bgClass = "bg-white border-2 border-gray-200 text-gray-700";
                 if (isCurrent) {
