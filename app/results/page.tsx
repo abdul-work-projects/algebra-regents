@@ -443,6 +443,57 @@ export default function ResultsPage() {
                                   className="w-full h-auto max-h-48 object-contain rounded-lg mt-2 border border-gray-300"
                                 />
                               )}
+
+                              {/* Answer Options */}
+                              <div className="mt-3 space-y-2">
+                                {question.answers.map((answer, answerIndex) => {
+                                  const optionNumber = answerIndex + 1;
+                                  const isUserAnswer = qResult.userAnswer === optionNumber;
+                                  const isCorrectAnswer = qResult.correctAnswer === optionNumber;
+                                  const optionLetter = String.fromCharCode(65 + answerIndex);
+
+                                  let borderClass = 'border-gray-200';
+                                  let bgClass = 'bg-gray-50';
+                                  let labelClass = 'bg-gray-200 text-gray-700';
+
+                                  if (isCorrectAnswer) {
+                                    borderClass = 'border-green-400';
+                                    bgClass = 'bg-green-50';
+                                    labelClass = 'bg-green-500 text-white';
+                                  } else if (isUserAnswer && !qResult.isCorrect) {
+                                    borderClass = 'border-red-400';
+                                    bgClass = 'bg-red-50';
+                                    labelClass = 'bg-red-500 text-white';
+                                  }
+
+                                  return (
+                                    <div
+                                      key={answerIndex}
+                                      className={`flex items-start gap-2 p-2 rounded-lg border ${borderClass} ${bgClass}`}
+                                    >
+                                      <span className={`flex-shrink-0 w-6 h-6 rounded-full ${labelClass} flex items-center justify-center text-xs font-bold`}>
+                                        {optionLetter}
+                                      </span>
+                                      <div className="flex-1 text-sm">
+                                        {answer && <MathText text={answer} />}
+                                        {question.answerImageUrls?.[answerIndex] && (
+                                          <img
+                                            src={question.answerImageUrls[answerIndex]}
+                                            alt={`Option ${optionLetter}`}
+                                            className="max-w-[150px] h-auto rounded border border-gray-300 mt-1"
+                                          />
+                                        )}
+                                      </div>
+                                      {isCorrectAnswer && (
+                                        <span className="text-xs text-green-600 font-medium">✓ Correct</span>
+                                      )}
+                                      {isUserAnswer && !qResult.isCorrect && (
+                                        <span className="text-xs text-red-600 font-medium">Your answer</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
 
