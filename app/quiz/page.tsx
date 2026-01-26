@@ -433,7 +433,7 @@ function QuizPageContent() {
           canUndo={canUndo}
         />
         {/* Top Progress Bar */}
-        <div className="sticky top-0 z-[100] bg-white border-b border-gray-200" style={{ pointerEvents: 'auto' }}>
+        <div className="sticky top-0 z-[200] bg-white border-b border-gray-200" style={{ pointerEvents: 'auto' }}>
           {!isPracticeMode && (
             <div className="relative h-2 bg-gray-200">
               <div
@@ -817,9 +817,12 @@ function QuizPageContent() {
                       });
                       setGraphClearKey(prev => prev + 1);
                     }}
-                    className="px-2 py-0.5 text-xs font-bold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 active:scale-95 transition-all"
+                    className="p-0.5 rounded hover:bg-red-50 active:scale-95 transition-all"
+                    title="Clear graph"
                   >
-                    Clear
+                    <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                   <button
                     onClick={() => setShowGraphingTool(false)}
