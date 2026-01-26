@@ -1,6 +1,6 @@
 'use client';
 
-import { loadSession, clearSession } from '@/lib/storage';
+import { loadSession, clearSession, loadMarkedForReview } from '@/lib/storage';
 import { fetchActiveTests, convertToTestFormat, fetchQuestionsForQuiz } from '@/lib/supabase';
 import { Test, Question } from '@/lib/types';
 import { useEffect, useState } from 'react';
@@ -11,6 +11,7 @@ interface SkillInfo {
   name: string;
   questionCount: number;
   questionIds: string[];
+  markedCount: number;
 }
 
 export default function Home() {
@@ -37,6 +38,9 @@ export default function Home() {
         setTests(dbTests.map(convertToTestFormat));
         setQuestions(dbQuestions);
 
+        // Load marked for review questions
+        const markedQuestions = loadMarkedForReview();
+
         // Build skills from questions
         const skillMap = new Map<string, { questionIds: Set<string> }>();
         dbQuestions.forEach(q => {
@@ -49,11 +53,17 @@ export default function Home() {
         });
 
         const skillsArray: SkillInfo[] = Array.from(skillMap.entries())
-          .map(([name, data]) => ({
-            name,
-            questionCount: data.questionIds.size,
-            questionIds: Array.from(data.questionIds),
-          }))
+          .map(([name, data]) => {
+            const questionIds = Array.from(data.questionIds);
+            // Count how many questions in this skill are marked for review
+            const markedCount = questionIds.filter(id => markedQuestions.has(id)).length;
+            return {
+              name,
+              questionCount: data.questionIds.size,
+              questionIds,
+              markedCount,
+            };
+          })
           .sort((a, b) => a.name.localeCompare(b.name));
 
         setSkills(skillsArray);
@@ -216,7 +226,27 @@ export default function Home() {
                       className="flex items-center justify-between py-4 border-b border-gray-100 hover:bg-gray-50 transition-all cursor-pointer"
                     >
                       <span className="text-gray-800">{skill.name}</span>
-                      <span className="text-sm text-gray-400">{skill.questionCount} questions</span>
+                      <div className="flex items-center gap-3">
+                        {skill.markedCount > 0 && (
+                          <span className="flex items-center gap-1 text-sm text-yellow-600">
+                            <svg
+                              className="w-4 h-4"
+                              fill="currentColor"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                              />
+                            </svg>
+                            {skill.markedCount}
+                          </span>
+                        )}
+                        <span className="text-sm text-gray-400">{skill.questionCount} questions</span>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Question, QuizSession } from "@/lib/types";
-import { loadSession, saveSession, createNewSession, updateSkillProgress } from "@/lib/storage";
+import { loadSession, saveSession, createNewSession, updateSkillProgress, loadMarkedForReview, toggleMarkedForReview } from "@/lib/storage";
 import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById } from "@/lib/supabase";
 import DrawingCanvas from "@/components/DrawingCanvas";
 import FullscreenDrawingCanvas from "@/components/FullscreenDrawingCanvas";
@@ -46,6 +46,7 @@ function QuizPageContent() {
   const practiceMode = searchParams.get('mode');
   const isPracticeMode = practiceMode === 'practice';
   const [practiceSkill, setPracticeSkill] = useState<string | null>(null);
+  const [practiceMarkedQuestions, setPracticeMarkedQuestions] = useState<Set<string>>(new Set());
 
   // Drawing state for fullscreen canvas
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
@@ -119,6 +120,10 @@ function QuizPageContent() {
 
   useEffect(() => {
     setMounted(true);
+
+    // Load marked for review questions for practice mode
+    const markedQuestions = loadMarkedForReview();
+    setPracticeMarkedQuestions(markedQuestions);
 
     const testIdFromUrl = searchParams.get('testId');
     const practiceModeFromUrl = searchParams.get('mode');
@@ -259,8 +264,9 @@ function QuizPageContent() {
     ((session.currentQuestionIndex + 1) / questions.length) * 100;
   const selectedAnswer = session.userAnswers[currentQuestion.id] || null;
   const checkedAnswers = session.checkedAnswers[currentQuestion.id] || [];
-  const isMarkedForReview =
-    session.markedForReview[currentQuestion.id] || false;
+  const isMarkedForReview = isPracticeMode
+    ? practiceMarkedQuestions.has(currentQuestion.id)
+    : session.markedForReview[currentQuestion.id] || false;
 
   const handleAnswerSelect = (answerIndex: number) => {
     const timeSpent = Math.floor(
@@ -378,16 +384,31 @@ function QuizPageContent() {
   };
 
   const handleToggleMarkForReview = () => {
-    setSession((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        markedForReview: {
-          ...prev.markedForReview,
-          [currentQuestion.id]: !prev.markedForReview[currentQuestion.id],
-        },
-      };
-    });
+    if (isPracticeMode) {
+      // Use persistent storage for practice mode
+      const isNowMarked = toggleMarkedForReview(currentQuestion.id);
+      setPracticeMarkedQuestions(prev => {
+        const newSet = new Set(prev);
+        if (isNowMarked) {
+          newSet.add(currentQuestion.id);
+        } else {
+          newSet.delete(currentQuestion.id);
+        }
+        return newSet;
+      });
+    } else {
+      // Use session storage for test mode
+      setSession((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          markedForReview: {
+            ...prev.markedForReview,
+            [currentQuestion.id]: !prev.markedForReview[currentQuestion.id],
+          },
+        };
+      });
+    }
   };
 
   const handleSubmit = () => {
@@ -556,41 +577,39 @@ function QuizPageContent() {
                 Question {session.currentQuestionIndex + 1}
               </span>
 
-              {/* Mark for Review Button - only in test mode */}
-              {!isPracticeMode && (
-                <button
-                  onClick={handleToggleMarkForReview}
-                  className={`px-3 py-1.5 rounded-full border-2 active:scale-95 transition-all flex items-center gap-1.5 ${
-                    isMarkedForReview
-                      ? "bg-yellow-50 border-yellow-400 hover:border-yellow-500"
-                      : "border-gray-300 hover:border-black hover:bg-gray-100"
+              {/* Mark for Review Button */}
+              <button
+                onClick={handleToggleMarkForReview}
+                className={`px-3 py-1.5 rounded-full border-2 active:scale-95 transition-all flex items-center gap-1.5 ${
+                  isMarkedForReview
+                    ? "bg-yellow-50 border-yellow-400 hover:border-yellow-500"
+                    : "border-gray-300 hover:border-black hover:bg-gray-100"
+                }`}
+                title={
+                  isMarkedForReview ? "Unmark for review" : "Mark for review"
+                }
+              >
+                <svg
+                  className={`w-4 h-4 ${
+                    isMarkedForReview ? "text-yellow-600" : "text-gray-700"
                   }`}
-                  title={
-                    isMarkedForReview ? "Unmark for review" : "Mark for review"
-                  }
+                  fill={isMarkedForReview ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <svg
-                    className={`w-4 h-4 ${
-                      isMarkedForReview ? "text-yellow-600" : "text-gray-700"
-                    }`}
-                    fill={isMarkedForReview ? "currentColor" : "none"}
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                    />
-                  </svg>
-                  <span className={`text-xs font-medium ${
-                    isMarkedForReview ? "text-yellow-700" : "text-gray-700"
-                  }`}>
-                    Mark for Review
-                  </span>
-                </button>
-              )}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                  />
+                </svg>
+                <span className={`text-xs font-medium ${
+                  isMarkedForReview ? "text-yellow-700" : "text-gray-700"
+                }`}>
+                  Mark for Review
+                </span>
+              </button>
 
               {/* Report Bug Button */}
               <button

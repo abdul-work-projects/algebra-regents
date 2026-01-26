@@ -2,6 +2,7 @@ import { QuizSession } from './types';
 
 const STORAGE_KEY = 'algebra-regents-quiz-session';
 const SKILL_PROGRESS_KEY = 'algebra-regents-skill-progress';
+const MARKED_FOR_REVIEW_KEY = 'algebra-regents-marked-for-review';
 
 // Skill progress tracking
 export interface SkillProgress {
@@ -71,6 +72,53 @@ export const resetSkillProgress = (skill?: string): void => {
       localStorage.removeItem(SKILL_PROGRESS_KEY);
     }
   }
+};
+
+// Marked for review questions (persists across sessions for question bank)
+export interface MarkedForReviewData {
+  questionIds: Set<string>;
+}
+
+export const loadMarkedForReview = (): Set<string> => {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem(MARKED_FOR_REVIEW_KEY);
+      if (stored) {
+        const data = JSON.parse(stored);
+        return new Set(data as string[]);
+      }
+    } catch (error) {
+      console.error('Error loading marked for review from localStorage:', error);
+    }
+  }
+  return new Set();
+};
+
+export const saveMarkedForReview = (questionIds: Set<string>): void => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(MARKED_FOR_REVIEW_KEY, JSON.stringify(Array.from(questionIds)));
+    } catch (error) {
+      console.error('Error saving marked for review to localStorage:', error);
+    }
+  }
+};
+
+export const toggleMarkedForReview = (questionId: string): boolean => {
+  const marked = loadMarkedForReview();
+  const isNowMarked = !marked.has(questionId);
+  if (isNowMarked) {
+    marked.add(questionId);
+  } else {
+    marked.delete(questionId);
+  }
+  saveMarkedForReview(marked);
+  return isNowMarked;
+};
+
+export const isQuestionMarkedForReview = (questionId: string): boolean => {
+  const marked = loadMarkedForReview();
+  return marked.has(questionId);
 };
 
 export const saveSession = (session: QuizSession): void => {
