@@ -14,6 +14,8 @@ interface SkillInfo {
   markedCount: number;
 }
 
+const LAST_TAB_KEY = 'algebra-regents-last-tab';
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>('full-length-tests');
   const [tests, setTests] = useState<Test[]>([]);
@@ -23,14 +25,31 @@ export default function Home() {
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Check URL parameter on mount
+  // Check URL parameter or localStorage on mount
   useEffect(() => {
+    // First check URL param
     const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    if (tab === 'question-bank') {
+    const tabParam = params.get('tab');
+    if (tabParam === 'question-bank') {
+      setActiveTab('question-bank');
+      localStorage.setItem(LAST_TAB_KEY, 'question-bank');
+      // Clean up URL
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+
+    // Then check localStorage
+    const savedTab = localStorage.getItem(LAST_TAB_KEY);
+    if (savedTab === 'question-bank') {
       setActiveTab('question-bank');
     }
   }, []);
+
+  // Save tab changes to localStorage
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    localStorage.setItem(LAST_TAB_KEY, tab);
+  };
 
   useEffect(() => {
     const session = loadSession();
@@ -135,7 +154,7 @@ export default function Home() {
               <li>
                 <button
                   onClick={() => {
-                    setActiveTab('full-length-tests');
+                    handleTabChange('full-length-tests');
                     setSidebarOpen(false);
                   }}
                   style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}
@@ -154,7 +173,7 @@ export default function Home() {
               <li>
                 <button
                   onClick={() => {
-                    setActiveTab('question-bank');
+                    handleTabChange('question-bank');
                     setSidebarOpen(false);
                   }}
                   style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}

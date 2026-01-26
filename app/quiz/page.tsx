@@ -354,7 +354,8 @@ function QuizPageContent() {
       });
       // In practice mode, go back to question bank; in test mode, go to results
       if (isPracticeMode) {
-        window.location.href = "/?tab=question-bank";
+        localStorage.setItem('algebra-regents-last-tab', 'question-bank');
+        window.location.href = "/";
       } else {
         router.push("/results");
       }
