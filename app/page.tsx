@@ -30,11 +30,8 @@ export default function Home() {
     // First check URL param
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
-    if (tabParam === 'question-bank') {
-      setActiveTab('question-bank');
-      localStorage.setItem(LAST_TAB_KEY, 'question-bank');
-      // Clean up URL
-      window.history.replaceState({}, '', '/');
+    if (tabParam === 'question-bank' || tabParam === 'full-length-tests') {
+      setActiveTab(tabParam);
       return;
     }
 
@@ -42,13 +39,15 @@ export default function Home() {
     const savedTab = localStorage.getItem(LAST_TAB_KEY);
     if (savedTab === 'question-bank') {
       setActiveTab('question-bank');
+      window.history.replaceState({}, '', '/?tab=question-bank');
     }
   }, []);
 
-  // Save tab changes to localStorage
+  // Save tab changes and update URL
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
     localStorage.setItem(LAST_TAB_KEY, tab);
+    window.history.replaceState({}, '', `/?tab=${tab}`);
   };
 
   useEffect(() => {
