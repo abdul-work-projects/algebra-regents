@@ -3,8 +3,7 @@
 import { loadSession, clearSession, loadMarkedForReview } from '@/lib/storage';
 import { fetchActiveTests, convertToTestFormat, fetchQuestionsForQuiz } from '@/lib/supabase';
 import { Test, Question } from '@/lib/types';
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 type Tab = 'question-bank' | 'full-length-tests';
 
@@ -15,12 +14,8 @@ interface SkillInfo {
   markedCount: number;
 }
 
-function HomeContent() {
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<Tab>(
-    tabParam === 'question-bank' ? 'question-bank' : 'full-length-tests'
-  );
+export default function Home() {
+  const [activeTab, setActiveTab] = useState<Tab>('full-length-tests');
   const [tests, setTests] = useState<Test[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
@@ -28,14 +23,14 @@ function HomeContent() {
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Update tab when URL parameter changes
+  // Check URL parameter on mount
   useEffect(() => {
-    if (tabParam === 'question-bank') {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'question-bank') {
       setActiveTab('question-bank');
-    } else if (tabParam === 'full-length-tests') {
-      setActiveTab('full-length-tests');
     }
-  }, [tabParam]);
+  }, []);
 
   useEffect(() => {
     const session = loadSession();
@@ -339,17 +334,5 @@ function HomeContent() {
         </div>
       </main>
     </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    }>
-      <HomeContent />
-    </Suspense>
   );
 }
