@@ -14,8 +14,6 @@ interface SkillInfo {
   markedCount: number;
 }
 
-const LAST_TAB_KEY = 'algebra-regents-last-tab';
-
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>('full-length-tests');
   const [tests, setTests] = useState<Test[]>([]);
@@ -25,28 +23,18 @@ export default function Home() {
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Check URL parameter or localStorage on mount
+  // Check URL parameter on mount
   useEffect(() => {
-    // First check URL param
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
     if (tabParam === 'question-bank' || tabParam === 'full-length-tests') {
       setActiveTab(tabParam);
-      return;
-    }
-
-    // Then check localStorage
-    const savedTab = localStorage.getItem(LAST_TAB_KEY);
-    if (savedTab === 'question-bank') {
-      setActiveTab('question-bank');
-      window.history.replaceState({}, '', '/?tab=question-bank');
     }
   }, []);
 
-  // Save tab changes and update URL
+  // Update URL when tab changes
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
-    localStorage.setItem(LAST_TAB_KEY, tab);
     window.history.replaceState({}, '', `/?tab=${tab}`);
   };
 
