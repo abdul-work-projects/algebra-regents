@@ -153,6 +153,39 @@ export async function deleteQuestion(id: string) {
   return true;
 }
 
+// Delete all questions assigned to a test
+export async function deleteQuestionsForTest(testId: string): Promise<{ success: boolean; count: number }> {
+  // First get all question IDs for this test
+  const { data: testQuestions, error: fetchError } = await supabase
+    .from('test_questions')
+    .select('question_id')
+    .eq('test_id', testId);
+
+  if (fetchError) {
+    console.error('Error fetching test questions:', fetchError);
+    return { success: false, count: 0 };
+  }
+
+  if (!testQuestions || testQuestions.length === 0) {
+    return { success: true, count: 0 };
+  }
+
+  const questionIds = testQuestions.map(tq => tq.question_id);
+
+  // Delete all questions (this will cascade delete test_questions entries)
+  const { error: deleteError } = await supabase
+    .from('questions')
+    .delete()
+    .in('id', questionIds);
+
+  if (deleteError) {
+    console.error('Error deleting questions:', deleteError);
+    return { success: false, count: 0 };
+  }
+
+  return { success: true, count: questionIds.length };
+}
+
 // Update the display order of multiple questions
 export async function updateQuestionOrders(orders: { id: string; display_order: number }[]) {
   const updates = orders.map(({ id, display_order }) =>

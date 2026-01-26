@@ -11,6 +11,7 @@ import {
   updateQuestionOrders,
   updateTestQuestionOrders,
   fetchQuestionsForTest,
+  deleteQuestionsForTest,
   DatabaseQuestion,
   fetchTests,
   createTest,
@@ -90,6 +91,14 @@ export default function AdminPage() {
   const [questionTestMap, setQuestionTestMap] = useState<{ [questionId: string]: string[] }>({});
   const [testQuestionOrder, setTestQuestionOrder] = useState<{ [questionId: string]: number }>({}); // Test-specific order
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Delete test modal state
+  const [deleteTestModal, setDeleteTestModal] = useState<{ show: boolean; test: Test | null; deleteQuestions: boolean; isDeleting: boolean }>({
+    show: false,
+    test: null,
+    deleteQuestions: false,
+    isDeleting: false,
+  });
 
   // Bug reports state
   const [bugReports, setBugReports] = useState<DatabaseBugReport[]>([]);
@@ -272,17 +281,48 @@ export default function AdminPage() {
     setEditingTest(null);
   };
 
-  const handleDeleteTest = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this test? This will remove all question associations.")) {
-      return;
-    }
+  const handleDeleteTest = (test: Test) => {
+    setDeleteTestModal({
+      show: true,
+      test,
+      deleteQuestions: false,
+      isDeleting: false,
+    });
+  };
 
-    const success = await deleteTest(id);
-    if (success) {
-      setNotification({ type: "success", message: "Test deleted successfully" });
-      loadTestsData();
-    } else {
-      setNotification({ type: "error", message: "Failed to delete test" });
+  const confirmDeleteTest = async () => {
+    if (!deleteTestModal.test) return;
+
+    setDeleteTestModal(prev => ({ ...prev, isDeleting: true }));
+
+    try {
+      let deletedQuestionsCount = 0;
+
+      // Delete questions first if option is selected
+      if (deleteTestModal.deleteQuestions) {
+        const result = await deleteQuestionsForTest(deleteTestModal.test.id);
+        if (!result.success) {
+          setNotification({ type: "error", message: "Failed to delete questions" });
+          setDeleteTestModal(prev => ({ ...prev, isDeleting: false }));
+          return;
+        }
+        deletedQuestionsCount = result.count;
+      }
+
+      // Delete the test
+      const success = await deleteTest(deleteTestModal.test.id);
+      if (success) {
+        const message = deleteTestModal.deleteQuestions && deletedQuestionsCount > 0
+          ? `Test and ${deletedQuestionsCount} question${deletedQuestionsCount !== 1 ? 's' : ''} deleted successfully`
+          : "Test deleted successfully";
+        setNotification({ type: "success", message });
+        loadTestsData();
+        loadQuestions();
+      } else {
+        setNotification({ type: "error", message: "Failed to delete test" });
+      }
+    } finally {
+      setDeleteTestModal({ show: false, test: null, deleteQuestions: false, isDeleting: false });
     }
   };
 
@@ -1046,7 +1086,7 @@ export default function AdminPage() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDeleteTest(test.id)}
+                          onClick={() => handleDeleteTest(test)}
                           className="p-2 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
                           title="Delete test"
                         >
@@ -2226,6 +2266,86 @@ export default function AdminPage() {
                     </button>
                   </>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Test Confirmation Modal */}
+        {deleteTestModal.show && deleteTestModal.test && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-red-50">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">Delete Test</h2>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-4">
+                <p className="text-gray-700 mb-4">
+                  Are you sure you want to delete <span className="font-bold">&quot;{deleteTestModal.test.name}&quot;</span>?
+                </p>
+
+                {deleteTestModal.test.questionCount && deleteTestModal.test.questionCount > 0 ? (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={deleteTestModal.deleteQuestions}
+                        onChange={(e) => setDeleteTestModal(prev => ({ ...prev, deleteQuestions: e.target.checked }))}
+                        className="mt-1 w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-gray-900">
+                          Also delete {deleteTestModal.test.questionCount} question{deleteTestModal.test.questionCount !== 1 ? 's' : ''} assigned to this test
+                        </span>
+                        <p className="text-xs text-gray-500 mt-1">
+                          This will permanently remove the questions from the question bank
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 mb-4">
+                    This test has no questions assigned to it.
+                  </p>
+                )}
+
+                {deleteTestModal.deleteQuestions && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                    <div className="flex items-start gap-2">
+                      <svg className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <p className="text-sm text-red-700">
+                        <span className="font-bold">Warning:</span> This action cannot be undone. All selected questions will be permanently deleted.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => setDeleteTestModal({ show: false, test: null, deleteQuestions: false, isDeleting: false })}
+                  disabled={deleteTestModal.isDeleting}
+                  className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 disabled:opacity-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteTest}
+                  disabled={deleteTestModal.isDeleting}
+                  className="px-4 py-2 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {deleteTestModal.isDeleting ? 'Deleting...' : (deleteTestModal.deleteQuestions ? 'Delete Test & Questions' : 'Delete Test')}
+                </button>
               </div>
             </div>
           </div>
