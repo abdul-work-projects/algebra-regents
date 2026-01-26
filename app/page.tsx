@@ -28,15 +28,19 @@ function HomeContent() {
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Update tab when URL parameter changes
+  useEffect(() => {
+    if (tabParam === 'question-bank') {
+      setActiveTab('question-bank');
+    } else if (tabParam === 'full-length-tests') {
+      setActiveTab('full-length-tests');
+    }
+  }, [tabParam]);
+
   useEffect(() => {
     const session = loadSession();
     if (session?.testId) {
       setExistingSessionTestId(session.testId);
-    }
-
-    // Update tab if URL parameter changes
-    if (tabParam === 'question-bank') {
-      setActiveTab('question-bank');
     }
 
     async function loadData() {
