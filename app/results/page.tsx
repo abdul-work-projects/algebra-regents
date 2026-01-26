@@ -444,52 +444,68 @@ export default function ResultsPage() {
                                 />
                               )}
 
-                              {/* Answer Options */}
-                              <div className="mt-3 space-y-2">
+                              {/* Answer Options - Same styling as quiz page */}
+                              <div className={`mt-3 ${
+                                question.answerLayout === 'grid'
+                                  ? 'grid grid-cols-2 gap-2'
+                                  : 'space-y-2'
+                              }`}>
                                 {question.answers.map((answer, answerIndex) => {
                                   const optionNumber = answerIndex + 1;
                                   const isUserAnswer = qResult.userAnswer === optionNumber;
                                   const isCorrectAnswer = qResult.correctAnswer === optionNumber;
-                                  const optionLetter = String.fromCharCode(65 + answerIndex);
 
-                                  let borderClass = 'border-gray-200';
-                                  let bgClass = 'bg-gray-50';
-                                  let labelClass = 'bg-gray-200 text-gray-700';
+                                  let buttonClass = "w-full px-3 py-2 text-left rounded-xl border-2 transition-all";
 
                                   if (isCorrectAnswer) {
-                                    borderClass = 'border-green-400';
-                                    bgClass = 'bg-green-50';
-                                    labelClass = 'bg-green-500 text-white';
+                                    buttonClass += " bg-green-50 border-black text-green-900";
                                   } else if (isUserAnswer && !qResult.isCorrect) {
-                                    borderClass = 'border-red-400';
-                                    bgClass = 'bg-red-50';
-                                    labelClass = 'bg-red-500 text-white';
+                                    buttonClass += " bg-rose-50 border-rose-500 text-rose-900";
+                                  } else {
+                                    buttonClass += " bg-white border-gray-200 text-gray-700";
                                   }
+
+                                  // Grid order: (1)(3) on top, (2)(4) on bottom
+                                  const gridOrder = question.answerLayout === 'grid'
+                                    ? [0, 2, 1, 3][answerIndex]
+                                    : answerIndex;
 
                                   return (
                                     <div
                                       key={answerIndex}
-                                      className={`flex items-start gap-2 p-2 rounded-lg border ${borderClass} ${bgClass}`}
+                                      className="relative"
+                                      style={{ order: gridOrder }}
                                     >
-                                      <span className={`flex-shrink-0 w-6 h-6 rounded-full ${labelClass} flex items-center justify-center text-xs font-bold`}>
-                                        {optionLetter}
-                                      </span>
-                                      <div className="flex-1 text-sm">
-                                        {answer && <MathText text={answer} />}
-                                        {question.answerImageUrls?.[answerIndex] && (
-                                          <img
-                                            src={question.answerImageUrls[answerIndex]}
-                                            alt={`Option ${optionLetter}`}
-                                            className="max-w-[150px] h-auto rounded border border-gray-300 mt-1"
-                                          />
+                                      <div className={buttonClass}>
+                                        <div className="flex items-start gap-2" style={{ fontSize: '0.9rem' }}>
+                                          <span className="font-bold shrink-0 leading-normal" style={{ fontFamily: "'Times New Roman', Times, serif" }}>({optionNumber})</span>
+                                          <div className="flex-1 min-w-0 overflow-hidden" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                                            {answer && (
+                                              <div className="break-words">
+                                                <MathText text={answer} className="text-left" />
+                                              </div>
+                                            )}
+                                            {question.answerImageUrls?.[answerIndex] && (
+                                              <img
+                                                src={question.answerImageUrls[answerIndex]}
+                                                alt={`Answer ${optionNumber}`}
+                                                className="max-w-full h-auto rounded border border-gray-300 mt-1"
+                                              />
+                                            )}
+                                          </div>
+                                        </div>
+                                        {/* Labels for correct/incorrect */}
+                                        {(isCorrectAnswer || (isUserAnswer && !qResult.isCorrect)) && (
+                                          <div className="mt-1 text-right">
+                                            {isCorrectAnswer && (
+                                              <span className="text-xs text-green-700 font-medium">✓ Correct</span>
+                                            )}
+                                            {isUserAnswer && !qResult.isCorrect && (
+                                              <span className="text-xs text-rose-700 font-medium">Your answer</span>
+                                            )}
+                                          </div>
                                         )}
                                       </div>
-                                      {isCorrectAnswer && (
-                                        <span className="text-xs text-green-600 font-medium">✓ Correct</span>
-                                      )}
-                                      {isUserAnswer && !qResult.isCorrect && (
-                                        <span className="text-xs text-red-600 font-medium">Your answer</span>
-                                      )}
                                     </div>
                                   );
                                 })}
