@@ -9,6 +9,8 @@ import {
   deleteQuestion,
   fetchQuestions,
   updateQuestionOrders,
+  updateTestQuestionOrders,
+  fetchQuestionsForTest,
   DatabaseQuestion,
   fetchTests,
   createTest,
@@ -74,6 +76,7 @@ export default function AdminPage() {
   const [answerDraggedOver, setAnswerDraggedOver] = useState<number | null>(null);
   const [draggedQuestionId, setDraggedQuestionId] = useState<string | null>(null);
   const [originalQuestions, setOriginalQuestions] = useState<DatabaseQuestion[] | null>(null);
+  const [originalTestOrder, setOriginalTestOrder] = useState<{ [questionId: string]: number } | null>(null);
   const dropSuccessRef = useRef(false);
 
   // Tests management state
@@ -85,6 +88,7 @@ export default function AdminPage() {
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
   const [filterTestId, setFilterTestId] = useState<string>("all"); // "all" or a test ID
   const [questionTestMap, setQuestionTestMap] = useState<{ [questionId: string]: string[] }>({});
+  const [testQuestionOrder, setTestQuestionOrder] = useState<{ [questionId: string]: number }>({}); // Test-specific order
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Bug reports state
@@ -106,6 +110,7 @@ export default function AdminPage() {
   const [csvError, setCsvError] = useState<string | null>(null);
   const [isUploadingCsv, setIsUploadingCsv] = useState(false);
   const [csvSelectedTestIds, setCsvSelectedTestIds] = useState<string[]>([]);
+  const [showNoTestWarning, setShowNoTestWarning] = useState(false);
 
   useEffect(() => {
     async function checkAuth() {
@@ -163,6 +168,23 @@ export default function AdminPage() {
     setTests(data.map(convertToTestFormat));
     setIsLoadingTests(false);
   };
+
+  // Load test-specific question order when filter changes
+  useEffect(() => {
+    async function loadTestOrder() {
+      if (filterTestId === "all") {
+        setTestQuestionOrder({});
+        return;
+      }
+      const testQuestions = await fetchQuestionsForTest(filterTestId);
+      const orderMap: { [questionId: string]: number } = {};
+      testQuestions.forEach((q, index) => {
+        orderMap[q.id] = index;
+      });
+      setTestQuestionOrder(orderMap);
+    }
+    loadTestOrder();
+  }, [filterTestId]);
 
   const loadBugReports = async () => {
     setIsLoadingBugs(true);
@@ -365,6 +387,17 @@ export default function AdminPage() {
   const handleCsvUpload = async () => {
     if (csvPreview.length === 0) return;
 
+    // Show warning if no tests are selected
+    if (csvSelectedTestIds.length === 0 && !showNoTestWarning) {
+      setShowNoTestWarning(true);
+      return;
+    }
+
+    await performCsvUpload();
+  };
+
+  const performCsvUpload = async () => {
+    setShowNoTestWarning(false);
     setIsUploadingCsv(true);
     setCsvError(null);
 
@@ -606,6 +639,10 @@ export default function AdminPage() {
     dropSuccessRef.current = false;
     setDraggedQuestionId(questionId);
     setOriginalQuestions([...questions]);
+    // Save original test order if filtering by test
+    if (filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0) {
+      setOriginalTestOrder({ ...testQuestionOrder });
+    }
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', questionId);
   };
@@ -616,48 +653,108 @@ export default function AdminPage() {
 
     if (!draggedQuestionId || draggedQuestionId === questionId) return;
 
-    const draggedIndex = questions.findIndex(q => q.id === draggedQuestionId);
-    const targetIndex = questions.findIndex(q => q.id === questionId);
+    // When a test filter is active, update test-specific order for visual feedback
+    if (filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0) {
+      const currentOrder = { ...testQuestionOrder };
+      const draggedOrder = currentOrder[draggedQuestionId];
+      const targetOrder = currentOrder[questionId];
 
-    if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) return;
+      if (draggedOrder === undefined || targetOrder === undefined) return;
+      if (draggedOrder === targetOrder) return;
 
-    // Reorder the list visually
-    const newQuestions = [...questions];
-    const [draggedQuestion] = newQuestions.splice(draggedIndex, 1);
-    newQuestions.splice(targetIndex, 0, draggedQuestion);
-    setQuestions(newQuestions);
+      // Reorder by swapping positions
+      const newOrder: { [questionId: string]: number } = {};
+      const entries = Object.entries(currentOrder).sort((a, b) => a[1] - b[1]);
+      const draggedIdx = entries.findIndex(([id]) => id === draggedQuestionId);
+      const targetIdx = entries.findIndex(([id]) => id === questionId);
+
+      if (draggedIdx === -1 || targetIdx === -1) return;
+
+      // Remove dragged item and insert at target position
+      const [draggedEntry] = entries.splice(draggedIdx, 1);
+      entries.splice(targetIdx, 0, draggedEntry);
+
+      // Rebuild order map
+      entries.forEach(([id], index) => {
+        newOrder[id] = index;
+      });
+
+      setTestQuestionOrder(newOrder);
+    } else {
+      // Original behavior for no test filter
+      const draggedIndex = questions.findIndex(q => q.id === draggedQuestionId);
+      const targetIndex = questions.findIndex(q => q.id === questionId);
+
+      if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) return;
+
+      // Reorder the list visually
+      const newQuestions = [...questions];
+      const [draggedQuestion] = newQuestions.splice(draggedIndex, 1);
+      newQuestions.splice(targetIndex, 0, draggedQuestion);
+      setQuestions(newQuestions);
+    }
   };
 
   const handleQuestionDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     dropSuccessRef.current = true;
 
-    const currentQuestions = [...questions];
-
     // Clear drag state
     setDraggedQuestionId(null);
     setOriginalQuestions(null);
+    setOriginalTestOrder(null);
 
-    // Save the new order to database
-    const orders = currentQuestions.map((q, index) => ({
-      id: q.id,
-      display_order: index + 1,
-    }));
+    // Check if we're filtering by a specific test
+    if (filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0) {
+      // Get question IDs sorted by the current test order state
+      const sortedEntries = Object.entries(testQuestionOrder).sort((a, b) => a[1] - b[1]);
 
-    const success = await updateQuestionOrders(orders);
-    if (!success) {
-      setNotification({ type: "error", message: "Failed to save question order" });
-      loadQuestions();
+      // Update test-specific order
+      const testOrders = sortedEntries.map(([questionId], index) => ({
+        questionId,
+        display_order: index + 1,
+      }));
+
+      const success = await updateTestQuestionOrders(filterTestId, testOrders);
+      if (!success) {
+        setNotification({ type: "error", message: "Failed to save question order for this test" });
+        // Reload test order on failure
+        const testQuestions = await fetchQuestionsForTest(filterTestId);
+        const orderMap: { [questionId: string]: number } = {};
+        testQuestions.forEach((q, index) => {
+          orderMap[q.id] = index;
+        });
+        setTestQuestionOrder(orderMap);
+      }
+    } else {
+      // Update global question order
+      const currentQuestions = [...questions];
+      const orders = currentQuestions.map((q, index) => ({
+        id: q.id,
+        display_order: index + 1,
+      }));
+
+      const success = await updateQuestionOrders(orders);
+      if (!success) {
+        setNotification({ type: "error", message: "Failed to save question order" });
+        loadQuestions();
+      }
     }
   };
 
   const handleQuestionDragEnd = () => {
     // Only restore if drop didn't succeed (drag was cancelled)
-    if (!dropSuccessRef.current && originalQuestions) {
-      setQuestions(originalQuestions);
+    if (!dropSuccessRef.current) {
+      if (originalQuestions) {
+        setQuestions(originalQuestions);
+      }
+      if (originalTestOrder) {
+        setTestQuestionOrder(originalTestOrder);
+      }
     }
     setDraggedQuestionId(null);
     setOriginalQuestions(null);
+    setOriginalTestOrder(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1364,6 +1461,15 @@ export default function AdminPage() {
                       q.answers.some(a => a?.toLowerCase().includes(query))
                     );
                   })
+                  .sort((a, b) => {
+                    // Sort by test-specific order when a test filter is active
+                    if (filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0) {
+                      const orderA = testQuestionOrder[a.id] ?? Infinity;
+                      const orderB = testQuestionOrder[b.id] ?? Infinity;
+                      return orderA - orderB;
+                    }
+                    return 0; // Keep original order from questions table
+                  })
                   .map((question, index) => (
                   <div
                     key={question.id}
@@ -1974,6 +2080,7 @@ export default function AdminPage() {
                     setCsvPreview([]);
                     setCsvError(null);
                     setCsvSelectedTestIds([]);
+                    setShowNoTestWarning(false);
                   }}
                   className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
                 >
@@ -2060,27 +2167,65 @@ export default function AdminPage() {
                 )}
               </div>
 
+              {/* No Test Warning */}
+              {showNoTestWarning && (
+                <div className="mx-4 mb-0 p-3 bg-yellow-50 border border-yellow-300 rounded-xl">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-yellow-800">No tests selected</p>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        These questions will be added to the question bank but won&apos;t appear in any test.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Modal Footer */}
               <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
-                <button
-                  onClick={() => {
-                    setShowCsvModal(false);
-                    setCsvFile(null);
-                    setCsvPreview([]);
-                    setCsvError(null);
-                    setCsvSelectedTestIds([]);
-                  }}
-                  className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCsvUpload}
-                  disabled={csvPreview.length === 0 || isUploadingCsv}
-                  className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  {isUploadingCsv ? 'Uploading...' : `Upload ${csvPreview.length} Questions`}
-                </button>
+                {showNoTestWarning ? (
+                  <>
+                    <button
+                      onClick={() => setShowNoTestWarning(false)}
+                      className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
+                    >
+                      Go Back
+                    </button>
+                    <button
+                      onClick={performCsvUpload}
+                      disabled={isUploadingCsv}
+                      className="px-4 py-2 text-sm font-bold bg-yellow-600 text-white rounded-xl hover:bg-yellow-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                      {isUploadingCsv ? 'Uploading...' : 'Upload Anyway'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowCsvModal(false);
+                        setCsvFile(null);
+                        setCsvPreview([]);
+                        setCsvError(null);
+                        setCsvSelectedTestIds([]);
+                        setShowNoTestWarning(false);
+                      }}
+                      className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleCsvUpload}
+                      disabled={csvPreview.length === 0 || isUploadingCsv}
+                      className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                      {isUploadingCsv ? 'Uploading...' : `Upload ${csvPreview.length} Questions`}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

@@ -173,6 +173,27 @@ export async function updateQuestionOrders(orders: { id: string; display_order: 
   return true;
 }
 
+// Update the display order of questions within a specific test
+export async function updateTestQuestionOrders(testId: string, orders: { questionId: string; display_order: number }[]) {
+  const updates = orders.map(({ questionId, display_order }) =>
+    supabase
+      .from('test_questions')
+      .update({ display_order })
+      .eq('test_id', testId)
+      .eq('question_id', questionId)
+  );
+
+  const results = await Promise.all(updates);
+  const hasError = results.some(result => result.error);
+
+  if (hasError) {
+    console.error('Error updating test question orders');
+    return false;
+  }
+
+  return true;
+}
+
 // Convert DatabaseQuestion to Question format for the quiz
 export function convertToQuizFormat(dbQuestion: DatabaseQuestion): Question {
   return {
@@ -463,29 +484,6 @@ export async function removeQuestionFromTest(
   return true;
 }
 
-// Update question order within a test
-export async function updateTestQuestionOrders(
-  testId: string,
-  orders: { questionId: string; displayOrder: number }[]
-): Promise<boolean> {
-  const updates = orders.map(({ questionId, displayOrder }) =>
-    supabase
-      .from('test_questions')
-      .update({ display_order: displayOrder })
-      .eq('test_id', testId)
-      .eq('question_id', questionId)
-  );
-
-  const results = await Promise.all(updates);
-  const hasError = results.some((result) => result.error);
-
-  if (hasError) {
-    console.error('Error updating test question orders');
-    return false;
-  }
-
-  return true;
-}
 
 // Get which tests a question belongs to
 export async function getTestsForQuestion(questionId: string): Promise<string[]> {
@@ -518,12 +516,27 @@ export async function setTestsForQuestion(
     return false;
   }
 
-  // Then, add the new test assignments
+  // Then, add the new test assignments with proper display_order
   if (testIds.length > 0) {
-    const inserts = testIds.map((testId) => ({
-      test_id: testId,
-      question_id: questionId,
-    }));
+    // Get max display_order for each test and add questions at the end
+    const inserts = await Promise.all(
+      testIds.map(async (testId) => {
+        const { data } = await supabase
+          .from('test_questions')
+          .select('display_order')
+          .eq('test_id', testId)
+          .order('display_order', { ascending: false })
+          .limit(1);
+
+        const nextOrder = (data?.[0]?.display_order || 0) + 1;
+
+        return {
+          test_id: testId,
+          question_id: questionId,
+          display_order: nextOrder,
+        };
+      })
+    );
 
     const { error: insertError } = await supabase
       .from('test_questions')
