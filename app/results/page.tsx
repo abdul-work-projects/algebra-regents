@@ -25,7 +25,7 @@ export default function ResultsPage() {
   const [testId, setTestId] = useState<string | undefined>(undefined);
   const [questionFilter, setQuestionFilter] = useState<'all' | 'correct' | 'incorrect' | 'unanswered' | 'missed_first' | 'second_attempt_correct'>('all');
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
-  const [showTopics, setShowTopics] = useState(true);
+  const [showTopics, setShowTopics] = useState(false);
 
   useEffect(() => {
     async function loadResults() {
