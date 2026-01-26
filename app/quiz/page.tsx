@@ -468,7 +468,7 @@ function QuizPageContent() {
             <button
               onClick={() => {
                 if (isPracticeMode) {
-                  router.push("/");
+                  router.push("/?tab=question-bank");
                 } else if (
                   window.confirm(
                     "Are you sure you want to exit? Your progress will be saved."
@@ -478,7 +478,7 @@ function QuizPageContent() {
                 }
               }}
               className="p-1.5 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
-              title={isPracticeMode ? "Back to Questions" : "Exit"}
+              title={isPracticeMode ? "Back to Question Bank" : "Exit"}
             >
               <svg
                 className="w-5 h-5 text-gray-600"
@@ -1188,7 +1188,7 @@ function QuizPageContent() {
               {session.currentQuestionIndex === questions.length - 1 ? (
                 isPracticeMode ? (
                   <button
-                    onClick={() => router.push('/')}
+                    onClick={() => router.push('/?tab=question-bank')}
                     className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
                   >
                     DONE
