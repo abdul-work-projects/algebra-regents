@@ -229,8 +229,16 @@ const formatTimeForPdf = (seconds: number): string => {
   return `${secs}s`;
 };
 
+// Match results page status/colors exactly
+const getStatus = (score: number) => {
+  if (score >= 85) return { status: 'Passed', color: '#22c55e' }; // green
+  if (score >= 65) return { status: 'Passed', color: '#3b82f6' }; // blue
+  if (score >= 56) return { status: 'Failed', color: '#f97316' }; // orange
+  return { status: 'Failed', color: '#ef4444' }; // red/rose
+};
+
 export default function ReportDocument({ result, test, scaledScore, questions }: ReportDocumentProps) {
-  const isPassing = scaledScore >= 65;
+  const statusInfo = getStatus(scaledScore);
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -247,11 +255,12 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
     return '#ef4444';
   };
 
+  // Match results page messages exactly
   const getMessage = () => {
-    if (scaledScore >= 85) return { text: 'Excellent Work!', bg: '#dcfce7', color: '#166534' };
-    if (scaledScore >= 65) return { text: 'You Passed!', bg: '#dbeafe', color: '#1e40af' };
-    if (scaledScore >= 50) return { text: 'Almost There!', bg: '#fef3c7', color: '#92400e' };
-    return { text: 'Keep Practicing', bg: '#fee2e2', color: '#991b1b' };
+    if (scaledScore >= 85) return { text: 'Outstanding performance! You have mastered the material.', bg: '#dcfce7', color: '#166534' };
+    if (scaledScore >= 65) return { text: 'Great job! You have demonstrated solid understanding.', bg: '#dbeafe', color: '#1e40af' };
+    if (scaledScore >= 56) return { text: "You're almost there! Review the material and try again.", bg: '#fff7ed', color: '#c2410c' };
+    return { text: 'Keep practicing! Review the material and try again.', bg: '#fee2e2', color: '#991b1b' };
   };
   const message = getMessage();
 
@@ -349,21 +358,21 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
           {/* Left: Score Card */}
           <View style={styles.leftColumn}>
             <View style={styles.scoreCard}>
-              {/* Pass/Fail Circle */}
+              {/* Pass/Fail Circle - Match results page */}
               <View style={{
                 width: 50,
                 height: 50,
                 borderRadius: 25,
-                backgroundColor: isPassing ? '#22c55e' : '#ef4444',
+                backgroundColor: statusInfo.color,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
                 <Text style={{
-                  fontSize: 8,
+                  fontSize: 7,
                   fontWeight: 'bold',
                   color: '#ffffff',
                 }}>
-                  {isPassing ? 'PASS' : 'FAIL'}
+                  {statusInfo.status}
                 </Text>
               </View>
 
