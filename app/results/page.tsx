@@ -494,17 +494,6 @@ export default function ResultsPage() {
                                             )}
                                           </div>
                                         </div>
-                                        {/* Labels for correct/incorrect */}
-                                        {(isCorrectAnswer || (isUserAnswer && !qResult.isCorrect)) && (
-                                          <div className="mt-1 text-right">
-                                            {isCorrectAnswer && (
-                                              <span className="text-xs text-green-700 font-medium">✓ Correct</span>
-                                            )}
-                                            {isUserAnswer && !qResult.isCorrect && (
-                                              <span className="text-xs text-rose-700 font-medium">Your answer</span>
-                                            )}
-                                          </div>
-                                        )}
                                       </div>
                                     </div>
                                   );
