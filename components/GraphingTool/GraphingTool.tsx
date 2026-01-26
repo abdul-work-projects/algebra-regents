@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { GraphData, GraphLine, GraphPoint, DEFAULT_GRAPH_DATA, LINE_COLORS, ActiveLine } from './types';
+import { GraphData, GraphLine, GraphPoint, RegionShade, DEFAULT_GRAPH_DATA, LINE_COLORS, ActiveLine } from './types';
 
 // We need to import JSXGraph dynamically since it requires window
 declare global {
@@ -114,8 +114,8 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
     const bounds = graphData.gridBounds;
 
     boardRef.current = JXG.JSXGraph.initBoard(containerRef.current.id, {
-      // Bounding box: [xMin, yMax, xMax, yMin] with small padding
-      boundingbox: [bounds.xMin - 1, bounds.yMax + 1, bounds.xMax + 1, bounds.yMin - 1],
+      // Bounding box: [xMin, yMax, xMax, yMin] with padding for labels
+      boundingbox: [bounds.xMin - 1.5, bounds.yMax + 1.5, bounds.xMax + 1.5, bounds.yMin - 2],
       showCopyright: false,
       showNavigation: false,
       keepAspectRatio: true,
@@ -170,6 +170,15 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
           updateShade(line.id as ActiveLine, line.shade);
         }
       });
+
+      // Restore region shades after a short delay to ensure lines are created
+      if (initialData.regionShades && initialData.regionShades.length > 0) {
+        setTimeout(() => {
+          initialData.regionShades?.forEach((regionShade) => {
+            restoreRegionShade(regionShade.sides);
+          });
+        }, 100);
+      }
     }
 
     // Click handler to add points or shade regions
@@ -568,6 +577,136 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
     addRegionShadeRef.current = addRegionShade;
   }, [addRegionShade]);
 
+  // Restore region shade from saved data
+  const restoreRegionShade = useCallback((savedSides: { lineId: string; above: boolean }[]) => {
+    if (!boardRef.current) return;
+
+    const bounds = graphData.gridBounds;
+
+    // Build sides array with actual line objects
+    const sides: { line: any; above: boolean; lineId: string }[] = [];
+    savedSides.forEach((savedSide) => {
+      const line = linesRef.current[savedSide.lineId as ActiveLine];
+      if (line) {
+        sides.push({ line, above: savedSide.above, lineId: savedSide.lineId });
+      }
+    });
+
+    if (sides.length === 0) return;
+
+    const regionColor = sides.length === 2 ? '#8b5cf6' : LINE_COLORS[sides[0]?.lineId as ActiveLine] || '#3b82f6';
+
+    if (sides.length === 1) {
+      const ineq = boardRef.current.create('inequality', [sides[0].line], {
+        inverse: sides[0].above,
+        fillColor: regionColor,
+        fillOpacity: 0.25,
+      });
+      ineq.regionData = sides;
+      regionShadesRef.current.push(ineq);
+    } else if (sides.length === 2) {
+      const line1Points = pointsRef.current.line1;
+      const line2Points = pointsRef.current.line2;
+
+      if (line1Points.length < 2 || line2Points.length < 2) return;
+
+      const x1a = line1Points[0].X(), y1a = line1Points[0].Y();
+      const x1b = line1Points[1].X(), y1b = line1Points[1].Y();
+      const x2a = line2Points[0].X(), y2a = line2Points[0].Y();
+      const x2b = line2Points[1].X(), y2b = line2Points[1].Y();
+
+      const pad = 2;
+      const bx1 = bounds.xMin - pad, bx2 = bounds.xMax + pad;
+      const by1 = bounds.yMin - pad, by2 = bounds.yMax + pad;
+
+      const getSide1 = (px: number, py: number) => (y1b - y1a) * (px - x1a) - (x1b - x1a) * (py - y1a) > 0;
+      const getSide2 = (px: number, py: number) => (y2b - y2a) * (px - x2a) - (x2b - x2a) * (py - y2a) > 0;
+      const inClickedQuadrant = (px: number, py: number) => getSide1(px, py) === sides[0].above && getSide2(px, py) === sides[1].above;
+
+      const getLineEdgePoints = (xa: number, ya: number, xb: number, yb: number) => {
+        const pts: { x: number; y: number }[] = [];
+        const dx = xb - xa, dy = yb - ya;
+
+        if (Math.abs(dx) > 0.0001) {
+          const t1 = (bx1 - xa) / dx;
+          const y1 = ya + t1 * dy;
+          if (y1 >= by1 && y1 <= by2) pts.push({ x: bx1, y: y1 });
+
+          const t2 = (bx2 - xa) / dx;
+          const y2 = ya + t2 * dy;
+          if (y2 >= by1 && y2 <= by2) pts.push({ x: bx2, y: y2 });
+        }
+
+        if (Math.abs(dy) > 0.0001) {
+          const t3 = (by1 - ya) / dy;
+          const x3 = xa + t3 * dx;
+          if (x3 >= bx1 && x3 <= bx2) pts.push({ x: x3, y: by1 });
+
+          const t4 = (by2 - ya) / dy;
+          const x4 = xa + t4 * dx;
+          if (x4 >= bx1 && x4 <= bx2) pts.push({ x: x4, y: by2 });
+        }
+
+        return pts;
+      };
+
+      const d = (x1a - x1b) * (y2a - y2b) - (y1a - y1b) * (x2a - x2b);
+      let intersectX = 0, intersectY = 0;
+      if (Math.abs(d) > 0.0001) {
+        const t = ((x1a - x2a) * (y2a - y2b) - (y1a - y2a) * (x2a - x2b)) / d;
+        intersectX = x1a + t * (x1b - x1a);
+        intersectY = y1a + t * (y1b - y1a);
+      }
+
+      const allPoints: { x: number; y: number }[] = [];
+
+      if (intersectX >= bx1 && intersectX <= bx2 && intersectY >= by1 && intersectY <= by2) {
+        allPoints.push({ x: intersectX, y: intersectY });
+      }
+
+      const corners = [
+        { x: bx1, y: by1 }, { x: bx2, y: by1 },
+        { x: bx2, y: by2 }, { x: bx1, y: by2 },
+      ];
+      corners.forEach(c => {
+        if (inClickedQuadrant(c.x, c.y)) allPoints.push(c);
+      });
+
+      getLineEdgePoints(x1a, y1a, x1b, y1b).forEach(p => {
+        if (getSide2(p.x, p.y) === sides[1].above) allPoints.push(p);
+      });
+
+      getLineEdgePoints(x2a, y2a, x2b, y2b).forEach(p => {
+        if (getSide1(p.x, p.y) === sides[0].above) allPoints.push(p);
+      });
+
+      const uniquePoints = allPoints.filter((p, i) =>
+        allPoints.findIndex(q => Math.abs(q.x - p.x) < 0.01 && Math.abs(q.y - p.y) < 0.01) === i
+      );
+
+      if (uniquePoints.length >= 3) {
+        const cx = uniquePoints.reduce((s, p) => s + p.x, 0) / uniquePoints.length;
+        const cy = uniquePoints.reduce((s, p) => s + p.y, 0) / uniquePoints.length;
+        uniquePoints.sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
+
+        const polygonPoints = uniquePoints.map(p =>
+          boardRef.current.create('point', [p.x, p.y], { visible: false, withLabel: false })
+        );
+        const polygon = boardRef.current.create('polygon', polygonPoints, {
+          fillColor: regionColor,
+          fillOpacity: 0.3,
+          strokeWidth: 0,
+          borders: { visible: false },
+          vertices: { visible: false },
+        });
+
+        polygon.regionData = sides;
+        polygon.hiddenPoints = polygonPoints;
+        regionShadesRef.current.push(polygon);
+      }
+    }
+  }, [graphData.gridBounds]);
+
   const handleAddPoint = useCallback((x: number, y: number) => {
     const points = pointsRef.current[activeLine];
 
@@ -610,8 +749,19 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
       }
     });
 
+    // Save region shades
+    const savedRegionShades: RegionShade[] = regionShadesRef.current
+      .filter((shade) => shade && shade.regionData)
+      .map((shade) => ({
+        sides: shade.regionData.map((s: any) => ({
+          lineId: s.lineId,
+          above: s.above,
+        })),
+      }));
+
     const newData: GraphData = {
       lines: newLines,
+      regionShades: savedRegionShades.length > 0 ? savedRegionShades : undefined,
       gridBounds: graphData.gridBounds,
     };
 
@@ -942,7 +1092,7 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
       </div>
 
       {/* Graph Area - Square container for 1:1 aspect ratio */}
-      <div className="flex-1 relative bg-white flex items-center justify-center p-2">
+      <div className="flex-1 relative bg-white flex items-center justify-center overflow-hidden">
         {!isLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <div className="text-gray-500 text-sm">Loading...</div>
@@ -953,8 +1103,10 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
           ref={containerRef}
           className="bg-white"
           style={{
-            width: 'min(100%, 450px)',
-            height: 'min(100%, 450px)',
+            width: '100%',
+            height: '100%',
+            maxWidth: '350px',
+            maxHeight: '350px',
             aspectRatio: '1 / 1',
           }}
         />

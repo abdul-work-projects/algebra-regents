@@ -12,8 +12,13 @@ export interface GraphLine {
   shade?: 'above' | 'below' | null;
 }
 
+export interface RegionShade {
+  sides: { lineId: string; above: boolean }[];
+}
+
 export interface GraphData {
   lines: GraphLine[];
+  regionShades?: RegionShade[];
   gridBounds: {
     xMin: number;
     xMax: number;

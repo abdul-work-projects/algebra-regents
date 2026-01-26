@@ -12,8 +12,18 @@ import ExplanationSlider from "@/components/ExplanationSlider";
 import ReferenceImageModal from "@/components/ReferenceImageModal";
 import MathText from "@/components/MathText";
 import BugReportModal from "@/components/BugReport/BugReportModal";
-import GraphingToolModal from "@/components/GraphingTool/GraphingToolModal";
-import { GraphData } from "@/lib/types";
+import { GraphData, DEFAULT_GRAPH_DATA } from "@/components/GraphingTool/types";
+import dynamic from "next/dynamic";
+
+// Dynamic import to avoid SSR issues with JSXGraph
+const GraphingTool = dynamic(() => import("@/components/GraphingTool/GraphingTool"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
+      <div className="text-gray-500 text-sm">Loading graph...</div>
+    </div>
+  ),
+});
 
 function QuizPageContent() {
   const router = useRouter();
@@ -27,6 +37,7 @@ function QuizPageContent() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
   const [showGraphingTool, setShowGraphingTool] = useState(false);
+  const [graphClearKey, setGraphClearKey] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [testName, setTestName] = useState<string | undefined>(undefined);
@@ -493,11 +504,13 @@ function QuizPageContent() {
               </button>
 
               <button
-                onClick={() => setShowGraphingTool(true)}
+                onClick={() => setShowGraphingTool(!showGraphingTool)}
                 className={`flex flex-col items-center gap-0.5 active:scale-95 transition-all rounded-lg p-1 ${
-                  session.graphs?.[currentQuestion.id]
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'hover:bg-gray-100 text-gray-600'
+                  showGraphingTool
+                    ? 'bg-blue-100 text-blue-700'
+                    : session.graphs?.[currentQuestion.id]
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'hover:bg-gray-100 text-gray-600'
                 }`}
                 title="Graphing Tool"
               >
@@ -783,6 +796,61 @@ function QuizPageContent() {
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Embedded Graphing Tool */}
+          {showGraphingTool && (
+            <div className="mb-4 border-2 border-blue-200 rounded-xl overflow-hidden bg-white max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
+              {/* Graph Header */}
+              <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 border-b border-blue-200">
+                <span className="text-xs font-bold text-blue-900">Graph</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      // Clear graph data for this question
+                      setSession((prev) => {
+                        if (!prev) return prev;
+                        const newGraphs = { ...prev.graphs };
+                        delete newGraphs[currentQuestion.id];
+                        return { ...prev, graphs: newGraphs };
+                      });
+                      setGraphClearKey(prev => prev + 1);
+                    }}
+                    className="px-2 py-0.5 text-xs font-bold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 active:scale-95 transition-all"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => setShowGraphingTool(false)}
+                    className="p-0.5 rounded hover:bg-blue-100 transition-colors"
+                    title="Close graph"
+                  >
+                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              {/* Graph Area */}
+              <div style={{ height: '380px' }}>
+                <GraphingTool
+                  key={`${currentQuestion.id}-${graphClearKey}`}
+                  initialData={session.graphs?.[currentQuestion.id] || DEFAULT_GRAPH_DATA}
+                  onChange={(data: GraphData) => {
+                    setSession((prev) => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        graphs: {
+                          ...prev.graphs,
+                          [currentQuestion.id]: data,
+                        },
+                      };
+                    });
+                  }}
+                />
+              </div>
             </div>
           )}
 
@@ -1163,26 +1231,6 @@ function QuizPageContent() {
         questionId={currentQuestion.id}
         testId={session.testId}
         testName={testName}
-      />
-
-      {/* Graphing Tool Modal */}
-      <GraphingToolModal
-        isOpen={showGraphingTool}
-        onClose={() => setShowGraphingTool(false)}
-        initialData={session.graphs?.[currentQuestion.id]}
-        onSave={(data: GraphData) => {
-          setSession((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              graphs: {
-                ...prev.graphs,
-                [currentQuestion.id]: data,
-              },
-            };
-          });
-        }}
-        questionNumber={session.currentQuestionIndex + 1}
       />
 
       {/* Calculator Panel - Desktop only (right sidebar) */}
