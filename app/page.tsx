@@ -3,7 +3,8 @@
 import { loadSession, clearSession, loadMarkedForReview } from '@/lib/storage';
 import { fetchActiveTests, convertToTestFormat, fetchQuestionsForQuiz } from '@/lib/supabase';
 import { Test, Question } from '@/lib/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 type Tab = 'question-bank' | 'full-length-tests';
 
@@ -14,8 +15,14 @@ interface SkillInfo {
   markedCount: number;
 }
 
-export default function Home() {
-  const [activeTab, setActiveTab] = useState<Tab>('full-length-tests');
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tabParam = searchParams.get('tab');
+
+  const [activeTab, setActiveTab] = useState<Tab>(
+    tabParam === 'question-bank' ? 'question-bank' : 'full-length-tests'
+  );
   const [tests, setTests] = useState<Test[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
@@ -23,19 +30,19 @@ export default function Home() {
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Check URL parameter on mount
+  // Sync tab with URL parameter
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tabParam = params.get('tab');
-    if (tabParam === 'question-bank' || tabParam === 'full-length-tests') {
-      setActiveTab(tabParam);
+    if (tabParam === 'question-bank') {
+      setActiveTab('question-bank');
+    } else if (tabParam === 'full-length-tests') {
+      setActiveTab('full-length-tests');
     }
-  }, []);
+  }, [tabParam]);
 
   // Update URL when tab changes
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
-    window.history.replaceState({}, '', `/?tab=${tab}`);
+    router.replace(`/?tab=${tab}`);
   };
 
   useEffect(() => {
@@ -340,5 +347,17 @@ export default function Home() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

@@ -354,7 +354,7 @@ function QuizPageContent() {
       });
       // In practice mode, go back to question bank; in test mode, go to results
       if (isPracticeMode) {
-        window.location.href = "/?tab=question-bank";
+        router.push("/?tab=question-bank");
       } else {
         router.push("/results");
       }
