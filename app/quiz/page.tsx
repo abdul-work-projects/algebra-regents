@@ -1180,7 +1180,7 @@ function QuizPageContent() {
               </button>
 
               {/* Back/Forward Buttons */}
-              <div className="flex items-center">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={handlePrevious}
                   disabled={session.currentQuestionIndex === 0}
@@ -1193,7 +1193,7 @@ function QuizPageContent() {
                 <button
                   onClick={handleNext}
                   disabled={session.currentQuestionIndex === questions.length - 1}
-                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all -ml-0.5"
+                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                 >
                   <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
