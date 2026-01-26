@@ -25,6 +25,7 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
   const [isShadeClickMode, setIsShadeClickMode] = useState(false);
   const [graphData, setGraphData] = useState<GraphData>(initialData || DEFAULT_GRAPH_DATA);
   const [pointCounts, setPointCounts] = useState({ line1: 0, line2: 0 });
+  const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
 
   // Track JSXGraph objects
   const pointsRef = useRef<{ [lineId: string]: any[] }>({ line1: [], line2: [] });
@@ -38,10 +39,23 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
   const setActiveLineRef = useRef(setActiveLine);
   const setPointCountsRef = useRef(setPointCounts);
   const shadeModeRef = useRef<'above' | 'below' | null>(null);
+  const selectedPointIndexRef = useRef<number | null>(null);
+  const setSelectedPointIndexRef = useRef(setSelectedPointIndex);
 
   // Keep refs in sync with state and setters
   useEffect(() => {
     activeLineRef.current = activeLine;
+    // Reset point selection when switching lines
+    setSelectedPointIndex(null);
+    selectedPointIndexRef.current = null;
+    // Remove visual selection from all points
+    if (boardRef.current) {
+      ['line1', 'line2'].forEach((lineId) => {
+        pointsRef.current[lineId as ActiveLine]?.forEach((p: any) => {
+          try { p.setAttribute({ size: 4, strokeWidth: 2 }); } catch (e) {}
+        });
+      });
+    }
   }, [activeLine]);
 
   useEffect(() => {
@@ -51,7 +65,12 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
   useEffect(() => {
     setActiveLineRef.current = setActiveLine;
     setPointCountsRef.current = setPointCounts;
+    setSelectedPointIndexRef.current = setSelectedPointIndex;
   });
+
+  useEffect(() => {
+    selectedPointIndexRef.current = selectedPointIndex;
+  }, [selectedPointIndex]);
 
   useEffect(() => {
     shadeModeRef.current = shadeMode;
@@ -170,7 +189,48 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
 
       // Check if we clicked on a point or line
       for (const obj of objectsUnderMouse) {
-        if (obj.elType === 'point' || obj.elType === 'line') {
+        if (obj.elType === 'point') {
+          // Get the stroke color to determine which line
+          const strokeColor = obj.getAttribute('strokeColor') || '';
+          const normalizedColor = strokeColor.toLowerCase().trim();
+          const blue = LINE_COLORS.line1.toLowerCase();
+          const red = LINE_COLORS.line2.toLowerCase();
+
+          let clickedLineId: ActiveLine | null = null;
+          if (normalizedColor === blue) {
+            clickedLineId = 'line1';
+          } else if (normalizedColor === red) {
+            clickedLineId = 'line2';
+          }
+
+          if (clickedLineId) {
+            activeLineRef.current = clickedLineId;
+            setActiveLineRef.current(clickedLineId);
+
+            // Find which point index was clicked
+            const pointIndex = pointsRef.current[clickedLineId].findIndex((p: any) => p.id === obj.id);
+            if (pointIndex >= 0) {
+              selectedPointIndexRef.current = pointIndex;
+              setSelectedPointIndexRef.current(pointIndex);
+
+              // Update visual selection - add ring to selected point, remove from others
+              pointsRef.current[clickedLineId].forEach((p: any, idx: number) => {
+                p.setAttribute({
+                  size: idx === pointIndex ? 6 : 4,
+                  strokeWidth: idx === pointIndex ? 3 : 2,
+                });
+              });
+              // Remove selection from other line's points
+              const otherLine = clickedLineId === 'line1' ? 'line2' : 'line1';
+              pointsRef.current[otherLine].forEach((p: any) => {
+                p.setAttribute({ size: 4, strokeWidth: 2 });
+              });
+            }
+          }
+
+          // Return early - we selected an existing element, don't add new points
+          return;
+        } else if (obj.elType === 'line') {
           // Get the stroke color to determine which line
           const strokeColor = obj.getAttribute('strokeColor') || '';
           const normalizedColor = strokeColor.toLowerCase().trim();
@@ -688,20 +748,27 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
     const points = pointsRef.current[activeLine];
     if (points.length === 0) return;
 
-    // Check if first point is currently open
-    const firstPoint = points[0];
-    const currentFill = firstPoint.getAttribute('fillColor');
+    // If no point is selected, select the first one
+    let pointIndex = selectedPointIndex;
+    if (pointIndex === null || pointIndex >= points.length) {
+      pointIndex = 0;
+      setSelectedPointIndex(0);
+    }
+
+    const point = points[pointIndex];
+    if (!point) return;
+
+    // Check if the selected point is currently open
+    const currentFill = point.getAttribute('fillColor');
     const isCurrentlyOpen = currentFill === '#ffffff';
 
-    // Toggle all points on the line together
-    points.forEach((point: any) => {
-      point.setAttribute({
-        fillColor: isCurrentlyOpen ? LINE_COLORS[activeLine] : '#ffffff',
-      });
+    // Toggle only the selected point
+    point.setAttribute({
+      fillColor: isCurrentlyOpen ? LINE_COLORS[activeLine] : '#ffffff',
     });
 
     updateGraphData();
-  }, [activeLine, updateGraphData]);
+  }, [activeLine, selectedPointIndex, updateGraphData]);
 
   // Get the active line's color for styling
   const activeBorderClass = activeLine === 'line1' ? 'border-blue-500' : 'border-red-500';
@@ -731,14 +798,47 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
           </svg>
         </button>
 
-        {/* Point Style - Open/Closed */}
-        <button
-          onClick={handleTogglePointType}
-          className="w-5 h-5 rounded border border-gray-300 bg-white hover:border-gray-400 transition-all flex items-center justify-center"
-          title="Toggle endpoint (filled/hollow)"
-        >
-          <div className={`w-2.5 h-2.5 rounded-full border-2 ${activeBorderClass}`} />
-        </button>
+        {/* Point Toggle - Two point buttons */}
+        <div className="flex items-center gap-0.5">
+          {[0, 1].map((idx) => {
+            const points = pointsRef.current[activeLine];
+            const point = points?.[idx];
+            const isOpen = point ? point.getAttribute('fillColor') === '#ffffff' : false;
+            const hasPoint = points && points.length > idx;
+            const color = activeLine === 'line1' ? '#3b82f6' : '#ef4444';
+
+            return (
+              <button
+                key={idx}
+                onClick={() => {
+                  if (!hasPoint || !point) return;
+                  // Toggle fill/hollow directly
+                  const currentFill = point.getAttribute('fillColor');
+                  const isCurrentlyOpen = currentFill === '#ffffff';
+                  point.setAttribute({
+                    fillColor: isCurrentlyOpen ? LINE_COLORS[activeLine] : '#ffffff',
+                  });
+                  updateGraphData();
+                }}
+                disabled={!hasPoint}
+                className={`w-5 h-5 rounded border transition-all flex items-center justify-center ${
+                  hasPoint
+                    ? 'border-gray-300 bg-white hover:border-gray-400'
+                    : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
+                }`}
+                title={hasPoint ? `Point ${idx + 1}: Click to toggle filled/hollow` : `Point ${idx + 1}: Not placed yet`}
+              >
+                <div
+                  className="w-2.5 h-2.5 rounded-full border-2"
+                  style={{
+                    borderColor: color,
+                    backgroundColor: hasPoint && !isOpen ? color : '#ffffff',
+                  }}
+                />
+              </button>
+            );
+          })}
+        </div>
 
         <div className="w-px h-4 bg-gray-300" />
 

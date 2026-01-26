@@ -493,6 +493,22 @@ function QuizPageContent() {
               </button>
 
               <button
+                onClick={() => setShowGraphingTool(true)}
+                className={`flex flex-col items-center gap-0.5 active:scale-95 transition-all rounded-lg p-1 ${
+                  session.graphs?.[currentQuestion.id]
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'hover:bg-gray-100 text-gray-600'
+                }`}
+                title="Graphing Tool"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 14l4-4 4 4 5-5" />
+                </svg>
+                <span className="text-[9px] font-medium">Graph</span>
+              </button>
+
+              <button
                 onClick={() => setShowCalculator(!showCalculator)}
                 className="flex flex-col items-center gap-0.5 hover:bg-gray-100 active:scale-95 transition-all rounded-lg p-1"
                 title="Calculator"
@@ -663,6 +679,19 @@ function QuizPageContent() {
               )}
             </div>
 
+            {/* Clear Button */}
+            <div style={{ pointerEvents: 'auto' }}>
+              <button
+                onClick={handleClear}
+                className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
+                title="Clear all"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
+                </svg>
+              </button>
+            </div>
+
             {/* Eraser Button */}
             <div style={{ pointerEvents: 'auto' }}>
               <button
@@ -729,37 +758,6 @@ function QuizPageContent() {
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Clear Button */}
-            <div style={{ pointerEvents: 'auto' }}>
-              <button
-                onClick={handleClear}
-                className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
-                title="Clear all"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Graph Button */}
-            <div style={{ pointerEvents: 'auto' }}>
-              <button
-                onClick={() => setShowGraphingTool(true)}
-                className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
-                  session.graphs?.[currentQuestion.id]
-                    ? 'border-blue-500 bg-blue-50 text-blue-600'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-blue-500 hover:bg-blue-50'
-                }`}
-                title="Graphing Tool"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 14l4-4 4 4 5-5" />
                 </svg>
               </button>
             </div>

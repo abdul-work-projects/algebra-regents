@@ -14,7 +14,7 @@ interface SkillInfo {
 }
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<Tab>('question-bank');
+  const [activeTab, setActiveTab] = useState<Tab>('full-length-tests');
   const [tests, setTests] = useState<Test[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
@@ -116,25 +116,6 @@ export default function Home() {
               <li>
                 <button
                   onClick={() => {
-                    setActiveTab('question-bank');
-                    setSidebarOpen(false);
-                  }}
-                  style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}
-                  className={`w-full px-4 py-3 rounded-xl font-medium transition-all ${
-                    activeTab === 'question-bank'
-                      ? 'bg-black text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <svg width="20" height="20" style={{ flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                  <span>Question Bank</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => {
                     setActiveTab('full-length-tests');
                     setSidebarOpen(false);
                   }}
@@ -149,6 +130,25 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <span>Full-length Tests</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => {
+                    setActiveTab('question-bank');
+                    setSidebarOpen(false);
+                  }}
+                  style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}
+                  className={`w-full px-4 py-3 rounded-xl font-medium transition-all ${
+                    activeTab === 'question-bank'
+                      ? 'bg-black text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <svg width="20" height="20" style={{ flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <span>Question Bank</span>
                 </button>
               </li>
             </ul>
