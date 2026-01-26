@@ -495,10 +495,14 @@ function QuizPageContent() {
               </svg>
             </button>
 
-            {/* Practice Mode Label */}
-            {isPracticeMode && (
-              <span className="text-sm font-bold text-gray-700">
+            {/* Test/Practice Name */}
+            {isPracticeMode ? (
+              <span className="text-sm font-bold text-gray-700 truncate max-w-[200px] md:max-w-none">
                 {practiceSkill ? practiceSkill : 'Practice'} ({questions.length} questions)
+              </span>
+            ) : (
+              <span className="text-sm font-bold text-gray-700 truncate max-w-[200px] md:max-w-none">
+                {testName || 'Quiz'}
               </span>
             )}
 
