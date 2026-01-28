@@ -232,69 +232,70 @@ function generateReportHTML(result: any, test: any, scaledScore: number, questio
       gap: 12px;
     }
     .question-column { flex: 1; }
-    .question-row {
-      padding: 6px 8px;
-      border-radius: 4px;
-      margin-bottom: 6px;
-      border: 1px solid #e5e7eb;
-    }
-    .correct-row { background: #f0fdf4; border-color: #bbf7d0; }
-    .incorrect-row { background: #fef2f2; border-color: #fecaca; }
-    .q-header {
+    .table-header {
       display: flex;
-      align-items: flex-start;
-      gap: 6px;
-      margin-bottom: 4px;
-    }
-    .q-num {
-      font-size: 8px;
-      font-weight: bold;
-      color: #374151;
-      background: #e5e7eb;
-      padding: 2px 6px;
-      border-radius: 3px;
-    }
-    .q-result {
-      font-size: 10px;
-      font-weight: bold;
-      margin-left: auto;
-    }
-    .q-text {
-      font-size: 7px;
-      color: #374151;
-      line-height: 1.4;
-      margin-bottom: 4px;
-    }
-    .q-text .katex { font-size: 8px; }
-    .q-skills {
-      font-size: 6px;
-      color: #6b7280;
-      margin-bottom: 6px;
-      padding: 2px 6px;
+      padding: 3px 4px;
       background: #f3f4f6;
       border-radius: 3px;
-      display: inline-block;
-    }
-    .q-answers {
-      display: flex;
-      gap: 8px;
+      margin-bottom: 3px;
       font-size: 6px;
-      padding-top: 4px;
-      border-top: 1px solid #e5e7eb;
-    }
-    .q-answer-item {
-      flex: 1;
-    }
-    .q-answer-label {
       font-weight: bold;
       color: #6b7280;
-      margin-bottom: 2px;
     }
-    .q-answer-text {
+    .th-num { width: 22px; }
+    .th-question { flex: 1; margin-right: 6px; }
+    .th-you { width: 20px; text-align: center; }
+    .th-ans { width: 20px; text-align: center; }
+    .th-result { width: 14px; text-align: center; }
+
+    .question-row {
+      display: flex;
+      padding: 3px 4px;
+      border-radius: 3px;
+      margin-bottom: 2px;
+      align-items: flex-start;
+    }
+    .correct-row { background: #f0fdf4; }
+    .incorrect-row { background: #fef2f2; }
+    .q-num {
+      width: 22px;
+      font-size: 7px;
+      font-weight: bold;
+      color: #374151;
+    }
+    .q-content {
+      flex: 1;
+      margin-right: 6px;
+    }
+    .q-text {
+      font-size: 6px;
       color: #374151;
       line-height: 1.3;
     }
-    .q-answer-text .katex { font-size: 7px; }
+    .q-text .katex { font-size: 7px; }
+    .q-skills {
+      font-size: 5px;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
+    .q-you {
+      width: 20px;
+      font-size: 7px;
+      font-weight: bold;
+      text-align: center;
+    }
+    .q-ans {
+      width: 20px;
+      font-size: 7px;
+      text-align: center;
+      color: #991b1b;
+    }
+    .q-result {
+      width: 14px;
+      font-size: 8px;
+      font-weight: bold;
+      text-align: center;
+    }
     .correct-text { color: #166534; }
     .incorrect-text { color: #991b1b; }
 
@@ -369,50 +370,44 @@ function generateReportHTML(result: any, test: any, scaledScore: number, questio
       <div class="questions-title">QUESTION BREAKDOWN</div>
       <div class="two-columns">
         <div class="question-column">
+          <div class="table-header">
+            <div class="th-num">#</div>
+            <div class="th-question">Question</div>
+            <div class="th-you">You</div>
+            <div class="th-ans">Ans</div>
+            <div class="th-result"></div>
+          </div>
           ${col1.map((q: any) => `
             <div class="question-row ${q.isCorrect ? 'correct-row' : 'incorrect-row'}">
-              <div class="q-header">
-                <span class="q-num">Q${q.num}</span>
-                <span class="q-result ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">${q.isCorrect ? '✓ Correct' : '✗ Incorrect'}</span>
+              <div class="q-num">Q${q.num}</div>
+              <div class="q-content">
+                <div class="q-text">${q.questionText}</div>
+                ${q.skills ? `<div class="q-skills">${q.skills}</div>` : ''}
               </div>
-              <div class="q-text">${q.questionText}</div>
-              ${q.skills ? `<div class="q-skills">${q.skills}</div>` : ''}
-              <div class="q-answers">
-                <div class="q-answer-item">
-                  <div class="q-answer-label ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">Your Answer:</div>
-                  <div class="q-answer-text ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">${q.userAnswerText}</div>
-                </div>
-                ${!q.isCorrect ? `
-                <div class="q-answer-item">
-                  <div class="q-answer-label correct-text">Correct Answer:</div>
-                  <div class="q-answer-text correct-text">${q.correctAnswerText}</div>
-                </div>
-                ` : ''}
-              </div>
+              <div class="q-you ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">(${q.userAnswer !== null ? q.userAnswer : '-'})</div>
+              <div class="q-ans">${q.isCorrect ? '' : `(${q.correctAnswer})`}</div>
+              <div class="q-result ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">${q.isCorrect ? '✓' : '✗'}</div>
             </div>
           `).join('')}
         </div>
         <div class="question-column">
+          <div class="table-header">
+            <div class="th-num">#</div>
+            <div class="th-question">Question</div>
+            <div class="th-you">You</div>
+            <div class="th-ans">Ans</div>
+            <div class="th-result"></div>
+          </div>
           ${col2.map((q: any) => `
             <div class="question-row ${q.isCorrect ? 'correct-row' : 'incorrect-row'}">
-              <div class="q-header">
-                <span class="q-num">Q${q.num}</span>
-                <span class="q-result ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">${q.isCorrect ? '✓ Correct' : '✗ Incorrect'}</span>
+              <div class="q-num">Q${q.num}</div>
+              <div class="q-content">
+                <div class="q-text">${q.questionText}</div>
+                ${q.skills ? `<div class="q-skills">${q.skills}</div>` : ''}
               </div>
-              <div class="q-text">${q.questionText}</div>
-              ${q.skills ? `<div class="q-skills">${q.skills}</div>` : ''}
-              <div class="q-answers">
-                <div class="q-answer-item">
-                  <div class="q-answer-label ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">Your Answer:</div>
-                  <div class="q-answer-text ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">${q.userAnswerText}</div>
-                </div>
-                ${!q.isCorrect ? `
-                <div class="q-answer-item">
-                  <div class="q-answer-label correct-text">Correct Answer:</div>
-                  <div class="q-answer-text correct-text">${q.correctAnswerText}</div>
-                </div>
-                ` : ''}
-              </div>
+              <div class="q-you ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">(${q.userAnswer !== null ? q.userAnswer : '-'})</div>
+              <div class="q-ans">${q.isCorrect ? '' : `(${q.correctAnswer})`}</div>
+              <div class="q-result ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">${q.isCorrect ? '✓' : '✗'}</div>
             </div>
           `).join('')}
         </div>
