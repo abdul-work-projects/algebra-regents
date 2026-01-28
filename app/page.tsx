@@ -195,9 +195,6 @@ function HomeContent() {
     ? tests
     : tests.filter(test => test.subjectId === selectedSubjectId);
 
-  // Get current subject name for sidebar title
-  const currentSubject = subjects.find(s => s.id === selectedSubjectId);
-
   const existingTest = existingSessionTestId
     ? tests.find((t) => t.id === existingSessionTestId)
     : null;
@@ -221,32 +218,9 @@ function HomeContent() {
         <div className="flex flex-col h-full">
           {/* Logo/Title */}
           <div className="p-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">
-              {currentSubject ? currentSubject.name : 'Practice App'}
-            </h1>
+            <h1 className="text-xl font-bold text-gray-900">Practice App</h1>
             <p className="text-sm text-gray-500 mt-1">Practice & Prepare</p>
           </div>
-
-          {/* Subject Selector - only show if multiple subjects */}
-          {subjects.length > 1 && (
-            <div className="p-4 border-b border-gray-200">
-              <label className="block text-xs font-medium text-gray-500 mb-2">
-                Subject
-              </label>
-              <select
-                value={selectedSubjectId}
-                onChange={(e) => handleSubjectChange(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-              >
-                <option value="all">All Subjects</option>
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* Navigation */}
           <nav className="flex-1 p-4">
@@ -425,10 +399,44 @@ function HomeContent() {
             /* Full-length Tests Tab */
             <div>
               {/* Header */}
-              <div className="hidden lg:block mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Full-length Tests</h2>
-                <p className="text-gray-600 mt-1">Take complete practice exams</p>
+              <div className="hidden lg:flex lg:items-center lg:justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Full-length Tests</h2>
+                  <p className="text-gray-600 mt-1">Take complete practice exams</p>
+                </div>
+                {subjects.length > 1 && (
+                  <select
+                    value={selectedSubjectId}
+                    onChange={(e) => handleSubjectChange(e.target.value)}
+                    className="px-4 py-2 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                  >
+                    <option value="all">All Subjects</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
+
+              {/* Mobile Subject Filter */}
+              {subjects.length > 1 && (
+                <div className="lg:hidden mb-4">
+                  <select
+                    value={selectedSubjectId}
+                    onChange={(e) => handleSubjectChange(e.target.value)}
+                    className="w-full px-4 py-2 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                  >
+                    <option value="all">All Subjects</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {isLoading ? (
                 <div className="text-center py-12 text-gray-500">Loading tests...</div>
