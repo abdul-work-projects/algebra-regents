@@ -405,6 +405,22 @@ export default function ResultsPage() {
                             </span>
                           </div>
 
+                          {/* Skill and Cluster Info */}
+                          {(question.studentFriendlySkill || question.cluster) && (
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              {question.cluster && (
+                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                                  {question.cluster}
+                                </span>
+                              )}
+                              {question.studentFriendlySkill && (
+                                <span className="text-xs text-gray-600 italic">
+                                  Skill: {question.studentFriendlySkill}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
                           {/* View Question Toggle */}
                           <button
                             onClick={() => setExpandedQuestionId(isExpanded ? null : qResult.questionId)}

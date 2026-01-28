@@ -3,6 +3,7 @@ import { QuizSession } from './types';
 const STORAGE_KEY = 'algebra-regents-quiz-session';
 const SKILL_PROGRESS_KEY = 'algebra-regents-skill-progress';
 const MARKED_FOR_REVIEW_KEY = 'algebra-regents-marked-for-review';
+const SELECTED_SUBJECT_KEY = 'algebra-regents-selected-subject';
 
 // Skill progress tracking
 export interface SkillProgress {
@@ -170,4 +171,26 @@ export const createNewSession = (testId?: string): QuizSession => {
     startTime: now,
     lastQuestionStartTime: now,
   };
+};
+
+// Selected subject preference
+export const saveSelectedSubject = (subjectId: string): void => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(SELECTED_SUBJECT_KEY, subjectId);
+    } catch (error) {
+      console.error('Error saving selected subject to localStorage:', error);
+    }
+  }
+};
+
+export const loadSelectedSubject = (): string | null => {
+  if (typeof window !== 'undefined') {
+    try {
+      return localStorage.getItem(SELECTED_SUBJECT_KEY);
+    } catch (error) {
+      console.error('Error loading selected subject from localStorage:', error);
+    }
+  }
+  return null;
 };

@@ -24,6 +24,13 @@ import {
   DatabaseTestWithCount,
   getAllQuestionTestMappings,
   bulkCreateQuestions,
+  fetchSubjects,
+  createSubject,
+  updateSubject,
+  deleteSubject,
+  convertToSubjectFormat,
+  fetchAllClusters,
+  fetchAllSkills,
 } from "@/lib/supabase";
 import { getCurrentUser, signOut, onAuthStateChange } from "@/lib/auth";
 import {
@@ -35,8 +42,9 @@ import {
 } from "@/lib/bugReports";
 import TagInput from "@/components/TagInput";
 import TestModal from "@/components/TestModal";
+import SubjectModal from "@/components/SubjectModal";
 import TestMultiSelect from "@/components/TestMultiSelect";
-import { Test } from "@/lib/types";
+import { Test, Subject } from "@/lib/types";
 import MathText from "@/components/MathText";
 
 export default function AdminPage() {
@@ -102,7 +110,7 @@ export default function AdminPage() {
   const dropSuccessRef = useRef(false);
 
   // Tests management state
-  const [activeTab, setActiveTab] = useState<"questions" | "tests" | "bugs">(
+  const [activeTab, setActiveTab] = useState<"questions" | "tests" | "subjects" | "bugs">(
     "questions",
   );
   const [tests, setTests] = useState<Test[]>([]);
@@ -163,6 +171,19 @@ export default function AdminPage() {
   const [csvSelectedTestIds, setCsvSelectedTestIds] = useState<string[]>([]);
   const [showNoTestWarning, setShowNoTestWarning] = useState(false);
 
+  // Subjects management state
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [isLoadingSubjects, setIsLoadingSubjects] = useState(true);
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [filterSubjectId, setFilterSubjectId] = useState<string>("all");
+
+  // New question fields state
+  const [studentFriendlySkill, setStudentFriendlySkill] = useState("");
+  const [cluster, setCluster] = useState("");
+  const [availableClusters, setAvailableClusters] = useState<string[]>([]);
+  const [availableSkills, setAvailableSkills] = useState<string[]>([]);
+
   useEffect(() => {
     async function checkAuth() {
       const currentUser = await getCurrentUser();
@@ -192,6 +213,8 @@ export default function AdminPage() {
   useEffect(() => {
     loadQuestions();
     loadTestsData();
+    loadSubjectsData();
+    loadFieldAutocomplete();
     // Load bug counts for the tab badge
     getBugReportCounts().then((counts) => setBugCounts(counts));
   }, []);
@@ -218,6 +241,22 @@ export default function AdminPage() {
     const data = await fetchTests();
     setTests(data.map(convertToTestFormat));
     setIsLoadingTests(false);
+  };
+
+  const loadSubjectsData = async () => {
+    setIsLoadingSubjects(true);
+    const data = await fetchSubjects();
+    setSubjects(data.map(convertToSubjectFormat));
+    setIsLoadingSubjects(false);
+  };
+
+  const loadFieldAutocomplete = async () => {
+    const [clusters, skills] = await Promise.all([
+      fetchAllClusters(),
+      fetchAllSkills(),
+    ]);
+    setAvailableClusters(clusters);
+    setAvailableSkills(skills);
   };
 
   // Load test-specific question order when filter changes
@@ -307,6 +346,7 @@ export default function AdminPage() {
     description?: string;
     scaled_score_table?: { [key: string]: number };
     is_active: boolean;
+    subject_id: string;
   }) => {
     if (editingTest) {
       const result = await updateTest(editingTest.id, testData);
@@ -332,6 +372,69 @@ export default function AdminPage() {
       }
     }
     setEditingTest(null);
+  };
+
+  const handleSaveSubject = async (subjectData: {
+    name: string;
+    description?: string;
+    color: string;
+    is_active: boolean;
+    display_order: number;
+  }) => {
+    if (editingSubject) {
+      const result = await updateSubject(editingSubject.id, subjectData);
+      if (result) {
+        setNotification({
+          type: "success",
+          message: "Subject updated successfully",
+        });
+        loadSubjectsData();
+      } else {
+        throw new Error("Failed to update subject");
+      }
+    } else {
+      const result = await createSubject(subjectData);
+      if (result) {
+        setNotification({
+          type: "success",
+          message: "Subject created successfully",
+        });
+        loadSubjectsData();
+      } else {
+        throw new Error("Failed to create subject");
+      }
+    }
+    setEditingSubject(null);
+  };
+
+  const handleDeleteSubject = async (subject: Subject) => {
+    if (subject.testCount && subject.testCount > 0) {
+      setNotification({
+        type: "error",
+        message: `Cannot delete subject with ${subject.testCount} test(s). Please delete or reassign all tests first.`,
+      });
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete "${subject.name}"?`)) {
+      return;
+    }
+    const success = await deleteSubject(subject.id);
+    if (success) {
+      setNotification({ type: "success", message: "Subject deleted successfully" });
+      loadSubjectsData();
+    } else {
+      setNotification({ type: "error", message: "Failed to delete subject" });
+    }
+  };
+
+  const handleEditSubject = (subject: Subject) => {
+    setEditingSubject(subject);
+    setShowSubjectModal(true);
+  };
+
+  const handleCreateSubject = () => {
+    setEditingSubject(null);
+    setShowSubjectModal(true);
   };
 
   const handleDeleteTest = (test: Test) => {
@@ -523,6 +626,8 @@ export default function AdminPage() {
         explanation_image_url: null,
         topics: [],
         points: 1,
+        student_friendly_skill: null,
+        cluster: null,
         display_order: questions.length + index + 1,
       }));
 
@@ -701,6 +806,8 @@ export default function AdminPage() {
     setExplanationText("");
     setSelectedTopics([]);
     setPoints(1);
+    setStudentFriendlySkill("");
+    setCluster("");
     // Auto-select the filtered test for new questions
     setSelectedTestIds(filterTestId !== "all" ? [filterTestId] : []);
   };
@@ -721,6 +828,8 @@ export default function AdminPage() {
     setExplanationText(question.explanation_text);
     setSelectedTopics(question.topics);
     setPoints(question.points || 1);
+    setStudentFriendlySkill(question.student_friendly_skill || "");
+    setCluster(question.cluster || "");
 
     // Load tests this question belongs to
     const questionTestIds = await getTestsForQuestion(question.id);
@@ -993,6 +1102,8 @@ export default function AdminPage() {
         explanation_image_url: explanationImageUrl,
         topics: selectedTopics,
         points: points,
+        student_friendly_skill: studentFriendlySkill.trim() || null,
+        cluster: cluster.trim() || null,
       };
 
       let result;
@@ -1109,6 +1220,19 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => {
+                setActiveTab("subjects");
+                setNotification(null);
+              }}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                activeTab === "subjects"
+                  ? "bg-black text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Subjects ({subjects.length})
+            </button>
+            <button
+              onClick={() => {
                 setActiveTab("bugs");
                 setNotification(null);
               }}
@@ -1147,6 +1271,24 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {/* Subject Filter */}
+            {subjects.length > 1 && (
+              <div className="mb-4">
+                <select
+                  value={filterSubjectId}
+                  onChange={(e) => setFilterSubjectId(e.target.value)}
+                  className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium focus:border-black focus:outline-none"
+                >
+                  <option value="all">All Subjects</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {isLoadingTests ? (
               <div className="text-center py-8 text-gray-500">
                 Loading tests...
@@ -1157,7 +1299,9 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {tests.map((test) => (
+                {tests
+                  .filter((test) => filterSubjectId === "all" || test.subjectId === filterSubjectId)
+                  .map((test) => (
                   <div
                     key={test.id}
                     className="border-2 border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-all"
@@ -1179,7 +1323,12 @@ export default function AdminPage() {
                             {test.description}
                           </p>
                         )}
-                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                        <div className="flex items-center gap-3 text-sm text-gray-500 flex-wrap">
+                          {test.subjectName && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 rounded">
+                              {test.subjectName}
+                            </span>
+                          )}
                           <span className="flex items-center gap-1">
                             <svg
                               className="w-4 h-4"
@@ -1240,6 +1389,121 @@ export default function AdminPage() {
                           onClick={() => handleDeleteTest(test)}
                           className="p-2 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
                           title="Delete test"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Subjects Tab Content */}
+        {activeTab === "subjects" && (
+          <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Manage Subjects</h2>
+              <button
+                onClick={handleCreateSubject}
+                className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
+              >
+                + NEW SUBJECT
+              </button>
+            </div>
+
+            {isLoadingSubjects ? (
+              <div className="text-center py-8 text-gray-500">
+                Loading subjects...
+              </div>
+            ) : subjects.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No subjects yet. Create your first subject to get started.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {subjects.map((subject) => (
+                  <div
+                    key={subject.id}
+                    className="border-2 border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-all"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-gray-900 truncate">
+                            {subject.name}
+                          </h3>
+                          {!subject.isActive && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        {subject.description && (
+                          <p className="text-sm text-gray-600 truncate mb-2">
+                            {subject.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                            {subject.testCount || 0} tests
+                          </span>
+                          <span className="text-gray-400">
+                            Order: {subject.displayOrder}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => handleEditSubject(subject)}
+                          className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg active:scale-95 transition-all"
+                          title="Edit subject"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSubject(subject)}
+                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
+                          title="Delete subject"
                         >
                           <svg
                             className="w-4 h-4"
@@ -2490,6 +2754,38 @@ export default function AdminPage() {
                   />
                 </div>
 
+                {/* Student Friendly Skill */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Student Friendly Skill
+                  </label>
+                  <TagInput
+                    selectedTags={studentFriendlySkill ? [studentFriendlySkill] : []}
+                    availableTags={availableSkills}
+                    onChange={(tags) => setStudentFriendlySkill(tags[tags.length - 1] || "")}
+                    placeholder="e.g., Solve linear equations with one variable"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    A clear, student-friendly description of the skill tested
+                  </p>
+                </div>
+
+                {/* Cluster */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Cluster
+                  </label>
+                  <TagInput
+                    selectedTags={cluster ? [cluster] : []}
+                    availableTags={availableClusters}
+                    onChange={(tags) => setCluster(tags[tags.length - 1] || "")}
+                    placeholder="e.g., Algebra, Functions, Number & Quantity"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Broader category grouping for this question
+                  </p>
+                </div>
+
                 {/* Assign to Tests */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -2570,6 +2866,18 @@ export default function AdminPage() {
           }}
           onSave={handleSaveTest}
           editingTest={editingTest}
+          subjects={subjects}
+        />
+
+        {/* Subject Modal */}
+        <SubjectModal
+          isOpen={showSubjectModal}
+          onClose={() => {
+            setShowSubjectModal(false);
+            setEditingSubject(null);
+          }}
+          onSave={handleSaveSubject}
+          editingSubject={editingSubject}
         />
 
         {/* CSV Upload Modal */}

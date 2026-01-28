@@ -11,6 +11,8 @@ export interface Question {
   explanationImageUrl?: string; // Explanation image URL
   topics: string[];
   points?: number; // Points for this question (default: 2)
+  studentFriendlySkill?: string; // Clear, student-friendly description of the skill tested
+  cluster?: string; // Broader category grouping (e.g., 'Number & Quantity', 'Algebra', 'Functions')
 }
 
 export interface Test {
@@ -20,6 +22,8 @@ export interface Test {
   scaledScoreTable?: { [rawScore: number]: number }; // raw score -> scaled score mapping
   isActive: boolean;
   questionCount?: number; // computed field, not stored in DB
+  subjectId: string; // Required - which subject this test belongs to
+  subjectName?: string; // Joined field for display
   createdAt?: string;
   updatedAt?: string;
 }
@@ -106,4 +110,17 @@ export interface BugReport {
   status: 'open' | 'reviewed' | 'resolved';
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Subject {
+  id: string;
+  name: string;
+  description?: string;
+  color: string; // Hex color code for the subject
+  isActive: boolean;
+  displayOrder: number;
+  testCount?: number; // computed field, not stored in DB
+  questionCount?: number; // computed field for question bank
+  createdAt?: string;
+  updatedAt?: string;
 }

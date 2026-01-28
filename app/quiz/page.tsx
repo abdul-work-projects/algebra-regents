@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Question, QuizSession } from "@/lib/types";
 import { loadSession, saveSession, createNewSession, updateSkillProgress, loadMarkedForReview, toggleMarkedForReview } from "@/lib/storage";
-import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById } from "@/lib/supabase";
+import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById, fetchQuestionsForSubject } from "@/lib/supabase";
 import DrawingCanvas from "@/components/DrawingCanvas";
 import FullscreenDrawingCanvas from "@/components/FullscreenDrawingCanvas";
 import Timer from "@/components/Timer";
@@ -128,25 +128,33 @@ function QuizPageContent() {
     const testIdFromUrl = searchParams.get('testId');
     const practiceModeFromUrl = searchParams.get('mode');
     const skillFilter = searchParams.get('skill');
+    const subjectFilter = searchParams.get('subject');
     const existingSession = loadSession();
 
     async function loadQuestionsAndSession() {
       try {
-        // Practice mode - questions filtered by skill
+        // Practice mode - questions filtered by skill or subject
         if (practiceModeFromUrl === 'practice') {
-          const allQuestions = await fetchQuestionsForQuiz();
+          let filteredQuestions: Question[];
 
-          // Filter by skill if provided
-          let filteredQuestions = allQuestions;
+          // If subject is provided, fetch questions for that subject only
+          if (subjectFilter) {
+            filteredQuestions = await fetchQuestionsForSubject(subjectFilter);
+          } else {
+            // Fallback to all questions
+            filteredQuestions = await fetchQuestionsForQuiz();
+          }
+
+          // Further filter by skill if provided
           if (skillFilter) {
-            filteredQuestions = allQuestions.filter(q =>
+            filteredQuestions = filteredQuestions.filter(q =>
               q.topics.includes(skillFilter)
             );
             setPracticeSkill(skillFilter);
           }
 
           if (filteredQuestions.length === 0) {
-            // No questions match skill, redirect to home
+            // No questions match filter, redirect to home
             router.push('/');
             return;
           }

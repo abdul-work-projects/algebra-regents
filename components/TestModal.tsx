@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Test } from "@/lib/types";
+import { Test, Subject } from "@/lib/types";
 import { getDefaultScoreTable } from "@/lib/results";
 
 interface ScoreTableRow {
@@ -17,8 +17,10 @@ interface TestModalProps {
     description?: string;
     scaled_score_table?: { [key: string]: number };
     is_active: boolean;
+    subject_id: string;
   }) => Promise<void>;
   editingTest?: Test | null;
+  subjects: Subject[];
 }
 
 export default function TestModal({
@@ -26,10 +28,12 @@ export default function TestModal({
   onClose,
   onSave,
   editingTest,
+  subjects,
 }: TestModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [subjectId, setSubjectId] = useState("");
   const [useCustomScoreTable, setUseCustomScoreTable] = useState(false);
   const [scoreTableRows, setScoreTableRows] = useState<ScoreTableRow[]>([]);
   const [maxRawScore, setMaxRawScore] = useState(86);
@@ -66,6 +70,7 @@ export default function TestModal({
       setName(editingTest.name);
       setDescription(editingTest.description || "");
       setIsActive(editingTest.isActive);
+      setSubjectId(editingTest.subjectId);
       if (editingTest.scaledScoreTable) {
         setUseCustomScoreTable(true);
         const rows = objectToRows(editingTest.scaledScoreTable);
@@ -82,12 +87,14 @@ export default function TestModal({
       setName("");
       setDescription("");
       setIsActive(true);
+      // Default to first subject if available
+      setSubjectId(subjects.length > 0 ? subjects[0].id : "");
       setUseCustomScoreTable(false);
       setScoreTableRows([]);
       setMaxRawScore(86);
     }
     setError(null);
-  }, [editingTest, isOpen]);
+  }, [editingTest, isOpen, subjects]);
 
   const handleLoadDefaultScoreTable = () => {
     const defaultTable = getDefaultScoreTable();
@@ -133,6 +140,11 @@ export default function TestModal({
       return;
     }
 
+    if (!subjectId) {
+      setError("Subject is required");
+      return;
+    }
+
     let scaledScoreTable: { [key: string]: number } | undefined;
     if (useCustomScoreTable && scoreTableRows.length > 0) {
       scaledScoreTable = rowsToObject(scoreTableRows);
@@ -147,6 +159,7 @@ export default function TestModal({
         description: description.trim() || undefined,
         scaled_score_table: scaledScoreTable,
         is_active: isActive,
+        subject_id: subjectId,
       });
       onClose();
     } catch (err) {
@@ -211,6 +224,25 @@ export default function TestModal({
                 placeholder="e.g., January 2024 Regents"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+
+            {/* Subject */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Subject <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={subjectId}
+                onChange={(e) => setSubjectId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select a subject...</option>
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Description */}

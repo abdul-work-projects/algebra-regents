@@ -1,8 +1,8 @@
 'use client';
 
-import { loadSession, clearSession, loadMarkedForReview } from '@/lib/storage';
-import { fetchActiveTests, convertToTestFormat, fetchQuestionsForQuiz } from '@/lib/supabase';
-import { Test, Question } from '@/lib/types';
+import { loadSession, clearSession, loadMarkedForReview, saveSelectedSubject, loadSelectedSubject, loadSkillProgress } from '@/lib/storage';
+import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchQuestionsForSubject } from '@/lib/supabase';
+import { Test, Question, Subject } from '@/lib/types';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -13,6 +13,19 @@ interface SkillInfo {
   questionCount: number;
   questionIds: string[];
   markedCount: number;
+  correctCount: number;
+}
+
+interface ClusterInfo {
+  name: string;
+  questionCount: number;
+  skills: SkillInfo[];
+}
+
+interface SubjectData {
+  subject: Subject;
+  clusters: ClusterInfo[];
+  totalQuestions: number;
 }
 
 function HomeContent() {
@@ -24,11 +37,12 @@ function HomeContent() {
     tabParam === 'question-bank' ? 'question-bank' : 'full-length-tests'
   );
   const [tests, setTests] = useState<Test[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [subjectDataList, setSubjectDataList] = useState<SubjectData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all');
 
   // Sync tab with URL parameter
   useEffect(() => {
@@ -51,44 +65,93 @@ function HomeContent() {
       setExistingSessionTestId(session.testId);
     }
 
+    // Load saved subject preference
+    const savedSubjectId = loadSelectedSubject();
+    if (savedSubjectId) {
+      setSelectedSubjectId(savedSubjectId);
+    }
+
     async function loadData() {
       try {
-        const [dbTests, dbQuestions] = await Promise.all([
+        const [dbTests, dbSubjects] = await Promise.all([
           fetchActiveTests(),
-          fetchQuestionsForQuiz(),
+          fetchActiveSubjects(),
         ]);
+
+        const formattedSubjects = dbSubjects.map(convertToSubjectFormat);
         setTests(dbTests.map(convertToTestFormat));
-        setQuestions(dbQuestions);
+        setSubjects(formattedSubjects);
 
-        // Load marked for review questions
+        // Load marked for review questions and skill progress
         const markedQuestions = loadMarkedForReview();
+        const skillProgress = loadSkillProgress();
 
-        // Build skills from questions
-        const skillMap = new Map<string, { questionIds: Set<string> }>();
-        dbQuestions.forEach(q => {
-          q.topics.forEach(topic => {
-            if (!skillMap.has(topic)) {
-              skillMap.set(topic, { questionIds: new Set() });
+        // Fetch questions for each subject and build clusters
+        const subjectDataPromises = formattedSubjects.map(async (subject) => {
+          const questions = await fetchQuestionsForSubject(subject.id);
+
+          // Build clusters from questions
+          const clusterMap = new Map<string, Map<string, { questionIds: Set<string> }>>();
+
+          questions.forEach(q => {
+            const clusterName = q.cluster || 'Other';
+
+            if (!clusterMap.has(clusterName)) {
+              clusterMap.set(clusterName, new Map());
             }
-            skillMap.get(topic)!.questionIds.add(q.id);
+
+            q.topics.forEach(topic => {
+              const skillsInCluster = clusterMap.get(clusterName)!;
+              if (!skillsInCluster.has(topic)) {
+                skillsInCluster.set(topic, { questionIds: new Set() });
+              }
+              skillsInCluster.get(topic)!.questionIds.add(q.id);
+            });
           });
+
+          // Convert to ClusterInfo array
+          const clusters: ClusterInfo[] = Array.from(clusterMap.entries())
+            .map(([clusterName, skillsMap]) => {
+              const skills: SkillInfo[] = Array.from(skillsMap.entries())
+                .map(([skillName, data]) => {
+                  const questionIds = Array.from(data.questionIds);
+                  const markedCount = questionIds.filter(id => markedQuestions.has(id)).length;
+                  const progress = skillProgress[skillName];
+                  const correctCount = progress?.correct || 0;
+
+                  return {
+                    name: skillName,
+                    questionCount: data.questionIds.size,
+                    questionIds,
+                    markedCount,
+                    correctCount,
+                  };
+                })
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+              const totalQuestions = skills.reduce((sum, skill) => sum + skill.questionCount, 0);
+
+              return {
+                name: clusterName,
+                questionCount: totalQuestions,
+                skills,
+              };
+            })
+            .sort((a, b) => {
+              if (a.name === 'Other') return 1;
+              if (b.name === 'Other') return -1;
+              return a.name.localeCompare(b.name);
+            });
+
+          return {
+            subject,
+            clusters,
+            totalQuestions: questions.length,
+          };
         });
 
-        const skillsArray: SkillInfo[] = Array.from(skillMap.entries())
-          .map(([name, data]) => {
-            const questionIds = Array.from(data.questionIds);
-            // Count how many questions in this skill are marked for review
-            const markedCount = questionIds.filter(id => markedQuestions.has(id)).length;
-            return {
-              name,
-              questionCount: data.questionIds.size,
-              questionIds,
-              markedCount,
-            };
-          })
-          .sort((a, b) => a.name.localeCompare(b.name));
-
-        setSkills(skillsArray);
+        const subjectData = await Promise.all(subjectDataPromises);
+        setSubjectDataList(subjectData);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -115,6 +178,26 @@ function HomeContent() {
     window.location.href = `/quiz?${params.toString()}`;
   };
 
+  const handleSubjectChange = (subjectId: string) => {
+    setSelectedSubjectId(subjectId);
+    saveSelectedSubject(subjectId);
+  };
+
+  const handleAllTopicsForSubject = (subjectId: string) => {
+    const params = new URLSearchParams();
+    params.set('mode', 'practice');
+    params.set('subject', subjectId);
+    window.location.href = `/quiz?${params.toString()}`;
+  };
+
+  // Filter tests by selected subject
+  const filteredTests = selectedSubjectId === 'all'
+    ? tests
+    : tests.filter(test => test.subjectId === selectedSubjectId);
+
+  // Get current subject name for sidebar title
+  const currentSubject = subjects.find(s => s.id === selectedSubjectId);
+
   const existingTest = existingSessionTestId
     ? tests.find((t) => t.id === existingSessionTestId)
     : null;
@@ -138,9 +221,32 @@ function HomeContent() {
         <div className="flex flex-col h-full">
           {/* Logo/Title */}
           <div className="p-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">Algebra I Regents</h1>
+            <h1 className="text-xl font-bold text-gray-900">
+              {currentSubject ? currentSubject.name : 'Practice App'}
+            </h1>
             <p className="text-sm text-gray-500 mt-1">Practice & Prepare</p>
           </div>
+
+          {/* Subject Selector - only show if multiple subjects */}
+          {subjects.length > 1 && (
+            <div className="p-4 border-b border-gray-200">
+              <label className="block text-xs font-medium text-gray-500 mb-2">
+                Subject
+              </label>
+              <select
+                value={selectedSubjectId}
+                onChange={(e) => handleSubjectChange(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              >
+                <option value="all">All Subjects</option>
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Navigation */}
           <nav className="flex-1 p-4">
@@ -223,51 +329,92 @@ function HomeContent() {
         </div>
 
         {/* Content Area */}
-        <div className="p-4 lg:p-8 max-w-5xl">
+        <div className="p-4 lg:p-8 max-w-6xl">
           {activeTab === 'question-bank' ? (
             <div>
-              {/* Header */}
-              <div className="hidden lg:block mb-4">
-                <h2 className="text-2xl font-bold text-gray-900">Question Bank</h2>
-              </div>
-              <p className="text-gray-500 mb-6">{questions.length} questions</p>
-
-              {/* Skills List */}
               {isLoading ? (
                 <div className="text-center py-12 text-gray-500">Loading skills...</div>
-              ) : skills.length === 0 ? (
+              ) : subjectDataList.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
-                  No skills available yet.
+                  No subjects available yet.
                 </div>
               ) : (
-                <div className="w-full">
-                  {skills.map((skill) => (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {subjectDataList.map(({ subject, clusters, totalQuestions }) => (
                     <div
-                      key={skill.name}
-                      onClick={() => handlePracticeSkill(skill.name)}
-                      className="flex items-center justify-between py-4 border-b border-gray-100 hover:bg-gray-50 transition-all cursor-pointer"
+                      key={subject.id}
+                      className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden"
                     >
-                      <span className="text-gray-800">{skill.name}</span>
-                      <div className="flex items-center gap-3">
-                        {skill.markedCount > 0 && (
-                          <span className="flex items-center gap-1 text-sm text-yellow-600">
-                            <svg
-                              className="w-4 h-4"
-                              fill="currentColor"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                              />
-                            </svg>
-                            {skill.markedCount}
-                          </span>
+                      {/* Subject Header with Color */}
+                      <div
+                        className="p-4 flex items-center justify-between"
+                        style={{ backgroundColor: subject.color }}
+                      >
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-xl">
+                            {subject.name}
+                          </h3>
+                          <p className="text-gray-800/70 text-sm">
+                            {totalQuestions} questions
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleAllTopicsForSubject(subject.id)}
+                          className="px-4 py-2 bg-white rounded-full text-sm font-medium text-gray-700 hover:bg-gray-100 transition-all shadow-sm"
+                        >
+                          All Topics
+                        </button>
+                      </div>
+
+                      {/* Clusters and Skills */}
+                      <div className="p-4">
+                        {clusters.length === 0 ? (
+                          <p className="text-gray-500 text-center py-4">No questions available yet.</p>
+                        ) : (
+                          <div className="space-y-4">
+                            {clusters.map((cluster) => (
+                              <div key={cluster.name}>
+                                {/* Cluster Header */}
+                                <div className="flex items-center justify-between mb-2">
+                                  <h4 className="font-bold text-gray-900">{cluster.name}</h4>
+                                  <span className="text-gray-400 text-sm">{cluster.questionCount} questions</span>
+                                </div>
+
+                                {/* Skills List */}
+                                <div className="space-y-0.5">
+                                  {cluster.skills.map((skill) => (
+                                    <div
+                                      key={skill.name}
+                                      onClick={() => handlePracticeSkill(skill.name)}
+                                      className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 transition-all cursor-pointer"
+                                    >
+                                      <span className="text-gray-700">{skill.name}</span>
+                                      <div className="flex items-center gap-2">
+                                        {skill.correctCount > 0 && (
+                                          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                            {skill.correctCount}
+                                          </span>
+                                        )}
+                                        {skill.markedCount > 0 && (
+                                          <span className="flex items-center gap-1 text-yellow-600 text-xs">
+                                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                              <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                                            </svg>
+                                            {skill.markedCount}
+                                          </span>
+                                        )}
+                                        <span className="text-gray-400 text-sm">{skill.questionCount} questions</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         )}
-                        <span className="text-sm text-gray-400">{skill.questionCount} questions</span>
                       </div>
                     </div>
                   ))}
@@ -285,13 +432,13 @@ function HomeContent() {
 
               {isLoading ? (
                 <div className="text-center py-12 text-gray-500">Loading tests...</div>
-              ) : tests.length === 0 ? (
+              ) : filteredTests.length === 0 ? (
                 <div className="text-center py-12 text-gray-500 bg-white border-2 border-gray-200 rounded-xl">
-                  No tests available yet. Check back later.
+                  {tests.length === 0 ? 'No tests available yet. Check back later.' : 'No tests available for this subject.'}
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {tests.map((test) => (
+                  {filteredTests.map((test) => (
                     <div
                       key={test.id}
                       className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-all"

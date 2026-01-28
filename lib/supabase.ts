@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Question, Test } from './types';
+import { Question, Test, Subject } from './types';
 
 // Supabase client configuration
 // Make sure to set these environment variables in .env.local
@@ -50,6 +50,8 @@ export interface DatabaseQuestion {
   explanation_image_url: string | null;
   topics: string[];
   points: number;
+  student_friendly_skill: string | null;
+  cluster: string | null;
   display_order?: number;
   created_at: string;
   updated_at: string;
@@ -242,6 +244,8 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion): Question {
     explanationImageUrl: dbQuestion.explanation_image_url || undefined,
     topics: dbQuestion.topics,
     points: dbQuestion.points,
+    studentFriendlySkill: dbQuestion.student_friendly_skill || undefined,
+    cluster: dbQuestion.cluster || undefined,
   };
 }
 
@@ -274,12 +278,32 @@ export interface DatabaseTest {
   description: string | null;
   scaled_score_table: { [key: string]: number } | null;
   is_active: boolean;
+  subject_id: string;
   created_at: string;
   updated_at: string;
 }
 
-// Type for test with question count
+// Type for test with question count and subject info
 export interface DatabaseTestWithCount extends DatabaseTest {
+  question_count?: number;
+  subject_name?: string;
+}
+
+// Type definition for database subject
+export interface DatabaseSubject {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Type for subject with test count
+export interface DatabaseSubjectWithCount extends DatabaseSubject {
+  test_count?: number;
   question_count?: number;
 }
 
@@ -287,7 +311,10 @@ export interface DatabaseTestWithCount extends DatabaseTest {
 export async function fetchTests(): Promise<DatabaseTestWithCount[]> {
   const { data, error } = await supabase
     .from('tests')
-    .select('*')
+    .select(`
+      *,
+      subjects (name)
+    `)
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -297,7 +324,7 @@ export async function fetchTests(): Promise<DatabaseTestWithCount[]> {
 
   // Get question counts for each test
   const testsWithCounts = await Promise.all(
-    (data || []).map(async (test) => {
+    (data || []).map(async (test: any) => {
       const { count } = await supabase
         .from('test_questions')
         .select('*', { count: 'exact', head: true })
@@ -305,6 +332,8 @@ export async function fetchTests(): Promise<DatabaseTestWithCount[]> {
 
       return {
         ...test,
+        subject_name: test.subjects?.name || undefined,
+        subjects: undefined, // Remove the nested object
         question_count: count || 0,
       };
     })
@@ -317,7 +346,10 @@ export async function fetchTests(): Promise<DatabaseTestWithCount[]> {
 export async function fetchActiveTests(): Promise<DatabaseTestWithCount[]> {
   const { data, error } = await supabase
     .from('tests')
-    .select('*')
+    .select(`
+      *,
+      subjects (name)
+    `)
     .eq('is_active', true)
     .order('created_at', { ascending: true });
 
@@ -328,7 +360,7 @@ export async function fetchActiveTests(): Promise<DatabaseTestWithCount[]> {
 
   // Get question counts for each test
   const testsWithCounts = await Promise.all(
-    (data || []).map(async (test) => {
+    (data || []).map(async (test: any) => {
       const { count } = await supabase
         .from('test_questions')
         .select('*', { count: 'exact', head: true })
@@ -336,6 +368,45 @@ export async function fetchActiveTests(): Promise<DatabaseTestWithCount[]> {
 
       return {
         ...test,
+        subject_name: test.subjects?.name || undefined,
+        subjects: undefined, // Remove the nested object
+        question_count: count || 0,
+      };
+    })
+  );
+
+  return testsWithCounts;
+}
+
+// Fetch active tests for a specific subject (for students)
+export async function fetchActiveTestsForSubject(subjectId: string): Promise<DatabaseTestWithCount[]> {
+  const { data, error } = await supabase
+    .from('tests')
+    .select(`
+      *,
+      subjects (name)
+    `)
+    .eq('is_active', true)
+    .eq('subject_id', subjectId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching active tests for subject:', error);
+    return [];
+  }
+
+  // Get question counts for each test
+  const testsWithCounts = await Promise.all(
+    (data || []).map(async (test: any) => {
+      const { count } = await supabase
+        .from('test_questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('test_id', test.id);
+
+      return {
+        ...test,
+        subject_name: test.subjects?.name || undefined,
+        subjects: undefined,
         question_count: count || 0,
       };
     })
@@ -366,6 +437,7 @@ export async function createTest(test: {
   description?: string;
   scaled_score_table?: { [key: string]: number };
   is_active?: boolean;
+  subject_id: string;
 }): Promise<DatabaseTest | null> {
   const { data, error } = await supabase
     .from('tests')
@@ -374,6 +446,7 @@ export async function createTest(test: {
       description: test.description || null,
       scaled_score_table: test.scaled_score_table || null,
       is_active: test.is_active ?? true,
+      subject_id: test.subject_id,
     }])
     .select()
     .single();
@@ -394,6 +467,7 @@ export async function updateTest(
     description: string | null;
     scaled_score_table: { [key: string]: number } | null;
     is_active: boolean;
+    subject_id: string;
   }>
 ): Promise<DatabaseTest | null> {
   const { data, error } = await supabase
@@ -618,8 +692,288 @@ export function convertToTestFormat(dbTest: DatabaseTestWithCount): Test {
         )
       : undefined,
     isActive: dbTest.is_active,
+    subjectId: dbTest.subject_id,
+    subjectName: dbTest.subject_name || undefined,
     questionCount: dbTest.question_count,
     createdAt: dbTest.created_at,
     updatedAt: dbTest.updated_at,
   };
+}
+
+// =====================================================
+// Subjects Management
+// =====================================================
+
+// Fetch all subjects with test counts
+export async function fetchSubjects(): Promise<DatabaseSubjectWithCount[]> {
+  const { data, error } = await supabase
+    .from('subjects')
+    .select('*')
+    .order('display_order', { ascending: true })
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching subjects:', error);
+    return [];
+  }
+
+  // Get test counts for each subject
+  const subjectsWithCounts = await Promise.all(
+    (data || []).map(async (subject) => {
+      const { count } = await supabase
+        .from('tests')
+        .select('*', { count: 'exact', head: true })
+        .eq('subject_id', subject.id);
+
+      return {
+        ...subject,
+        test_count: count || 0,
+      };
+    })
+  );
+
+  return subjectsWithCounts;
+}
+
+// Fetch active subjects only (for students)
+export async function fetchActiveSubjects(): Promise<DatabaseSubjectWithCount[]> {
+  const { data, error } = await supabase
+    .from('subjects')
+    .select('*')
+    .eq('is_active', true)
+    .order('display_order', { ascending: true })
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching active subjects:', error);
+    return [];
+  }
+
+  // Get test counts for each subject (only active tests)
+  const subjectsWithCounts = await Promise.all(
+    (data || []).map(async (subject) => {
+      const { count } = await supabase
+        .from('tests')
+        .select('*', { count: 'exact', head: true })
+        .eq('subject_id', subject.id)
+        .eq('is_active', true);
+
+      return {
+        ...subject,
+        test_count: count || 0,
+      };
+    })
+  );
+
+  return subjectsWithCounts;
+}
+
+// Create a new subject
+export async function createSubject(subject: {
+  name: string;
+  description?: string;
+  color?: string;
+  is_active?: boolean;
+  display_order?: number;
+}): Promise<DatabaseSubject | null> {
+  const { data, error } = await supabase
+    .from('subjects')
+    .insert([{
+      name: subject.name,
+      description: subject.description || null,
+      color: subject.color || '#3B82F6',
+      is_active: subject.is_active ?? true,
+      display_order: subject.display_order ?? 0,
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating subject:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Update a subject
+export async function updateSubject(
+  id: string,
+  updates: Partial<{
+    name: string;
+    description: string | null;
+    color: string;
+    is_active: boolean;
+    display_order: number;
+  }>
+): Promise<DatabaseSubject | null> {
+  const { data, error } = await supabase
+    .from('subjects')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating subject:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Delete a subject (will fail if subject has tests due to FK constraint)
+export async function deleteSubject(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('subjects')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting subject:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Convert database subject to app format
+export function convertToSubjectFormat(dbSubject: DatabaseSubjectWithCount): Subject {
+  return {
+    id: dbSubject.id,
+    name: dbSubject.name,
+    description: dbSubject.description || undefined,
+    color: dbSubject.color,
+    isActive: dbSubject.is_active,
+    displayOrder: dbSubject.display_order,
+    testCount: dbSubject.test_count,
+    questionCount: dbSubject.question_count,
+    createdAt: dbSubject.created_at,
+    updatedAt: dbSubject.updated_at,
+  };
+}
+
+// =====================================================
+// Helper Functions for New Question Fields
+// =====================================================
+
+// Fetch all unique clusters from questions
+export async function fetchAllClusters(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select('cluster')
+    .not('cluster', 'is', null);
+
+  if (error) {
+    console.error('Error fetching clusters:', error);
+    return [];
+  }
+
+  const clustersSet = new Set<string>();
+  (data || []).forEach((q) => {
+    if (q.cluster) {
+      clustersSet.add(q.cluster);
+    }
+  });
+  return Array.from(clustersSet).sort();
+}
+
+// Fetch all unique student-friendly skills from questions
+export async function fetchAllSkills(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select('student_friendly_skill')
+    .not('student_friendly_skill', 'is', null);
+
+  if (error) {
+    console.error('Error fetching skills:', error);
+    return [];
+  }
+
+  const skillsSet = new Set<string>();
+  (data || []).forEach((q) => {
+    if (q.student_friendly_skill) {
+      skillsSet.add(q.student_friendly_skill);
+    }
+  });
+  return Array.from(skillsSet).sort();
+}
+
+// Fetch questions for a specific subject (via test associations)
+export async function fetchQuestionsForSubject(subjectId: string): Promise<Question[]> {
+  // First get all test IDs for this subject
+  const { data: tests, error: testsError } = await supabase
+    .from('tests')
+    .select('id')
+    .eq('subject_id', subjectId)
+    .eq('is_active', true);
+
+  if (testsError) {
+    console.error('Error fetching tests for subject:', testsError);
+    return [];
+  }
+
+  if (!tests || tests.length === 0) {
+    return [];
+  }
+
+  const testIds = tests.map(t => t.id);
+
+  // Get all question IDs for these tests
+  const { data: testQuestions, error: tqError } = await supabase
+    .from('test_questions')
+    .select('question_id')
+    .in('test_id', testIds);
+
+  if (tqError) {
+    console.error('Error fetching test questions:', tqError);
+    return [];
+  }
+
+  if (!testQuestions || testQuestions.length === 0) {
+    return [];
+  }
+
+  const questionIds = [...new Set(testQuestions.map(tq => tq.question_id))];
+
+  // Fetch the actual questions
+  const { data: questions, error: qError } = await supabase
+    .from('questions')
+    .select('*')
+    .in('id', questionIds);
+
+  if (qError) {
+    console.error('Error fetching questions:', qError);
+    return [];
+  }
+
+  return (questions || []).map(convertToQuizFormat);
+}
+
+// Get subject ID for a question (via test association)
+export async function getSubjectForQuestion(questionId: string): Promise<string | null> {
+  // Get test for this question
+  const { data: testQuestion, error: tqError } = await supabase
+    .from('test_questions')
+    .select('test_id')
+    .eq('question_id', questionId)
+    .limit(1)
+    .single();
+
+  if (tqError || !testQuestion) {
+    return null;
+  }
+
+  // Get subject for this test
+  const { data: test, error: testError } = await supabase
+    .from('tests')
+    .select('subject_id')
+    .eq('id', testQuestion.test_id)
+    .single();
+
+  if (testError || !test) {
+    return null;
+  }
+
+  return test.subject_id;
 }
