@@ -2,6 +2,7 @@
 
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { QuizResult, Test, Question } from '@/lib/types';
+import MathPdf from './MathPdf';
 
 const styles = StyleSheet.create({
   page: {
@@ -171,8 +172,6 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   qText: {
-    fontSize: 5,
-    color: '#6b7280',
     flex: 1,
     marginRight: 4,
   },
@@ -269,7 +268,7 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
     return {
       ...qr,
       num: i + 1,
-      skill: question?.topics?.join(', ') || '',
+      questionText: question?.questionText || '',
     };
   });
 
@@ -295,7 +294,7 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
   const QuestionRow = ({ q }: { q: typeof allQuestions[0] }) => (
     <View style={[styles.questionRow, q.isCorrect ? styles.correctRow : styles.incorrectRow]}>
       <Text style={styles.qNum}>Q{q.num}</Text>
-      <Text style={styles.qText}>{q.skill}</Text>
+      <MathPdf text={q.questionText} fontSize={5} style={styles.qText} />
       <Text style={[styles.qYour, q.isCorrect ? styles.correctText : styles.incorrectText]}>
         ({q.userAnswer !== null ? q.userAnswer : '-'})
       </Text>
@@ -318,7 +317,7 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
       borderRadius: 2,
     }}>
       <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', width: 18 }}>#</Text>
-      <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', flex: 1, marginRight: 4 }}>Skill</Text>
+      <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', flex: 1, marginRight: 4 }}>Question</Text>
       <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', width: 16, textAlign: 'center' }}>You</Text>
       <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', width: 16, textAlign: 'center' }}>Ans</Text>
       <Text style={{ fontSize: 5, fontWeight: 'bold', color: '#6b7280', width: 10, textAlign: 'center' }}></Text>

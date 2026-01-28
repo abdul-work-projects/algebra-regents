@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { pdf } from '@react-pdf/renderer';
-import ReportDocument from './ReportDocument';
 import { QuizResult, Test, Question } from '@/lib/types';
 
 interface ReportGeneratorProps {
@@ -20,10 +18,26 @@ export default function ReportGenerator({ result, test, scaledScore, questions, 
     setIsGenerating(true);
 
     try {
-      // Generate PDF blob
-      const blob = await pdf(
-        <ReportDocument result={result} test={test} scaledScore={scaledScore} questions={questions} />
-      ).toBlob();
+      // Call server API to generate PDF with proper math rendering
+      const response = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          result,
+          test,
+          scaledScore,
+          questions,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      // Get the PDF blob
+      const blob = await response.blob();
 
       // Create download link
       const url = URL.createObjectURL(blob);
