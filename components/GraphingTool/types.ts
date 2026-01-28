@@ -30,10 +30,10 @@ export interface GraphData {
 export const DEFAULT_GRAPH_DATA: GraphData = {
   lines: [],
   gridBounds: {
-    xMin: -10,
-    xMax: 10,
-    yMin: -10,
-    yMax: 10,
+    xMin: -15,
+    xMax: 15,
+    yMin: -15,
+    yMax: 15,
   },
 };
 

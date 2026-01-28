@@ -114,11 +114,11 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
     const bounds = graphData.gridBounds;
 
     boardRef.current = JXG.JSXGraph.initBoard(containerRef.current.id, {
-      // Bounding box: [xMin, yMax, xMax, yMin] with padding for labels
-      boundingbox: [bounds.xMin - 1.5, bounds.yMax + 1.5, bounds.xMax + 1.5, bounds.yMin - 2],
+      // Bounding box: [xMin, yMax, xMax, yMin] with symmetrical padding for labels
+      boundingbox: [bounds.xMin - 1.5, bounds.yMax + 1.5, bounds.xMax + 1.5, bounds.yMin - 1.5],
       showCopyright: false,
       showNavigation: false,
-      keepAspectRatio: true,
+      keepAspectRatio: false,
       zoom: {
         enabled: false,
       },
@@ -1105,8 +1105,8 @@ export default function GraphingTool({ initialData, onChange }: GraphingToolProp
           style={{
             width: '100%',
             height: '100%',
-            maxWidth: '350px',
-            maxHeight: '350px',
+            maxWidth: '420px',
+            maxHeight: '420px',
             aspectRatio: '1 / 1',
           }}
         />

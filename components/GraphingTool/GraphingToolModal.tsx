@@ -63,7 +63,7 @@ export default function GraphingToolModal({
       {/* Modal - Compact */}
       <div className="fixed inset-2 md:inset-4 flex items-center justify-center z-[210]">
         <div
-          className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden"
+          className="bg-white rounded-xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden"
           style={{ maxHeight: 'calc(100vh - 32px)' }}
           onClick={(e) => e.stopPropagation()}
         >
