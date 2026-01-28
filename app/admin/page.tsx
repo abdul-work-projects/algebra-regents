@@ -169,7 +169,6 @@ export default function AdminPage() {
   const [csvError, setCsvError] = useState<string | null>(null);
   const [isUploadingCsv, setIsUploadingCsv] = useState(false);
   const [csvSelectedTestIds, setCsvSelectedTestIds] = useState<string[]>([]);
-  const [showNoTestWarning, setShowNoTestWarning] = useState(false);
 
   // Subjects management state
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -597,9 +596,9 @@ export default function AdminPage() {
   const handleCsvUpload = async () => {
     if (csvPreview.length === 0) return;
 
-    // Show warning if no tests are selected
-    if (csvSelectedTestIds.length === 0 && !showNoTestWarning) {
-      setShowNoTestWarning(true);
+    // Require at least one test to be selected
+    if (csvSelectedTestIds.length === 0) {
+      setCsvError("Questions must be assigned to at least one test");
       return;
     }
 
@@ -607,7 +606,6 @@ export default function AdminPage() {
   };
 
   const performCsvUpload = async () => {
-    setShowNoTestWarning(false);
     setIsUploadingCsv(true);
     setCsvError(null);
 
@@ -1034,6 +1032,14 @@ export default function AdminPage() {
       setNotification({
         type: "error",
         message: "At least one topic is required",
+      });
+      return;
+    }
+
+    if (selectedTestIds.length === 0) {
+      setNotification({
+        type: "error",
+        message: "Question must be assigned to at least one test",
       });
       return;
     }
@@ -2896,7 +2902,6 @@ export default function AdminPage() {
                     setCsvPreview([]);
                     setCsvError(null);
                     setCsvSelectedTestIds([]);
-                    setShowNoTestWarning(false);
                   }}
                   className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
                 >
@@ -3004,80 +3009,29 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* No Test Warning */}
-              {showNoTestWarning && (
-                <div className="mx-4 mb-0 p-3 bg-yellow-50 border border-yellow-300 rounded-xl">
-                  <div className="flex items-start gap-2">
-                    <svg
-                      className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                      />
-                    </svg>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-yellow-800">
-                        No tests selected
-                      </p>
-                      <p className="text-sm text-yellow-700 mt-1">
-                        These questions will be added to the question bank but
-                        won&apos;t appear in any test.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Modal Footer */}
               <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
-                {showNoTestWarning ? (
-                  <>
-                    <button
-                      onClick={() => setShowNoTestWarning(false)}
-                      className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
-                    >
-                      Go Back
-                    </button>
-                    <button
-                      onClick={performCsvUpload}
-                      disabled={isUploadingCsv}
-                      className="px-4 py-2 text-sm font-bold bg-yellow-600 text-white rounded-xl hover:bg-yellow-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                      {isUploadingCsv ? "Uploading..." : "Upload Anyway"}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        setShowCsvModal(false);
-                        setCsvFile(null);
-                        setCsvPreview([]);
-                        setCsvError(null);
-                        setCsvSelectedTestIds([]);
-                        setShowNoTestWarning(false);
-                      }}
-                      className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleCsvUpload}
-                      disabled={csvPreview.length === 0 || isUploadingCsv}
-                      className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                      {isUploadingCsv
-                        ? "Uploading..."
-                        : `Upload ${csvPreview.length} Questions`}
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={() => {
+                    setShowCsvModal(false);
+                    setCsvFile(null);
+                    setCsvPreview([]);
+                    setCsvError(null);
+                    setCsvSelectedTestIds([]);
+                  }}
+                  className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCsvUpload}
+                  disabled={csvPreview.length === 0 || isUploadingCsv}
+                  className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isUploadingCsv
+                    ? "Uploading..."
+                    : `Upload ${csvPreview.length} Questions`}
+                </button>
               </div>
             </div>
           </div>
