@@ -83,11 +83,19 @@ function generateReportHTML(result: any, test: any, scaledScore: number, questio
     const question = questions.find((q: any) => q.id === qr.questionId);
     const userAnswerIndex = qr.userAnswer ? qr.userAnswer - 1 : -1;
     const correctAnswerIndex = qr.correctAnswer - 1;
+
+    // Clean and prepare question text - trim whitespace and normalize
+    let questionText = (question?.questionText || '').trim();
+    // Replace multiple whitespace/newlines with single space
+    questionText = questionText.replace(/\n+/g, ' ').replace(/\s+/g, ' ');
+    // Convert escaped dollar signs (\$) to a span-wrapped $ to prevent KaTeX from treating it as math
+    questionText = questionText.replace(/\\\$/g, '<span class="dollar">$</span>');
+
     return {
       ...qr,
       num: i + 1,
-      questionText: question?.questionText || '',
-      skills: question?.topics?.join(', ') || '',
+      questionText,
+      skills: question?.topics || [],
       userAnswerText: userAnswerIndex >= 0 && question?.answers ? question.answers[userAnswerIndex] : '-',
       correctAnswerText: question?.answers ? question.answers[correctAnswerIndex] : '',
     };
@@ -271,12 +279,31 @@ function generateReportHTML(result: any, test: any, scaledScore: number, questio
       font-size: 6px;
       color: #374151;
       line-height: 1.3;
+      text-align: left;
     }
     .q-text .katex { font-size: 7px; }
+    .q-text .katex-display {
+      text-align: left !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    .q-text .katex-display > .katex {
+      text-align: left !important;
+    }
+    .dollar { font-style: normal; }
     .q-skills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-top: 3px;
+    }
+    .q-skill-tag {
       font-size: 5px;
-      color: #9ca3af;
-      margin-top: 2px;
+      color: #1e40af;
+      background: #dbeafe;
+      padding: 1px 4px;
+      border-radius: 2px;
+      white-space: nowrap;
     }
     .q-you {
       width: 20px;
@@ -382,7 +409,7 @@ function generateReportHTML(result: any, test: any, scaledScore: number, questio
               <div class="q-num">Q${q.num}</div>
               <div class="q-content">
                 <div class="q-text">${q.questionText}</div>
-                ${q.skills ? `<div class="q-skills">${q.skills}</div>` : ''}
+                ${q.skills && q.skills.length > 0 ? `<div class="q-skills">${q.skills.map((s: string) => `<span class="q-skill-tag">${s}</span>`).join('')}</div>` : ''}
               </div>
               <div class="q-you ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">(${q.userAnswer !== null ? q.userAnswer : '-'})</div>
               <div class="q-ans">${q.isCorrect ? '' : `(${q.correctAnswer})`}</div>
@@ -403,7 +430,7 @@ function generateReportHTML(result: any, test: any, scaledScore: number, questio
               <div class="q-num">Q${q.num}</div>
               <div class="q-content">
                 <div class="q-text">${q.questionText}</div>
-                ${q.skills ? `<div class="q-skills">${q.skills}</div>` : ''}
+                ${q.skills && q.skills.length > 0 ? `<div class="q-skills">${q.skills.map((s: string) => `<span class="q-skill-tag">${s}</span>`).join('')}</div>` : ''}
               </div>
               <div class="q-you ${q.isCorrect ? 'correct-text' : 'incorrect-text'}">(${q.userAnswer !== null ? q.userAnswer : '-'})</div>
               <div class="q-ans">${q.isCorrect ? '' : `(${q.correctAnswer})`}</div>
