@@ -977,3 +977,53 @@ export async function getSubjectForQuestion(questionId: string): Promise<string 
 
   return test.subject_id;
 }
+
+// Fetch cluster and skill metadata for all tests
+export interface TestMetadata {
+  testId: string;
+  clusters: string[];
+  skills: string[];
+}
+
+export async function fetchTestMetadata(): Promise<TestMetadata[]> {
+  // Fetch all test_questions with question cluster and skill data
+  const { data, error } = await supabase
+    .from('test_questions')
+    .select(`
+      test_id,
+      questions (
+        cluster,
+        student_friendly_skill
+      )
+    `);
+
+  if (error) {
+    console.error('Error fetching test metadata:', error);
+    return [];
+  }
+
+  // Build a map of testId -> { clusters: Set, skills: Set }
+  const testMap = new Map<string, { clusters: Set<string>; skills: Set<string> }>();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (data || []).forEach((tq: any) => {
+    if (!testMap.has(tq.test_id)) {
+      testMap.set(tq.test_id, { clusters: new Set(), skills: new Set() });
+    }
+    const testData = testMap.get(tq.test_id)!;
+
+    if (tq.questions?.cluster) {
+      testData.clusters.add(tq.questions.cluster);
+    }
+    if (tq.questions?.student_friendly_skill) {
+      testData.skills.add(tq.questions.student_friendly_skill);
+    }
+  });
+
+  // Convert to array format
+  return Array.from(testMap.entries()).map(([testId, data]) => ({
+    testId,
+    clusters: Array.from(data.clusters).sort(),
+    skills: Array.from(data.skills).sort(),
+  }));
+}

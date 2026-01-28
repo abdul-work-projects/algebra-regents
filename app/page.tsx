@@ -1,7 +1,7 @@
 'use client';
 
 import { loadSession, clearSession, loadMarkedForReview, saveSelectedSubject, loadSelectedSubject, loadSkillProgress } from '@/lib/storage';
-import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchQuestionsForSubject } from '@/lib/supabase';
+import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchQuestionsForSubject, fetchAllClusters, fetchTestMetadata, TestMetadata } from '@/lib/supabase';
 import { Test, Question, Subject } from '@/lib/types';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -43,6 +43,10 @@ function HomeContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all');
+  const [allClusters, setAllClusters] = useState<string[]>([]);
+  const [selectedCluster, setSelectedCluster] = useState<string>('all');
+  const [skillSearch, setSkillSearch] = useState<string>('');
+  const [testMetadata, setTestMetadata] = useState<TestMetadata[]>([]);
 
   // Sync tab with URL parameter
   useEffect(() => {
@@ -73,14 +77,18 @@ function HomeContent() {
 
     async function loadData() {
       try {
-        const [dbTests, dbSubjects] = await Promise.all([
+        const [dbTests, dbSubjects, clusters, metadata] = await Promise.all([
           fetchActiveTests(),
           fetchActiveSubjects(),
+          fetchAllClusters(),
+          fetchTestMetadata(),
         ]);
 
         const formattedSubjects = dbSubjects.map(convertToSubjectFormat);
         setTests(dbTests.map(convertToTestFormat));
         setSubjects(formattedSubjects);
+        setAllClusters(clusters);
+        setTestMetadata(metadata);
 
         // Load marked for review questions and skill progress
         const markedQuestions = loadMarkedForReview();
@@ -190,10 +198,46 @@ function HomeContent() {
     window.location.href = `/quiz?${params.toString()}`;
   };
 
-  // Filter tests by selected subject
+  // Filter tests by selected subject only
   const filteredTests = selectedSubjectId === 'all'
     ? tests
     : tests.filter(test => test.subjectId === selectedSubjectId);
+
+  // Filter question bank data by cluster and skill search
+  const filteredSubjectDataList = subjectDataList.map(subjectData => {
+    const filteredClusters = subjectData.clusters
+      .filter(cluster => {
+        // Cluster filter
+        if (selectedCluster !== 'all' && cluster.name !== selectedCluster) {
+          return false;
+        }
+        return true;
+      })
+      .map(cluster => {
+        // Skill search filter within clusters
+        if (!skillSearch.trim()) return cluster;
+
+        const searchLower = skillSearch.toLowerCase();
+        const filteredSkills = cluster.skills.filter(skill =>
+          skill.name.toLowerCase().includes(searchLower)
+        );
+
+        return {
+          ...cluster,
+          skills: filteredSkills,
+          questionCount: filteredSkills.reduce((sum, s) => sum + s.questionCount, 0),
+        };
+      })
+      .filter(cluster => cluster.skills.length > 0); // Remove empty clusters
+
+    const totalQuestions = filteredClusters.reduce((sum, c) => sum + c.questionCount, 0);
+
+    return {
+      ...subjectData,
+      clusters: filteredClusters,
+      totalQuestions,
+    };
+  }).filter(subjectData => subjectData.clusters.length > 0); // Remove subjects with no matching content
 
   const existingTest = existingSessionTestId
     ? tests.find((t) => t.id === existingSessionTestId)
@@ -306,15 +350,107 @@ function HomeContent() {
         <div className="p-4 lg:p-8 max-w-6xl">
           {activeTab === 'question-bank' ? (
             <div>
+              {/* Header */}
+              <div className="hidden lg:flex lg:items-center lg:justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Question Bank</h2>
+                  <p className="text-gray-600 mt-1">Practice by topic and skill</p>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Cluster Filter */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">NYSED Cluster</label>
+                    <select
+                      value={selectedCluster}
+                      onChange={(e) => setSelectedCluster(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    >
+                      <option value="all">All Clusters</option>
+                      {allClusters.map((cluster) => (
+                        <option key={cluster} value={cluster}>
+                          {cluster}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Skill Search */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Search Skills</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={skillSearch}
+                        onChange={(e) => setSkillSearch(e.target.value)}
+                        placeholder="Search student skills..."
+                        className="w-full px-3 py-2 pl-9 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                      />
+                      <svg
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      {skillSearch && (
+                        <button
+                          onClick={() => setSkillSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Filters Summary */}
+                {(selectedCluster !== 'all' || skillSearch.trim()) && (
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                    <span className="text-xs text-gray-500">Active filters:</span>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedCluster !== 'all' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs">
+                          {selectedCluster}
+                          <button onClick={() => setSelectedCluster('all')} className="hover:text-gray-900">×</button>
+                        </span>
+                      )}
+                      {skillSearch.trim() && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs">
+                          &quot;{skillSearch}&quot;
+                          <button onClick={() => setSkillSearch('')} className="hover:text-gray-900">×</button>
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedCluster('all');
+                        setSkillSearch('');
+                      }}
+                      className="ml-auto text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {isLoading ? (
                 <div className="text-center py-12 text-gray-500">Loading skills...</div>
-              ) : subjectDataList.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  No subjects available yet.
+              ) : filteredSubjectDataList.length === 0 ? (
+                <div className="text-center py-12 text-gray-500 bg-white border-2 border-gray-200 rounded-xl">
+                  {subjectDataList.length === 0 ? 'No subjects available yet.' : 'No skills match your filters.'}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {subjectDataList.map(({ subject, clusters, totalQuestions }) => (
+                  {filteredSubjectDataList.map(({ subject, clusters, totalQuestions }) => (
                     <div
                       key={subject.id}
                       className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden"
@@ -398,9 +534,9 @@ function HomeContent() {
           ) : (
             /* Full-length Tests Tab */
             <div>
-              {/* Header */}
-              <div className="hidden lg:flex lg:items-center lg:justify-between mb-6">
-                <div>
+              {/* Header with Subject Filter */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div className="hidden lg:block">
                   <h2 className="text-2xl font-bold text-gray-900">Full-length Tests</h2>
                   <p className="text-gray-600 mt-1">Take complete practice exams</p>
                 </div>
@@ -408,7 +544,7 @@ function HomeContent() {
                   <select
                     value={selectedSubjectId}
                     onChange={(e) => handleSubjectChange(e.target.value)}
-                    className="px-4 py-2 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    className="px-4 py-2.5 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent cursor-pointer hover:border-gray-300 transition-all"
                   >
                     <option value="all">All Subjects</option>
                     {subjects.map((subject) => (
@@ -419,24 +555,6 @@ function HomeContent() {
                   </select>
                 )}
               </div>
-
-              {/* Mobile Subject Filter */}
-              {subjects.length > 1 && (
-                <div className="lg:hidden mb-4">
-                  <select
-                    value={selectedSubjectId}
-                    onChange={(e) => handleSubjectChange(e.target.value)}
-                    className="w-full px-4 py-2 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  >
-                    <option value="all">All Subjects</option>
-                    {subjects.map((subject) => (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               {isLoading ? (
                 <div className="text-center py-12 text-gray-500">Loading tests...</div>

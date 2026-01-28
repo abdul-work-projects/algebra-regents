@@ -2765,12 +2765,19 @@ export default function AdminPage() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Student Friendly Skill
                   </label>
-                  <TagInput
-                    selectedTags={studentFriendlySkill ? [studentFriendlySkill] : []}
-                    availableTags={availableSkills}
-                    onChange={(tags) => setStudentFriendlySkill(tags[tags.length - 1] || "")}
+                  <input
+                    type="text"
+                    value={studentFriendlySkill}
+                    onChange={(e) => setStudentFriendlySkill(e.target.value)}
+                    list="available-skills"
                     placeholder="e.g., Solve linear equations with one variable"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   />
+                  <datalist id="available-skills">
+                    {availableSkills.map((skill) => (
+                      <option key={skill} value={skill} />
+                    ))}
+                  </datalist>
                   <p className="text-xs text-gray-500 mt-1">
                     A clear, student-friendly description of the skill tested
                   </p>
@@ -2781,12 +2788,19 @@ export default function AdminPage() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Cluster
                   </label>
-                  <TagInput
-                    selectedTags={cluster ? [cluster] : []}
-                    availableTags={availableClusters}
-                    onChange={(tags) => setCluster(tags[tags.length - 1] || "")}
+                  <input
+                    type="text"
+                    value={cluster}
+                    onChange={(e) => setCluster(e.target.value)}
+                    list="available-clusters"
                     placeholder="e.g., Algebra, Functions, Number & Quantity"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   />
+                  <datalist id="available-clusters">
+                    {availableClusters.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
                   <p className="text-xs text-gray-500 mt-1">
                     Broader category grouping for this question
                   </p>
