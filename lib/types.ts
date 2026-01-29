@@ -1,3 +1,11 @@
+export interface Passage {
+  id: string;
+  passageText?: string;
+  passageImageUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Question {
   id: string;
   questionText?: string; // Optional question text (can have text, image, or both)
@@ -13,6 +21,8 @@ export interface Question {
   points?: number; // Points for this question (default: 2)
   studentFriendlySkill?: string; // Clear, student-friendly description of the skill tested
   cluster?: string; // Broader category grouping (e.g., 'Number & Quantity', 'Algebra', 'Functions')
+  passageId?: string; // Reference to shared passage for grouped questions
+  passage?: Passage; // Joined passage data
 }
 
 export interface Test {

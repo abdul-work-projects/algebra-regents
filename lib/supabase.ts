@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Question, Test, Subject } from './types';
+import { Question, Test, Subject, Passage } from './types';
 
 // Supabase client configuration
 // Make sure to set these environment variables in .env.local
@@ -35,6 +35,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * - answer-images: For answer option images (optional)
  */
 
+// Type definition for database passage (shared context for grouped questions)
+export interface DatabasePassage {
+  id: string;
+  passage_text: string | null;
+  passage_image_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Type definition for database question
 export interface DatabaseQuestion {
   id: string;
@@ -52,16 +61,17 @@ export interface DatabaseQuestion {
   points: number;
   student_friendly_skill: string | null;
   cluster: string | null;
+  passage_id: string | null; // Reference to shared passage
   display_order?: number;
   created_at: string;
   updated_at: string;
 }
 
-// Fetch all questions from database
-export async function fetchQuestions(): Promise<DatabaseQuestion[]> {
+// Fetch all questions from database (with passage data)
+export async function fetchQuestions(): Promise<(DatabaseQuestion & { passages?: DatabasePassage | null })[]> {
   const { data, error } = await supabase
     .from('questions')
-    .select('*')
+    .select('*, passages (*)')
     .order('display_order', { ascending: true })
     .order('created_at', { ascending: true });
 
@@ -230,7 +240,7 @@ export async function updateTestQuestionOrders(testId: string, orders: { questio
 }
 
 // Convert DatabaseQuestion to Question format for the quiz
-export function convertToQuizFormat(dbQuestion: DatabaseQuestion): Question {
+export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: DatabasePassage | null }): Question {
   return {
     id: dbQuestion.id,
     questionText: dbQuestion.question_text || undefined,
@@ -246,6 +256,12 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion): Question {
     points: dbQuestion.points,
     studentFriendlySkill: dbQuestion.student_friendly_skill || undefined,
     cluster: dbQuestion.cluster || undefined,
+    passageId: dbQuestion.passage_id || undefined,
+    passage: dbQuestion.passages ? {
+      id: dbQuestion.passages.id,
+      passageText: dbQuestion.passages.passage_text || undefined,
+      passageImageUrl: dbQuestion.passages.passage_image_url || undefined,
+    } : undefined,
   };
 }
 
@@ -504,13 +520,16 @@ export async function deleteTest(id: string): Promise<boolean> {
 // Test-Questions Management
 // =====================================================
 
-// Fetch questions for a specific test
-export async function fetchQuestionsForTest(testId: string): Promise<DatabaseQuestion[]> {
+// Fetch questions for a specific test (with passage data)
+export async function fetchQuestionsForTest(testId: string): Promise<(DatabaseQuestion & { passages?: DatabasePassage | null })[]> {
   const { data, error } = await supabase
     .from('test_questions')
     .select(`
       display_order,
-      questions (*)
+      questions (
+        *,
+        passages (*)
+      )
     `)
     .eq('test_id', testId)
     .order('display_order', { ascending: true });
@@ -936,10 +955,10 @@ export async function fetchQuestionsForSubject(subjectId: string): Promise<Quest
 
   const questionIds = [...new Set(testQuestions.map(tq => tq.question_id))];
 
-  // Fetch the actual questions
+  // Fetch the actual questions with passage data
   const { data: questions, error: qError } = await supabase
     .from('questions')
-    .select('*')
+    .select('*, passages (*)')
     .in('id', questionIds);
 
   if (qError) {
@@ -1026,4 +1045,208 @@ export async function fetchTestMetadata(): Promise<TestMetadata[]> {
     clusters: Array.from(data.clusters).sort(),
     skills: Array.from(data.skills).sort(),
   }));
+}
+
+// =====================================================
+// Passage Management (for grouped questions)
+// =====================================================
+
+// Convert DatabasePassage to Passage format
+export function convertToPassageFormat(dbPassage: DatabasePassage): Passage {
+  return {
+    id: dbPassage.id,
+    passageText: dbPassage.passage_text || undefined,
+    passageImageUrl: dbPassage.passage_image_url || undefined,
+    createdAt: dbPassage.created_at,
+    updatedAt: dbPassage.updated_at,
+  };
+}
+
+// Create a new passage
+export async function createPassage(passage: {
+  passage_text?: string | null;
+  passage_image_url?: string | null;
+}): Promise<DatabasePassage | null> {
+  const { data, error } = await supabase
+    .from('passages')
+    .insert([passage])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating passage:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Update an existing passage
+export async function updatePassage(
+  id: string,
+  updates: Partial<Omit<DatabasePassage, 'id' | 'created_at'>>
+): Promise<DatabasePassage | null> {
+  const { data, error } = await supabase
+    .from('passages')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating passage:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Delete a passage (will set passage_id to null on associated questions)
+export async function deletePassage(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('passages')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting passage:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Fetch a passage by ID
+export async function fetchPassageById(id: string): Promise<DatabasePassage | null> {
+  const { data, error } = await supabase
+    .from('passages')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching passage:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Fetch all questions for a passage
+export async function fetchQuestionsForPassage(passageId: string): Promise<DatabaseQuestion[]> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select('*')
+    .eq('passage_id', passageId)
+    .order('display_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching questions for passage:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+// Create a passage with multiple questions (grouped question creation)
+export async function createPassageWithQuestions(
+  passageData: {
+    passage_text?: string | null;
+    passage_image_url?: string | null;
+  },
+  questionsData: Omit<DatabaseQuestion, 'id' | 'created_at' | 'updated_at' | 'passage_id'>[]
+): Promise<{ passage: DatabasePassage; questions: DatabaseQuestion[] } | null> {
+  // Create the passage first
+  const passage = await createPassage(passageData);
+  if (!passage) {
+    console.error('Failed to create passage');
+    return null;
+  }
+
+  console.log('Created passage with ID:', passage.id);
+
+  // Create questions one by one to ensure each gets the passage_id
+  const createdQuestions: DatabaseQuestion[] = [];
+
+  for (let i = 0; i < questionsData.length; i++) {
+    const questionData = {
+      ...questionsData[i],
+      passage_id: passage.id,
+    };
+
+    console.log(`Creating question ${i + 1} with passage_id:`, passage.id);
+
+    const { data: question, error } = await supabase
+      .from('questions')
+      .insert([questionData])
+      .select()
+      .single();
+
+    if (error || !question) {
+      console.error(`Error creating question ${i + 1} for passage:`, error);
+      // Clean up: delete already created questions and the passage
+      for (const q of createdQuestions) {
+        await deleteQuestion(q.id);
+      }
+      await deletePassage(passage.id);
+      return null;
+    }
+
+    console.log(`Created question ${i + 1} with ID:`, question.id, 'passage_id:', question.passage_id);
+    createdQuestions.push(question);
+  }
+
+  return { passage, questions: createdQuestions };
+}
+
+// Link existing questions to a new passage (for grouping existing questions)
+export async function linkQuestionsToNewPassage(
+  questionIds: string[],
+  passageData: {
+    passage_text?: string | null;
+    passage_image_url?: string | null;
+  }
+): Promise<{ passage: DatabasePassage; updatedCount: number } | null> {
+  // Create the passage first
+  const passage = await createPassage(passageData);
+  if (!passage) {
+    console.error('Failed to create passage for linking');
+    return null;
+  }
+
+  console.log('Created passage for linking with ID:', passage.id);
+
+  // Update all questions to link to this passage
+  const { data, error } = await supabase
+    .from('questions')
+    .update({ passage_id: passage.id })
+    .in('id', questionIds)
+    .select();
+
+  if (error) {
+    console.error('Error linking questions to passage:', error);
+    // Clean up the passage since linking failed
+    await deletePassage(passage.id);
+    return null;
+  }
+
+  console.log(`Linked ${data?.length || 0} questions to passage ${passage.id}`);
+  return { passage, updatedCount: data?.length || 0 };
+}
+
+// Unlink questions from a passage (remove grouping)
+export async function unlinkQuestionsFromPassage(
+  questionIds: string[]
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('questions')
+    .update({ passage_id: null })
+    .in('id', questionIds);
+
+  if (error) {
+    console.error('Error unlinking questions from passage:', error);
+    return false;
+  }
+
+  return true;
 }

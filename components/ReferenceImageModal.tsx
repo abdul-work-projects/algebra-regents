@@ -43,7 +43,7 @@ export default function ReferenceImageModal({
   const contentUrl = imageUrl || "/Reference Sheet.jpg";
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black bg-opacity-75"

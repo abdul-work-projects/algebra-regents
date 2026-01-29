@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQuestionForm } from "@/hooks/useQuestionForm";
 import {
   uploadImage,
   createQuestion,
@@ -13,6 +14,7 @@ import {
   fetchQuestionsForTest,
   deleteQuestionsForTest,
   DatabaseQuestion,
+  DatabasePassage,
   fetchTests,
   createTest,
   updateTest,
@@ -31,6 +33,9 @@ import {
   convertToSubjectFormat,
   fetchAllClusters,
   fetchAllSkills,
+  createPassageWithQuestions,
+  updatePassage,
+  linkQuestionsToNewPassage,
 } from "@/lib/supabase";
 import { getCurrentUser, signOut, onAuthStateChange } from "@/lib/auth";
 import {
@@ -52,41 +57,17 @@ export default function AdminPage() {
 
   const [user, setUser] = useState<any>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [questions, setQuestions] = useState<DatabaseQuestion[]>([]);
+  const [questions, setQuestions] = useState<
+    (DatabaseQuestion & { passages?: DatabasePassage | null })[]
+  >([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [questionName, setQuestionName] = useState("");
-  const [questionText, setQuestionText] = useState("");
-  const [questionImage, setQuestionImage] = useState<File | null>(null);
-  const [questionImagePreview, setQuestionImagePreview] = useState<
-    string | null
-  >(null);
-  const [referenceImage, setReferenceImage] = useState<File | null>(null);
-  const [referenceImagePreview, setReferenceImagePreview] = useState<
-    string | null
-  >(null);
-  const [explanationImage, setExplanationImage] = useState<File | null>(null);
-  const [explanationImagePreview, setExplanationImagePreview] = useState<
-    string | null
-  >(null);
 
-  const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
-  const [answerImages, setAnswerImages] = useState<(File | null)[]>([
-    null,
-    null,
-    null,
-    null,
-  ]);
-  const [answerImagePreviews, setAnswerImagePreviews] = useState<
-    (string | null)[]
-  >([null, null, null, null]);
-  const [answerLayout, setAnswerLayout] = useState<"grid" | "list">("list");
-  const [correctAnswer, setCorrectAnswer] = useState<number>(1);
-  const [explanationText, setExplanationText] = useState("");
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [points, setPoints] = useState<number>(1);
+  // Question form hooks for Q1 and Q2
+  const q1Form = useQuestionForm();
+  const q2Form = useQuestionForm();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -110,9 +91,9 @@ export default function AdminPage() {
   const dropSuccessRef = useRef(false);
 
   // Tests management state
-  const [activeTab, setActiveTab] = useState<"questions" | "tests" | "subjects" | "bugs">(
-    "questions",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "questions" | "tests" | "subjects" | "bugs"
+  >("questions");
   const [tests, setTests] = useState<Test[]>([]);
   const [isLoadingTests, setIsLoadingTests] = useState(true);
   const [showTestModal, setShowTestModal] = useState(false);
@@ -177,11 +158,34 @@ export default function AdminPage() {
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [filterSubjectId, setFilterSubjectId] = useState<string>("all");
 
-  // New question fields state
-  const [studentFriendlySkill, setStudentFriendlySkill] = useState("");
-  const [cluster, setCluster] = useState("");
+  // Autocomplete options for fields
   const [availableClusters, setAvailableClusters] = useState<string[]>([]);
   const [availableSkills, setAvailableSkills] = useState<string[]>([]);
+
+  // Grouped question state (passage-based questions)
+  const [isGroupedQuestion, setIsGroupedQuestion] = useState(false);
+  const [passageText, setPassageText] = useState("");
+  const [passageImage, setPassageImage] = useState<File | null>(null);
+  const [passageImagePreview, setPassageImagePreview] = useState<string | null>(
+    null,
+  );
+  const [activeQuestionTab, setActiveQuestionTab] = useState<1 | 2>(1);
+  const [editingQ2Id, setEditingQ2Id] = useState<string | null>(null); // Second question ID when editing grouped questions
+  const [editingPassageId, setEditingPassageId] = useState<string | null>(null); // Passage ID when editing grouped questions
+
+  // Link existing questions state
+  const [selectedForGrouping, setSelectedForGrouping] = useState<string[]>([]);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkPassageText, setLinkPassageText] = useState("");
+  const [linkPassageImage, setLinkPassageImage] = useState<File | null>(null);
+  const [linkPassageImagePreview, setLinkPassageImagePreview] = useState<
+    string | null
+  >(null);
+  const [isLinking, setIsLinking] = useState(false);
+
+  // Current form based on active tab - switches between Q1 and Q2 forms
+  const currentForm =
+    isGroupedQuestion && activeQuestionTab === 2 ? q2Form : q1Form;
 
   useEffect(() => {
     async function checkAuth() {
@@ -419,7 +423,10 @@ export default function AdminPage() {
     }
     const success = await deleteSubject(subject.id);
     if (success) {
-      setNotification({ type: "success", message: "Subject deleted successfully" });
+      setNotification({
+        type: "success",
+        message: "Subject deleted successfully",
+      });
       loadSubjectsData();
     } else {
       setNotification({ type: "error", message: "Failed to delete subject" });
@@ -626,6 +633,7 @@ export default function AdminPage() {
         points: 1,
         student_friendly_skill: null,
         cluster: null,
+        passage_id: null,
         display_order: questions.length + index + 1,
       }));
 
@@ -728,41 +736,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleAnswerChange = (index: number, value: string) => {
-    const newAnswers = [...answers];
-    newAnswers[index] = value;
-    setAnswers(newAnswers);
-  };
-
-  const handleAnswerImageSelect = (index: number, file: File | null) => {
-    const newImages = [...answerImages];
-    newImages[index] = file;
-    setAnswerImages(newImages);
-
-    const newPreviews = [...answerImagePreviews];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        newPreviews[index] = reader.result as string;
-        setAnswerImagePreviews([...newPreviews]);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      newPreviews[index] = null;
-      setAnswerImagePreviews(newPreviews);
-    }
-  };
-
-  const removeAnswerImage = (index: number) => {
-    const newImages = [...answerImages];
-    newImages[index] = null;
-    setAnswerImages(newImages);
-
-    const newPreviews = [...answerImagePreviews];
-    newPreviews[index] = null;
-    setAnswerImagePreviews(newPreviews);
-  };
-
   const handleAnswerImageDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.stopPropagation();
@@ -782,52 +755,249 @@ export default function AdminPage() {
 
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith("image/")) {
-      handleAnswerImageSelect(index, file);
+      // Read file as preview and update current form
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        currentForm.setAnswerImage(index, file, reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const resetForm = () => {
     setEditingId(null);
-    setQuestionName("");
-    setQuestionText("");
-    setQuestionImage(null);
-    setQuestionImagePreview(null);
-    setReferenceImage(null);
-    setReferenceImagePreview(null);
-    setExplanationImage(null);
-    setExplanationImagePreview(null);
-    setAnswers(["", "", "", ""]);
-    setAnswerImages([null, null, null, null]);
-    setAnswerImagePreviews([null, null, null, null]);
-    setAnswerLayout("list");
-    setCorrectAnswer(1);
-    setExplanationText("");
-    setSelectedTopics([]);
-    setPoints(1);
-    setStudentFriendlySkill("");
-    setCluster("");
+    setEditingQ2Id(null);
+    setEditingPassageId(null);
+    q1Form.reset();
+    q2Form.reset();
     // Auto-select the filtered test for new questions
     setSelectedTestIds(filterTestId !== "all" ? [filterTestId] : []);
+
+    // Reset grouped question state
+    setIsGroupedQuestion(false);
+    setPassageText("");
+    setPassageImage(null);
+    setPassageImagePreview(null);
+    setActiveQuestionTab(1);
   };
 
-  const loadQuestionForEdit = async (question: DatabaseQuestion) => {
+  // Toggle question selection for grouping
+  const toggleQuestionSelection = (questionId: string) => {
+    setSelectedForGrouping((prev) => {
+      if (prev.includes(questionId)) {
+        return prev.filter((id) => id !== questionId);
+      }
+      // Limit to 2 questions
+      if (prev.length >= 2) {
+        return [...prev.slice(1), questionId];
+      }
+      return [...prev, questionId];
+    });
+  };
+
+  // Handle linking selected questions
+  const handleLinkQuestions = async () => {
+    if (selectedForGrouping.length !== 2) {
+      setNotification({
+        type: "error",
+        message: "Please select exactly 2 questions to group",
+      });
+      return;
+    }
+
+    // Check if any selected question is already grouped
+    const alreadyGrouped = selectedForGrouping.some((id) => {
+      const q = questions.find((q) => q.id === id);
+      return q?.passage_id;
+    });
+
+    if (alreadyGrouped) {
+      setNotification({
+        type: "error",
+        message:
+          "One or more selected questions are already in a group. Ungroup them first.",
+      });
+      return;
+    }
+
+    setShowLinkModal(true);
+  };
+
+  // Confirm linking with passage
+  const confirmLinkQuestions = async () => {
+    if (selectedForGrouping.length !== 2) return;
+
+    if (
+      !linkPassageText.trim() &&
+      !linkPassageImage &&
+      !linkPassageImagePreview
+    ) {
+      setNotification({
+        type: "error",
+        message: "Please provide passage text or an image",
+      });
+      return;
+    }
+
+    setIsLinking(true);
+
+    try {
+      // Upload passage image if present
+      let passageImageUrl: string | null = null;
+      if (linkPassageImage) {
+        const sanitizedName = linkPassageImage.name.replace(
+          /[^a-zA-Z0-9.-]/g,
+          "_",
+        );
+        passageImageUrl = await uploadImage(
+          "question-images",
+          linkPassageImage,
+          `passages/${Date.now()}-${sanitizedName}`,
+        );
+      }
+
+      const result = await linkQuestionsToNewPassage(selectedForGrouping, {
+        passage_text: linkPassageText.trim() || null,
+        passage_image_url: passageImageUrl,
+      });
+
+      if (result && result.updatedCount === 2) {
+        setNotification({
+          type: "success",
+          message: "Questions linked successfully!",
+        });
+        // Reset link modal state
+        setShowLinkModal(false);
+        setSelectedForGrouping([]);
+        setLinkPassageText("");
+        setLinkPassageImage(null);
+        setLinkPassageImagePreview(null);
+        // Refresh questions
+        loadQuestions();
+      } else {
+        throw new Error("Failed to link all questions");
+      }
+    } catch (error) {
+      setNotification({
+        type: "error",
+        message:
+          error instanceof Error ? error.message : "Failed to link questions",
+      });
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
+  // Cancel linking
+  const cancelLinkQuestions = () => {
+    setShowLinkModal(false);
+    setLinkPassageText("");
+    setLinkPassageImage(null);
+    setLinkPassageImagePreview(null);
+  };
+
+  const loadQuestionForEdit = async (
+    question: DatabaseQuestion & { passages?: DatabasePassage | null },
+  ) => {
+    // Check if this is a grouped question (has a passage_id)
+    if (question.passage_id) {
+      // Find sibling question with the same passage_id
+      const siblingQuestion = questions.find(
+        (q) => q.id !== question.id && q.passage_id === question.passage_id,
+      );
+
+      if (siblingQuestion) {
+        // Determine which question is Q1 and Q2 based on display_order or created_at
+        const questionsOrdered = [question, siblingQuestion].sort((a, b) => {
+          if (a.display_order !== undefined && b.display_order !== undefined) {
+            return a.display_order - b.display_order;
+          }
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+        });
+
+        const [q1, q2] = questionsOrdered;
+
+        // Set editing IDs - track both questions and the passage
+        setEditingId(q1.id);
+        setEditingQ2Id(q2.id);
+        setEditingPassageId(question.passage_id);
+        setIsGroupedQuestion(true);
+        setActiveQuestionTab(1);
+
+        // Load passage data
+        const passage = question.passages;
+        setPassageText(passage?.passage_text || "");
+        setPassageImagePreview(passage?.passage_image_url || null);
+        setPassageImage(null);
+
+        // Load Q1
+        q1Form.loadFromQuestion({
+          name: q1.name,
+          question_text: q1.question_text,
+          question_image_url: q1.question_image_url,
+          reference_image_url: q1.reference_image_url,
+          explanation_image_url: q1.explanation_image_url,
+          answers: q1.answers,
+          answer_image_urls: q1.answer_image_urls,
+          answer_layout: q1.answer_layout,
+          correct_answer: q1.correct_answer,
+          explanation_text: q1.explanation_text,
+          topics: q1.topics,
+          points: q1.points,
+          student_friendly_skill: q1.student_friendly_skill,
+          cluster: q1.cluster,
+        });
+
+        // Load Q2
+        q2Form.loadFromQuestion({
+          name: q2.name,
+          question_text: q2.question_text,
+          question_image_url: q2.question_image_url,
+          reference_image_url: q2.reference_image_url,
+          explanation_image_url: q2.explanation_image_url,
+          answers: q2.answers,
+          answer_image_urls: q2.answer_image_urls,
+          answer_layout: q2.answer_layout,
+          correct_answer: q2.correct_answer,
+          explanation_text: q2.explanation_text,
+          topics: q2.topics,
+          points: q2.points,
+          student_friendly_skill: q2.student_friendly_skill,
+          cluster: q2.cluster,
+        });
+
+        // Load tests for Q1 (both questions should be in same tests)
+        const questionTestIds = await getTestsForQuestion(q1.id);
+        setSelectedTestIds(questionTestIds);
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+    }
+
+    // Regular single question editing
     setEditingId(question.id);
-    setQuestionName(question.name || "");
-    setQuestionText(question.question_text || "");
-    setQuestionImagePreview(question.question_image_url);
-    setReferenceImagePreview(question.reference_image_url);
-    setExplanationImagePreview(question.explanation_image_url);
-    setAnswers(question.answers);
-    setAnswerImagePreviews(
-      question.answer_image_urls || [null, null, null, null],
-    );
-    setAnswerLayout(question.answer_layout || "list");
-    setCorrectAnswer(question.correct_answer);
-    setExplanationText(question.explanation_text);
-    setSelectedTopics(question.topics);
-    setPoints(question.points || 1);
-    setStudentFriendlySkill(question.student_friendly_skill || "");
-    setCluster(question.cluster || "");
+    setEditingQ2Id(null);
+    setEditingPassageId(null);
+    setIsGroupedQuestion(false);
+    q1Form.loadFromQuestion({
+      name: question.name,
+      question_text: question.question_text,
+      question_image_url: question.question_image_url,
+      reference_image_url: question.reference_image_url,
+      explanation_image_url: question.explanation_image_url,
+      answers: question.answers,
+      answer_image_urls: question.answer_image_urls,
+      answer_layout: question.answer_layout,
+      correct_answer: question.correct_answer,
+      explanation_text: question.explanation_text,
+      topics: question.topics,
+      points: question.points,
+      student_friendly_skill: question.student_friendly_skill,
+      cluster: question.cluster,
+    });
 
     // Load tests this question belongs to
     const questionTestIds = await getTestsForQuestion(question.id);
@@ -996,39 +1166,42 @@ export default function AdminPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const q1 = q1Form.state;
+    const q2 = q2Form.state;
+
     // Validate that either question text or image is provided
-    const hasQuestionText = questionText.trim();
-    const hasQuestionImage = questionImage || questionImagePreview;
+    const hasQuestionText = q1.questionText.trim();
+    const hasQuestionImage = q1.questionImage || q1.questionImagePreview;
     if (!hasQuestionText && !hasQuestionImage) {
       setNotification({
         type: "error",
-        message: "Question must have either text or image (or both)",
+        message: "Question 1 must have either text or image (or both)",
       });
       return;
     }
 
     // Validate that each answer has either text or image (or both)
     for (let i = 0; i < 4; i++) {
-      const hasText = answers[i]?.trim();
-      const hasImage = answerImages[i] || answerImagePreviews[i];
+      const hasText = q1.answers[i]?.trim();
+      const hasImage = q1.answerImages[i] || q1.answerImagePreviews[i];
       if (!hasText && !hasImage) {
         setNotification({
           type: "error",
-          message: `Answer ${i + 1} must have either text or image (or both)`,
+          message: `Question 1 Answer ${i + 1} must have either text or image (or both)`,
         });
         return;
       }
     }
 
-    if (!explanationText.trim()) {
+    if (!q1.explanationText.trim()) {
       setNotification({
         type: "error",
-        message: "Explanation text is required",
+        message: "Question 1 explanation text is required",
       });
       return;
     }
 
-    if (selectedTopics.length === 0) {
+    if (q1.selectedTopics.length === 0) {
       setNotification({
         type: "error",
         message: "At least one topic is required",
@@ -1044,102 +1217,440 @@ export default function AdminPage() {
       return;
     }
 
+    // Additional validation for grouped questions
+    if (isGroupedQuestion) {
+      if (!passageText.trim() && !passageImage && !passageImagePreview) {
+        setNotification({
+          type: "error",
+          message: "Grouped questions must have a passage (text or image)",
+        });
+        return;
+      }
+
+      const hasQ2Text = q2.questionText.trim();
+      const hasQ2Image = q2.questionImage || q2.questionImagePreview;
+      if (!hasQ2Text && !hasQ2Image) {
+        setNotification({
+          type: "error",
+          message: "Question 2 must have either text or image (or both)",
+        });
+        return;
+      }
+
+      for (let i = 0; i < 4; i++) {
+        const hasText = q2.answers[i]?.trim();
+        const hasImage = q2.answerImages[i] || q2.answerImagePreviews[i];
+        if (!hasText && !hasImage) {
+          setNotification({
+            type: "error",
+            message: `Question 2 Answer ${i + 1} must have either text or image (or both)`,
+          });
+          return;
+        }
+      }
+
+      if (!q2.explanationText.trim()) {
+        setNotification({
+          type: "error",
+          message: "Question 2 explanation text is required",
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     setNotification(null);
 
     try {
-      let questionImageUrl = questionImagePreview;
-      if (questionImage) {
-        const sanitizedName = sanitizeFilename(questionImage.name);
-        questionImageUrl = await uploadImage(
-          "question-images",
-          questionImage,
-          `questions/${Date.now()}-${sanitizedName}`,
-        );
-        if (!questionImageUrl)
-          throw new Error("Failed to upload question image");
-      }
-
-      let referenceImageUrl = referenceImagePreview;
-      if (referenceImage) {
-        const sanitizedName = sanitizeFilename(referenceImage.name);
-        referenceImageUrl = await uploadImage(
-          "reference-images",
-          referenceImage,
-          `references/${Date.now()}-${sanitizedName}`,
-        );
-      }
-
-      let explanationImageUrl = explanationImagePreview;
-      if (explanationImage) {
-        const sanitizedName = sanitizeFilename(explanationImage.name);
-        explanationImageUrl = await uploadImage(
-          "explanation-images",
-          explanationImage,
-          `explanations/${Date.now()}-${sanitizedName}`,
-        );
-      }
-
-      // Upload answer images
-      const answerImageUrls = await Promise.all(
-        answerImages.map(async (img, index) => {
-          if (img) {
-            const sanitizedName = sanitizeFilename(img.name);
-            return await uploadImage(
-              "answer-images",
-              img,
-              `answers/${Date.now()}-${index}-${sanitizedName}`,
-            );
-          }
-          return answerImagePreviews[index] || null;
-        }),
-      );
-
-      const questionData = {
-        name: questionName.trim() || null,
-        question_text: questionText.trim() || null,
-        question_image_url: questionImageUrl || null,
-        reference_image_url: referenceImageUrl,
-        answers,
-        answer_image_urls: answerImageUrls,
-        answer_layout: answerLayout,
-        correct_answer: correctAnswer,
-        explanation_text: explanationText,
-        explanation_image_url: explanationImageUrl,
-        topics: selectedTopics,
-        points: points,
-        student_friendly_skill: studentFriendlySkill.trim() || null,
-        cluster: cluster.trim() || null,
-      };
-
-      let result;
-      let questionId: string;
-      if (editingId) {
-        result = await updateQuestion(editingId, questionData);
-        questionId = editingId;
-      } else {
-        result = await createQuestion(questionData);
-        questionId = result?.id || "";
-      }
-
-      if (result) {
-        // Save test assignments
-        if (questionId) {
-          await setTestsForQuestion(questionId, selectedTestIds);
+      // Handle grouped questions
+      if (isGroupedQuestion && !editingId) {
+        // Upload passage image if present
+        let passageImageUrl: string | null = null;
+        if (passageImage) {
+          const sanitizedName = sanitizeFilename(passageImage.name);
+          passageImageUrl = await uploadImage(
+            "question-images",
+            passageImage,
+            `passages/${Date.now()}-${sanitizedName}`,
+          );
         }
 
-        setNotification({
-          type: "success",
-          message: editingId
-            ? "Question updated successfully!"
-            : "Question created successfully!",
+        // Upload Q1 images
+        let q1ImageUrl: string | null = null;
+        if (q1.questionImage) {
+          const sanitizedName = sanitizeFilename(q1.questionImage.name);
+          q1ImageUrl = await uploadImage(
+            "question-images",
+            q1.questionImage,
+            `questions/${Date.now()}-q1-${sanitizedName}`,
+          );
+        }
+
+        let q1ExplanationImageUrl: string | null = null;
+        if (q1.explanationImage) {
+          const sanitizedName = sanitizeFilename(q1.explanationImage.name);
+          q1ExplanationImageUrl = await uploadImage(
+            "explanation-images",
+            q1.explanationImage,
+            `explanations/${Date.now()}-q1-${sanitizedName}`,
+          );
+        }
+
+        const q1AnswerImageUrls = await Promise.all(
+          q1.answerImages.map(async (img, index) => {
+            if (img) {
+              const sanitizedName = sanitizeFilename(img.name);
+              return await uploadImage(
+                "answer-images",
+                img,
+                `answers/${Date.now()}-q1-${index}-${sanitizedName}`,
+              );
+            }
+            return q1.answerImagePreviews[index] || null;
+          }),
+        );
+
+        // Upload Q2 images
+        let q2ImageUrl: string | null = null;
+        if (q2.questionImage) {
+          const sanitizedName = sanitizeFilename(q2.questionImage.name);
+          q2ImageUrl = await uploadImage(
+            "question-images",
+            q2.questionImage,
+            `questions/${Date.now()}-q2-${sanitizedName}`,
+          );
+        }
+
+        let q2ExplanationImageUrl: string | null = null;
+        if (q2.explanationImage) {
+          const sanitizedName = sanitizeFilename(q2.explanationImage.name);
+          q2ExplanationImageUrl = await uploadImage(
+            "explanation-images",
+            q2.explanationImage,
+            `explanations/${Date.now()}-q2-${sanitizedName}`,
+          );
+        }
+
+        const q2AnswerImageUrls = await Promise.all(
+          q2.answerImages.map(async (img, index) => {
+            if (img) {
+              const sanitizedName = sanitizeFilename(img.name);
+              return await uploadImage(
+                "answer-images",
+                img,
+                `answers/${Date.now()}-q2-${index}-${sanitizedName}`,
+              );
+            }
+            return q2.answerImagePreviews[index] || null;
+          }),
+        );
+
+        // Create passage with both questions
+        const result = await createPassageWithQuestions(
+          {
+            passage_text: passageText.trim() || null,
+            passage_image_url: passageImageUrl,
+          },
+          [
+            {
+              name: q1.questionName.trim() || null,
+              question_text: q1.questionText.trim() || null,
+              question_image_url: q1ImageUrl,
+              reference_image_url: null,
+              answers: q1.answers,
+              answer_image_urls: q1AnswerImageUrls,
+              answer_layout: q1.answerLayout,
+              correct_answer: q1.correctAnswer,
+              explanation_text: q1.explanationText,
+              explanation_image_url: q1ExplanationImageUrl,
+              topics: q1.selectedTopics,
+              points: q1.points,
+              student_friendly_skill: q1.studentFriendlySkill.trim() || null,
+              cluster: q1.cluster.trim() || null,
+            },
+            {
+              name: q2.questionName.trim() || null,
+              question_text: q2.questionText.trim() || null,
+              question_image_url: q2ImageUrl,
+              reference_image_url: null,
+              answers: q2.answers,
+              answer_image_urls: q2AnswerImageUrls,
+              answer_layout: q2.answerLayout,
+              correct_answer: q2.correctAnswer,
+              explanation_text: q2.explanationText,
+              explanation_image_url: q2ExplanationImageUrl,
+              topics: q1.selectedTopics, // Share topics from Q1
+              points: q2.points,
+              student_friendly_skill: q2.studentFriendlySkill.trim() || null,
+              cluster: q2.cluster.trim() || null,
+            },
+          ],
+        );
+
+        if (result) {
+          // Assign both questions to selected tests
+          for (const question of result.questions) {
+            await setTestsForQuestion(question.id, selectedTestIds);
+          }
+
+          setNotification({
+            type: "success",
+            message: "Grouped questions created successfully!",
+          });
+          resetForm();
+          loadQuestions();
+          loadTestsData();
+          setTimeout(() => setNotification(null), 3000);
+        } else {
+          throw new Error("Failed to create grouped questions");
+        }
+      } else if (
+        isGroupedQuestion &&
+        editingId &&
+        editingQ2Id &&
+        editingPassageId
+      ) {
+        // Edit grouped questions - update passage and both questions
+
+        // Upload passage image if a new one is selected
+        let passageImageUrl: string | null = passageImagePreview;
+        if (passageImage) {
+          const sanitizedName = sanitizeFilename(passageImage.name);
+          passageImageUrl = await uploadImage(
+            "question-images",
+            passageImage,
+            `passages/${Date.now()}-${sanitizedName}`,
+          );
+        }
+
+        // Update the passage
+        const passageResult = await updatePassage(editingPassageId, {
+          passage_text: passageText.trim() || null,
+          passage_image_url: passageImageUrl,
         });
-        resetForm();
-        loadQuestions();
-        loadTestsData(); // Refresh test question counts
-        setTimeout(() => setNotification(null), 3000);
+
+        if (!passageResult) {
+          throw new Error("Failed to update passage");
+        }
+
+        // Upload Q1 images
+        let q1ImageUrl = q1.questionImagePreview;
+        if (q1.questionImage) {
+          const sanitizedName = sanitizeFilename(q1.questionImage.name);
+          q1ImageUrl = await uploadImage(
+            "question-images",
+            q1.questionImage,
+            `questions/${Date.now()}-q1-${sanitizedName}`,
+          );
+        }
+
+        let q1ExplanationImageUrl = q1.explanationImagePreview;
+        if (q1.explanationImage) {
+          const sanitizedName = sanitizeFilename(q1.explanationImage.name);
+          q1ExplanationImageUrl = await uploadImage(
+            "explanation-images",
+            q1.explanationImage,
+            `explanations/${Date.now()}-q1-${sanitizedName}`,
+          );
+        }
+
+        const q1AnswerImageUrls = await Promise.all(
+          q1.answerImages.map(async (img, index) => {
+            if (img) {
+              const sanitizedName = sanitizeFilename(img.name);
+              return await uploadImage(
+                "answer-images",
+                img,
+                `answers/${Date.now()}-q1-${index}-${sanitizedName}`,
+              );
+            }
+            return q1.answerImagePreviews[index] || null;
+          }),
+        );
+
+        // Upload Q2 images
+        let q2ImageUrl = q2.questionImagePreview;
+        if (q2.questionImage) {
+          const sanitizedName = sanitizeFilename(q2.questionImage.name);
+          q2ImageUrl = await uploadImage(
+            "question-images",
+            q2.questionImage,
+            `questions/${Date.now()}-q2-${sanitizedName}`,
+          );
+        }
+
+        let q2ExplanationImageUrl = q2.explanationImagePreview;
+        if (q2.explanationImage) {
+          const sanitizedName = sanitizeFilename(q2.explanationImage.name);
+          q2ExplanationImageUrl = await uploadImage(
+            "explanation-images",
+            q2.explanationImage,
+            `explanations/${Date.now()}-q2-${sanitizedName}`,
+          );
+        }
+
+        const q2AnswerImageUrls = await Promise.all(
+          q2.answerImages.map(async (img, index) => {
+            if (img) {
+              const sanitizedName = sanitizeFilename(img.name);
+              return await uploadImage(
+                "answer-images",
+                img,
+                `answers/${Date.now()}-q2-${index}-${sanitizedName}`,
+              );
+            }
+            return q2.answerImagePreviews[index] || null;
+          }),
+        );
+
+        // Update Q1
+        const q1Result = await updateQuestion(editingId, {
+          name: q1.questionName.trim() || null,
+          question_text: q1.questionText.trim() || null,
+          question_image_url: q1ImageUrl || null,
+          reference_image_url: null,
+          answers: q1.answers,
+          answer_image_urls: q1AnswerImageUrls,
+          answer_layout: q1.answerLayout,
+          correct_answer: q1.correctAnswer,
+          explanation_text: q1.explanationText,
+          explanation_image_url: q1ExplanationImageUrl || null,
+          topics: q1.selectedTopics,
+          points: q1.points,
+          student_friendly_skill: q1.studentFriendlySkill.trim() || null,
+          cluster: q1.cluster.trim() || null,
+        });
+
+        // Update Q2
+        const q2Result = await updateQuestion(editingQ2Id, {
+          name: q2.questionName.trim() || null,
+          question_text: q2.questionText.trim() || null,
+          question_image_url: q2ImageUrl || null,
+          reference_image_url: null,
+          answers: q2.answers,
+          answer_image_urls: q2AnswerImageUrls,
+          answer_layout: q2.answerLayout,
+          correct_answer: q2.correctAnswer,
+          explanation_text: q2.explanationText,
+          explanation_image_url: q2ExplanationImageUrl || null,
+          topics: q1.selectedTopics, // Share topics from Q1
+          points: q2.points,
+          student_friendly_skill: q2.studentFriendlySkill.trim() || null,
+          cluster: q2.cluster.trim() || null,
+        });
+
+        if (q1Result && q2Result) {
+          // Update test assignments for both questions
+          await setTestsForQuestion(editingId, selectedTestIds);
+          await setTestsForQuestion(editingQ2Id, selectedTestIds);
+
+          setNotification({
+            type: "success",
+            message: "Grouped questions updated successfully!",
+          });
+          resetForm();
+          loadQuestions();
+          loadTestsData();
+          setTimeout(() => setNotification(null), 3000);
+        } else {
+          throw new Error("Failed to update grouped questions");
+        }
       } else {
-        throw new Error("Failed to save question");
+        // Single question creation/update (existing logic)
+        let questionImageUrl = q1.questionImagePreview;
+        if (q1.questionImage) {
+          const sanitizedName = sanitizeFilename(q1.questionImage.name);
+          questionImageUrl = await uploadImage(
+            "question-images",
+            q1.questionImage,
+            `questions/${Date.now()}-${sanitizedName}`,
+          );
+          if (!questionImageUrl)
+            throw new Error("Failed to upload question image");
+        }
+
+        let referenceImageUrl = q1.referenceImagePreview;
+        if (q1.referenceImage) {
+          const sanitizedName = sanitizeFilename(q1.referenceImage.name);
+          referenceImageUrl = await uploadImage(
+            "reference-images",
+            q1.referenceImage,
+            `references/${Date.now()}-${sanitizedName}`,
+          );
+        }
+
+        let explanationImageUrl = q1.explanationImagePreview;
+        if (q1.explanationImage) {
+          const sanitizedName = sanitizeFilename(q1.explanationImage.name);
+          explanationImageUrl = await uploadImage(
+            "explanation-images",
+            q1.explanationImage,
+            `explanations/${Date.now()}-${sanitizedName}`,
+          );
+        }
+
+        // Upload answer images
+        const answerImageUrls = await Promise.all(
+          q1.answerImages.map(async (img, index) => {
+            if (img) {
+              const sanitizedName = sanitizeFilename(img.name);
+              return await uploadImage(
+                "answer-images",
+                img,
+                `answers/${Date.now()}-${index}-${sanitizedName}`,
+              );
+            }
+            return q1.answerImagePreviews[index] || null;
+          }),
+        );
+
+        const questionData = {
+          name: q1.questionName.trim() || null,
+          question_text: q1.questionText.trim() || null,
+          question_image_url: questionImageUrl || null,
+          reference_image_url: referenceImageUrl,
+          answers: q1.answers,
+          answer_image_urls: answerImageUrls,
+          answer_layout: q1.answerLayout,
+          correct_answer: q1.correctAnswer,
+          explanation_text: q1.explanationText,
+          explanation_image_url: explanationImageUrl,
+          topics: q1.selectedTopics,
+          points: q1.points,
+          student_friendly_skill: q1.studentFriendlySkill.trim() || null,
+          cluster: q1.cluster.trim() || null,
+          passage_id: null,
+        };
+
+        let result;
+        let questionId: string;
+        if (editingId) {
+          result = await updateQuestion(editingId, questionData);
+          questionId = editingId;
+        } else {
+          result = await createQuestion(questionData);
+          questionId = result?.id || "";
+        }
+
+        if (result) {
+          // Save test assignments
+          if (questionId) {
+            await setTestsForQuestion(questionId, selectedTestIds);
+          }
+
+          setNotification({
+            type: "success",
+            message: editingId
+              ? "Question updated successfully!"
+              : "Question created successfully!",
+          });
+          resetForm();
+          loadQuestions();
+          loadTestsData(); // Refresh test question counts
+          setTimeout(() => setNotification(null), 3000);
+        } else {
+          throw new Error("Failed to save question");
+        }
       }
     } catch (error) {
       setNotification({
@@ -1306,52 +1817,39 @@ export default function AdminPage() {
             ) : (
               <div className="space-y-3">
                 {tests
-                  .filter((test) => filterSubjectId === "all" || test.subjectId === filterSubjectId)
+                  .filter(
+                    (test) =>
+                      filterSubjectId === "all" ||
+                      test.subjectId === filterSubjectId,
+                  )
                   .map((test) => (
-                  <div
-                    key={test.id}
-                    className="border-2 border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-all"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-gray-900 truncate">
-                            {test.name}
-                          </h3>
-                          {!test.isActive && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
-                              Inactive
-                            </span>
+                    <div
+                      key={test.id}
+                      className="border-2 border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-all"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-bold text-gray-900 truncate">
+                              {test.name}
+                            </h3>
+                            {!test.isActive && (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                          {test.description && (
+                            <p className="text-sm text-gray-600 truncate mb-2">
+                              {test.description}
+                            </p>
                           )}
-                        </div>
-                        {test.description && (
-                          <p className="text-sm text-gray-600 truncate mb-2">
-                            {test.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-3 text-sm text-gray-500 flex-wrap">
-                          {test.subjectName && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 rounded">
-                              {test.subjectName}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                              />
-                            </svg>
-                            {test.questionCount || 0} questions
-                          </span>
-                          {test.scaledScoreTable && (
+                          <div className="flex items-center gap-3 text-sm text-gray-500 flex-wrap">
+                            {test.subjectName && (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 rounded">
+                                {test.subjectName}
+                              </span>
+                            )}
                             <span className="flex items-center gap-1">
                               <svg
                                 className="w-4 h-4"
@@ -1363,57 +1861,74 @@ export default function AdminPage() {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth={2}
-                                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                                 />
                               </svg>
-                              Custom score table
+                              {test.questionCount || 0} questions
                             </span>
-                          )}
+                            {test.scaledScoreTable && (
+                              <span className="flex items-center gap-1">
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                  />
+                                </svg>
+                                Custom score table
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <button
+                            onClick={() => handleEditTest(test)}
+                            className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg active:scale-95 transition-all"
+                            title="Edit test"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTest(test)}
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
+                            title="Delete test"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={() => handleEditTest(test)}
-                          className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg active:scale-95 transition-all"
-                          title="Edit test"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTest(test)}
-                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
-                          title="Delete test"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
@@ -1423,7 +1938,9 @@ export default function AdminPage() {
         {activeTab === "subjects" && (
           <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Manage Subjects</h2>
+              <h2 className="text-lg font-bold text-gray-900">
+                Manage Subjects
+              </h2>
               <button
                 onClick={handleCreateSubject}
                 className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
@@ -1878,7 +2395,30 @@ export default function AdminPage() {
                     }
                     )
                   </h2>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    {selectedForGrouping.length > 0 && (
+                      <>
+                        <span className="text-xs px-2 py-2 text-purple-700 font-medium">
+                          {selectedForGrouping.length}/2 selected
+                        </span>
+                        <button
+                          onClick={() => setSelectedForGrouping([])}
+                          className="text-xs px-2 py-2 font-bold text-gray-500 hover:text-gray-700"
+                          title="Clear selection"
+                        >
+                          Clear
+                        </button>
+                        {selectedForGrouping.length === 2 && (
+                          <button
+                            onClick={handleLinkQuestions}
+                            className="text-xs px-3 py-2 font-bold bg-purple-600 text-white rounded-xl hover:bg-purple-700 active:scale-95 transition-all"
+                            title="Group selected questions together"
+                          >
+                            Group Selected
+                          </button>
+                        )}
+                      </>
+                    )}
                     <button
                       onClick={() => setShowCsvModal(true)}
                       className="text-xs px-3 py-2 font-bold border-2 border-gray-300 text-gray-700 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
@@ -1982,76 +2522,171 @@ export default function AdminPage() {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={handleQuestionDrop}
                   >
-                    {questions
-                      .filter((q) => {
-                        // Test filter
-                        const matchesTest =
-                          filterTestId === "all" ||
-                          questionTestMap[q.id]?.includes(filterTestId);
-                        if (!matchesTest) return false;
+                    {(() => {
+                      // Filter and sort questions first
+                      const filteredQuestions = questions
+                        .filter((q) => {
+                          // Test filter
+                          const matchesTest =
+                            filterTestId === "all" ||
+                            questionTestMap[q.id]?.includes(filterTestId);
+                          if (!matchesTest) return false;
 
-                        // Search filter
-                        if (!searchQuery.trim()) return true;
-                        const query = searchQuery.toLowerCase();
-                        return (
-                          q.name?.toLowerCase().includes(query) ||
-                          q.question_text?.toLowerCase().includes(query) ||
-                          q.topics.some((t) =>
-                            t.toLowerCase().includes(query),
-                          ) ||
-                          q.answers.some((a) =>
-                            a?.toLowerCase().includes(query),
-                          )
-                        );
-                      })
-                      .sort((a, b) => {
-                        // Sort by test-specific order when a test filter is active
-                        if (
-                          filterTestId !== "all" &&
-                          Object.keys(testQuestionOrder).length > 0
-                        ) {
-                          const orderA = testQuestionOrder[a.id] ?? Infinity;
-                          const orderB = testQuestionOrder[b.id] ?? Infinity;
-                          return orderA - orderB;
+                          // Search filter
+                          if (!searchQuery.trim()) return true;
+                          const query = searchQuery.toLowerCase();
+                          return (
+                            q.name?.toLowerCase().includes(query) ||
+                            q.question_text?.toLowerCase().includes(query) ||
+                            q.topics.some((t) =>
+                              t.toLowerCase().includes(query),
+                            ) ||
+                            q.answers.some((a) =>
+                              a?.toLowerCase().includes(query),
+                            )
+                          );
+                        })
+                        .sort((a, b) => {
+                          // Sort by test-specific order when a test filter is active
+                          if (
+                            filterTestId !== "all" &&
+                            Object.keys(testQuestionOrder).length > 0
+                          ) {
+                            const orderA = testQuestionOrder[a.id] ?? Infinity;
+                            const orderB = testQuestionOrder[b.id] ?? Infinity;
+                            return orderA - orderB;
+                          }
+                          return 0; // Keep original order from questions table
+                        });
+
+                      // Group questions by passage_id
+                      const processedPassageIds = new Set<string>();
+                      const groupedItems: Array<{
+                        type: "single" | "grouped";
+                        questions: typeof filteredQuestions;
+                        passageId?: string;
+                      }> = [];
+
+                      filteredQuestions.forEach((question) => {
+                        if (question.passage_id) {
+                          // Skip if we've already processed this passage
+                          if (processedPassageIds.has(question.passage_id)) {
+                            return;
+                          }
+                          processedPassageIds.add(question.passage_id);
+
+                          // Find all questions with the same passage_id
+                          const groupedQuestions = filteredQuestions.filter(
+                            (q) => q.passage_id === question.passage_id,
+                          );
+                          groupedItems.push({
+                            type: "grouped",
+                            questions: groupedQuestions,
+                            passageId: question.passage_id,
+                          });
+                        } else {
+                          groupedItems.push({
+                            type: "single",
+                            questions: [question],
+                          });
                         }
-                        return 0; // Keep original order from questions table
-                      })
-                      .map((question, index) => (
+                      });
+
+                      // Render helper for a single question item
+                      const renderQuestionItem = (
+                        question: (typeof filteredQuestions)[0],
+                        index: number,
+                        isGrouped: boolean,
+                        groupPosition?: "first" | "last" | "middle",
+                      ) => (
                         <div
                           key={question.id}
-                          draggable
+                          draggable={!isGrouped}
                           onDragStart={(e) =>
+                            !isGrouped &&
                             handleQuestionDragStart(e, question.id)
                           }
                           onDragOver={(e) =>
-                            handleQuestionDragOver(e, question.id)
+                            !isGrouped && handleQuestionDragOver(e, question.id)
                           }
-                          onDrop={handleQuestionDrop}
-                          onDragEnd={handleQuestionDragEnd}
-                          className={`border-2 rounded-xl p-3 hover:bg-gray-50 transition-all cursor-grab active:cursor-grabbing ${
+                          onDrop={!isGrouped ? handleQuestionDrop : undefined}
+                          onDragEnd={
+                            !isGrouped ? handleQuestionDragEnd : undefined
+                          }
+                          className={`border-2 p-3 hover:bg-gray-50 transition-all ${!isGrouped ? "cursor-grab active:cursor-grabbing rounded-xl" : ""} ${
                             editingId === question.id
                               ? "border-black bg-gray-50"
-                              : "border-gray-200"
-                          } ${draggedQuestionId === question.id ? "opacity-40 bg-blue-50 border-blue-300" : ""}`}
+                              : selectedForGrouping.includes(question.id)
+                                ? "border-purple-400 bg-purple-50"
+                                : "border-gray-200"
+                          } ${draggedQuestionId === question.id ? "opacity-40 bg-blue-50 border-blue-300" : ""} ${
+                            isGrouped && groupPosition === "first"
+                              ? "rounded-t-xl border-b-0"
+                              : ""
+                          } ${
+                            isGrouped && groupPosition === "last"
+                              ? "rounded-b-xl border-t-0"
+                              : ""
+                          } ${
+                            isGrouped && groupPosition === "middle"
+                              ? "border-t-0 border-b-0"
+                              : ""
+                          }`}
                         >
                           <div className="flex items-start gap-2">
-                            {/* Drag Handle */}
-                            <div className="flex-shrink-0 text-gray-400 hover:text-gray-600 pt-1">
-                              <svg
-                                className="w-4 h-4"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
-                              </svg>
-                            </div>
+                            {/* Selection checkbox - only for non-grouped questions */}
+                            {!isGrouped && (
+                              <div className="flex-shrink-0 pt-0.5">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedForGrouping.includes(
+                                    question.id,
+                                  )}
+                                  onChange={() =>
+                                    toggleQuestionSelection(question.id)
+                                  }
+                                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 cursor-pointer"
+                                  title="Select to group with another question"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            )}
+                            {/* Drag Handle - only for non-grouped */}
+                            {!isGrouped && (
+                              <div className="flex-shrink-0 text-gray-400 hover:text-gray-600 pt-1">
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+                                </svg>
+                              </div>
+                            )}
                             {/* Question Info - Always on left */}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-semibold text-gray-900 truncate">
-                                    {question.name || `Q${index + 1}`}
-                                  </p>
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-xs font-semibold text-gray-900 truncate">
+                                      {question.name || `Q${index + 1}`}
+                                    </p>
+                                    {isGrouped && (
+                                      <span
+                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-medium flex-shrink-0"
+                                        title="Grouped question (shares a passage)"
+                                      >
+                                        <svg
+                                          className="w-2.5 h-2.5"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                                        </svg>
+                                        Grouped
+                                      </span>
+                                    )}
+                                  </div>
                                   {question.name && (
                                     <p className="text-[10px] text-gray-400">
                                       Q{index + 1}
@@ -2113,7 +2748,11 @@ export default function AdminPage() {
                                       loadQuestionForEdit(question)
                                     }
                                     className="p-1.5 text-gray-700 hover:bg-gray-200 rounded-lg active:scale-95 transition-all"
-                                    title="Edit question"
+                                    title={
+                                      isGrouped
+                                        ? "Edit grouped questions"
+                                        : "Edit question"
+                                    }
                                   >
                                     <svg
                                       className="w-4 h-4"
@@ -2153,7 +2792,52 @@ export default function AdminPage() {
                             </div>
                           </div>
                         </div>
-                      ))}
+                      );
+
+                      // Track the original index for display
+                      let displayIndex = 0;
+
+                      return groupedItems.map((item, groupIndex) => {
+                        if (item.type === "single") {
+                          const question = item.questions[0];
+                          displayIndex++;
+                          return renderQuestionItem(
+                            question,
+                            displayIndex,
+                            false,
+                          );
+                        } else {
+                          // Grouped questions - render in a connected container
+                          const startIndex = displayIndex;
+                          return (
+                            <div
+                              key={`group-${item.passageId}`}
+                              className="relative"
+                            >
+                              {/* Purple left border to indicate grouping */}
+                              <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-400 rounded-l-xl" />
+                              <div className="ml-1">
+                                {item.questions.map((question, qIndex) => {
+                                  displayIndex++;
+                                  const groupPosition =
+                                    qIndex === 0
+                                      ? "first"
+                                      : qIndex === item.questions.length - 1
+                                        ? "last"
+                                        : "middle";
+                                  return renderQuestionItem(
+                                    question,
+                                    displayIndex,
+                                    true,
+                                    groupPosition,
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        }
+                      });
+                    })()}
                   </div>
                 )}
               </div>
@@ -2186,27 +2870,32 @@ export default function AdminPage() {
 
                       <div className="p-4 space-y-3">
                         {/* Question Preview */}
-                        {(questionText || questionImagePreview) && (
+                        {(currentForm.state.questionText ||
+                          currentForm.state.questionImagePreview) && (
                           <div className="mb-3">
-                            {questionImagePreview && (
+                            {currentForm.state.questionImagePreview && (
                               <div className="w-full">
                                 <img
-                                  src={questionImagePreview}
+                                  src={currentForm.state.questionImagePreview}
                                   alt="Question"
                                   className="w-full h-auto max-h-64 object-contain rounded-lg"
                                 />
                               </div>
                             )}
-                            {questionText && (
+                            {currentForm.state.questionText && (
                               <div
-                                className={questionImagePreview ? "mt-4" : ""}
+                                className={
+                                  currentForm.state.questionImagePreview
+                                    ? "mt-4"
+                                    : ""
+                                }
                                 style={{
                                   fontFamily: "'Times New Roman', Times, serif",
                                   fontSize: "1.125rem",
                                 }}
                               >
                                 <MathText
-                                  text={questionText}
+                                  text={currentForm.state.questionText}
                                   className="leading-relaxed"
                                 />
                               </div>
@@ -2215,22 +2904,24 @@ export default function AdminPage() {
                         )}
 
                         {/* Answers Preview - Same as quiz page */}
-                        {answers.some(
-                          (a) =>
-                            a.trim() || answerImagePreviews[answers.indexOf(a)],
+                        {currentForm.state.answers.some(
+                          (a, idx) =>
+                            a.trim() ||
+                            currentForm.state.answerImagePreviews[idx],
                         ) && (
                           <div
                             className={`${
-                              answerLayout === "grid"
+                              currentForm.state.answerLayout === "grid"
                                 ? "grid grid-cols-2 gap-2"
                                 : "space-y-2"
                             }`}
                           >
-                            {answers.map((answer, index) => {
+                            {currentForm.state.answers.map((answer, index) => {
                               const answerNum = index + 1;
-                              const isCorrect = correctAnswer === answerNum;
+                              const isCorrect =
+                                currentForm.state.correctAnswer === answerNum;
                               const gridOrder =
-                                answerLayout === "grid"
+                                currentForm.state.answerLayout === "grid"
                                   ? [0, 2, 1, 3][index]
                                   : index;
 
@@ -2244,7 +2935,8 @@ export default function AdminPage() {
                                   " bg-white border-gray-300 text-gray-700";
                               }
 
-                              const answerImage = answerImagePreviews[index];
+                              const answerImage =
+                                currentForm.state.answerImagePreviews[index];
 
                               return (
                                 <div key={index} style={{ order: gridOrder }}>
@@ -2294,9 +2986,9 @@ export default function AdminPage() {
                         )}
 
                         {/* Empty state */}
-                        {!questionText &&
-                          !questionImagePreview &&
-                          !answers.some((a) => a.trim()) && (
+                        {!currentForm.state.questionText &&
+                          !currentForm.state.questionImagePreview &&
+                          !currentForm.state.answers.some((a) => a.trim()) && (
                             <div className="text-center text-gray-400 py-8 text-sm">
                               Start typing to see preview
                             </div>
@@ -2308,15 +3000,182 @@ export default function AdminPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-3">
+                {/* Grouped Question Toggle */}
+                {!editingId && (
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Grouped Question (Passage-based)
+                      </label>
+                      <p className="text-xs text-gray-500">
+                        Create two questions that share a common passage
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsGroupedQuestion(!isGroupedQuestion)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        isGroupedQuestion ? "bg-black" : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          isGroupedQuestion ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                )}
+
+                {/* Passage Container (for grouped questions) */}
+                {isGroupedQuestion && (
+                  <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl space-y-3">
+                    <h3 className="text-sm font-bold text-blue-900">
+                      Shared Passage
+                    </h3>
+                    <div>
+                      <label className="block text-xs font-medium text-blue-800 mb-1">
+                        Passage Text
+                      </label>
+                      <textarea
+                        value={passageText}
+                        onChange={(e) => setPassageText(e.target.value)}
+                        placeholder="Enter the shared passage or summary text..."
+                        rows={4}
+                        className="w-full px-3 py-2 text-sm border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-blue-800 mb-1">
+                        Passage Image (Optional)
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          handleImageSelect(
+                            e,
+                            setPassageImage,
+                            setPassageImagePreview,
+                          )
+                        }
+                        className="hidden"
+                        id="passage-image"
+                      />
+                      <label
+                        htmlFor="passage-image"
+                        className="cursor-pointer block"
+                        onDragOver={(e) => handleDragOver(e, "passage")}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) =>
+                          handleDrop(e, setPassageImage, setPassageImagePreview)
+                        }
+                      >
+                        {passageImagePreview ? (
+                          <div
+                            className={`relative w-full h-32 rounded-lg border-2 overflow-hidden transition-all ${
+                              draggedOver === "passage"
+                                ? "border-blue-500 ring-2 ring-blue-200"
+                                : "border-blue-300"
+                            }`}
+                          >
+                            <img
+                              src={passageImagePreview}
+                              alt="Passage"
+                              className="w-full h-full object-contain bg-white"
+                            />
+                            {draggedOver === "passage" && (
+                              <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                                <span className="text-xs font-bold text-blue-700">
+                                  Drop to replace
+                                </span>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setPassageImage(null);
+                                setPassageImagePreview(null);
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                            >
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            className={`w-full h-20 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors ${
+                              draggedOver === "passage"
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-blue-300 bg-white hover:bg-blue-50"
+                            }`}
+                          >
+                            <span className="text-xs text-blue-600">
+                              Click or drag image
+                            </span>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Question Tabs (for grouped questions) */}
+                {isGroupedQuestion && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveQuestionTab(1)}
+                      className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all ${
+                        activeQuestionTab === 1
+                          ? "bg-black text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      Question 1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveQuestionTab(2)}
+                      className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all ${
+                        activeQuestionTab === 2
+                          ? "bg-black text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      Question 2
+                    </button>
+                  </div>
+                )}
+
+                {/* Question Fields (uses currentForm which switches between Q1/Q2 based on tab) */}
                 {/* Question Name */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Question Name (Optional)
+                    {isGroupedQuestion
+                      ? `Question ${activeQuestionTab} Name (Optional)`
+                      : "Question Name (Optional)"}
                   </label>
                   <input
                     type="text"
-                    value={questionName}
-                    onChange={(e) => setQuestionName(e.target.value)}
+                    value={currentForm.state.questionName}
+                    onChange={(e) =>
+                      currentForm.setField("questionName", e.target.value)
+                    }
                     placeholder="e.g., Linear Equations - Problem 1"
                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                   />
@@ -2334,8 +3193,10 @@ export default function AdminPage() {
                     </span>
                   </label>
                   <textarea
-                    value={questionText}
-                    onChange={(e) => setQuestionText(e.target.value)}
+                    value={currentForm.state.questionText}
+                    onChange={(e) =>
+                      currentForm.setField("questionText", e.target.value)
+                    }
                     placeholder="Enter question text. Use LaTeX for math: \\frac{x}{2}, x^{2}, \\sqrt{x}"
                     rows={3}
                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 font-mono"
@@ -2361,8 +3222,12 @@ export default function AdminPage() {
                       onChange={(e) =>
                         handleImageSelect(
                           e,
-                          setQuestionImage,
-                          setQuestionImagePreview,
+                          (file) => currentForm.setField("questionImage", file),
+                          (preview) =>
+                            currentForm.setField(
+                              "questionImagePreview",
+                              preview,
+                            ),
                         )
                       }
                       className="hidden"
@@ -2374,10 +3239,18 @@ export default function AdminPage() {
                       onDragOver={(e) => handleDragOver(e, "question")}
                       onDragLeave={handleDragLeave}
                       onDrop={(e) =>
-                        handleDrop(e, setQuestionImage, setQuestionImagePreview)
+                        handleDrop(
+                          e,
+                          (file) => currentForm.setField("questionImage", file),
+                          (preview) =>
+                            currentForm.setField(
+                              "questionImagePreview",
+                              preview,
+                            ),
+                        )
                       }
                     >
-                      {questionImagePreview ? (
+                      {currentForm.state.questionImagePreview ? (
                         <div
                           className={`relative w-full h-24 rounded border-2 overflow-hidden transition-all ${
                             draggedOver === "question"
@@ -2386,7 +3259,7 @@ export default function AdminPage() {
                           }`}
                         >
                           <img
-                            src={questionImagePreview}
+                            src={currentForm.state.questionImagePreview}
                             alt="Question"
                             className="w-full h-full object-cover"
                           />
@@ -2425,8 +3298,13 @@ export default function AdminPage() {
                       onChange={(e) =>
                         handleImageSelect(
                           e,
-                          setReferenceImage,
-                          setReferenceImagePreview,
+                          (file) =>
+                            currentForm.setField("referenceImage", file),
+                          (preview) =>
+                            currentForm.setField(
+                              "referenceImagePreview",
+                              preview,
+                            ),
                         )
                       }
                       className="hidden"
@@ -2440,12 +3318,17 @@ export default function AdminPage() {
                       onDrop={(e) =>
                         handleDrop(
                           e,
-                          setReferenceImage,
-                          setReferenceImagePreview,
+                          (file) =>
+                            currentForm.setField("referenceImage", file),
+                          (preview) =>
+                            currentForm.setField(
+                              "referenceImagePreview",
+                              preview,
+                            ),
                         )
                       }
                     >
-                      {referenceImagePreview ? (
+                      {currentForm.state.referenceImagePreview ? (
                         <div
                           className={`relative w-full h-24 rounded border-2 overflow-hidden transition-all ${
                             draggedOver === "reference"
@@ -2454,7 +3337,7 @@ export default function AdminPage() {
                           }`}
                         >
                           <img
-                            src={referenceImagePreview}
+                            src={currentForm.state.referenceImagePreview}
                             alt="Reference"
                             className="w-full h-full object-cover"
                           />
@@ -2493,8 +3376,13 @@ export default function AdminPage() {
                       onChange={(e) =>
                         handleImageSelect(
                           e,
-                          setExplanationImage,
-                          setExplanationImagePreview,
+                          (file) =>
+                            currentForm.setField("explanationImage", file),
+                          (preview) =>
+                            currentForm.setField(
+                              "explanationImagePreview",
+                              preview,
+                            ),
                         )
                       }
                       className="hidden"
@@ -2508,12 +3396,17 @@ export default function AdminPage() {
                       onDrop={(e) =>
                         handleDrop(
                           e,
-                          setExplanationImage,
-                          setExplanationImagePreview,
+                          (file) =>
+                            currentForm.setField("explanationImage", file),
+                          (preview) =>
+                            currentForm.setField(
+                              "explanationImagePreview",
+                              preview,
+                            ),
                         )
                       }
                     >
-                      {explanationImagePreview ? (
+                      {currentForm.state.explanationImagePreview ? (
                         <div
                           className={`relative w-full h-24 rounded border-2 overflow-hidden transition-all ${
                             draggedOver === "explanation"
@@ -2522,7 +3415,7 @@ export default function AdminPage() {
                           }`}
                         >
                           <img
-                            src={explanationImagePreview}
+                            src={currentForm.state.explanationImagePreview}
                             alt="Explanation"
                             className="w-full h-full object-cover"
                           />
@@ -2565,9 +3458,11 @@ export default function AdminPage() {
                       <span className="text-xs text-gray-500">Layout:</span>
                       <button
                         type="button"
-                        onClick={() => setAnswerLayout("list")}
+                        onClick={() =>
+                          currentForm.setField("answerLayout", "list")
+                        }
                         className={`px-2 py-1 text-xs rounded transition-all ${
-                          answerLayout === "list"
+                          currentForm.state.answerLayout === "list"
                             ? "bg-blue-600 text-white"
                             : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                         }`}
@@ -2576,9 +3471,11 @@ export default function AdminPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setAnswerLayout("grid")}
+                        onClick={() =>
+                          currentForm.setField("answerLayout", "grid")
+                        }
                         className={`px-2 py-1 text-xs rounded transition-all ${
-                          answerLayout === "grid"
+                          currentForm.state.answerLayout === "grid"
                             ? "bg-blue-600 text-white"
                             : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                         }`}
@@ -2588,7 +3485,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    {answers.map((answer, index) => (
+                    {currentForm.state.answers.map((answer, index) => (
                       <div
                         key={index}
                         className="border border-gray-200 rounded-lg p-3"
@@ -2597,8 +3494,12 @@ export default function AdminPage() {
                           <input
                             type="radio"
                             name="correct-answer"
-                            checked={correctAnswer === index + 1}
-                            onChange={() => setCorrectAnswer(index + 1)}
+                            checked={
+                              currentForm.state.correctAnswer === index + 1
+                            }
+                            onChange={() =>
+                              currentForm.setField("correctAnswer", index + 1)
+                            }
                             className="h-4 w-4 mt-1"
                           />
                           <div className="flex-1">
@@ -2606,7 +3507,8 @@ export default function AdminPage() {
                               <span className="text-xs font-bold text-gray-700">
                                 ({index + 1})
                               </span>
-                              {correctAnswer === index + 1 && (
+                              {currentForm.state.correctAnswer ===
+                                index + 1 && (
                                 <span className="text-green-600 text-xs font-bold">
                                   ✓ Correct
                                 </span>
@@ -2616,7 +3518,7 @@ export default function AdminPage() {
                               type="text"
                               value={answer}
                               onChange={(e) =>
-                                handleAnswerChange(index, e.target.value)
+                                currentForm.setAnswer(index, e.target.value)
                               }
                               placeholder={`Answer text (optional if image provided)`}
                               className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
@@ -2631,12 +3533,24 @@ export default function AdminPage() {
                             accept="image/*"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
-                              handleAnswerImageSelect(index, file || null);
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  currentForm.setAnswerImage(
+                                    index,
+                                    file,
+                                    reader.result as string,
+                                  );
+                                };
+                                reader.readAsDataURL(file);
+                              } else {
+                                currentForm.setAnswerImage(index, null, null);
+                              }
                             }}
                             className="hidden"
                             id={`answer-image-${index}`}
                           />
-                          {answerImagePreviews[index] ? (
+                          {currentForm.state.answerImagePreviews[index] ? (
                             <label
                               htmlFor={`answer-image-${index}`}
                               className="cursor-pointer block"
@@ -2654,7 +3568,11 @@ export default function AdminPage() {
                                 }`}
                               >
                                 <img
-                                  src={answerImagePreviews[index]!}
+                                  src={
+                                    currentForm.state.answerImagePreviews[
+                                      index
+                                    ]!
+                                  }
                                   alt={`Answer ${index + 1}`}
                                   className="w-full h-full object-cover"
                                 />
@@ -2670,7 +3588,7 @@ export default function AdminPage() {
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    removeAnswerImage(index);
+                                    currentForm.removeAnswerImage(index);
                                   }}
                                   className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 active:scale-95 transition-all z-10"
                                 >
@@ -2739,8 +3657,10 @@ export default function AdminPage() {
                     Explanation <span className="text-red-500">*</span>
                   </label>
                   <textarea
-                    value={explanationText}
-                    onChange={(e) => setExplanationText(e.target.value)}
+                    value={currentForm.state.explanationText}
+                    onChange={(e) =>
+                      currentForm.setField("explanationText", e.target.value)
+                    }
                     placeholder="Explain the correct answer"
                     rows={3}
                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
@@ -2753,9 +3673,11 @@ export default function AdminPage() {
                     Topics <span className="text-red-500">*</span>
                   </label>
                   <TagInput
-                    selectedTags={selectedTopics}
+                    selectedTags={currentForm.state.selectedTopics}
                     availableTags={availableTags}
-                    onChange={setSelectedTopics}
+                    onChange={(tags) =>
+                      currentForm.setField("selectedTopics", tags)
+                    }
                     placeholder="Type to search or add new topics (e.g., Algebra, Linear Equations)"
                   />
                 </div>
@@ -2767,8 +3689,13 @@ export default function AdminPage() {
                   </label>
                   <input
                     type="text"
-                    value={studentFriendlySkill}
-                    onChange={(e) => setStudentFriendlySkill(e.target.value)}
+                    value={currentForm.state.studentFriendlySkill}
+                    onChange={(e) =>
+                      currentForm.setField(
+                        "studentFriendlySkill",
+                        e.target.value,
+                      )
+                    }
                     list="available-skills"
                     placeholder="e.g., Solve linear equations with one variable"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
@@ -2790,8 +3717,10 @@ export default function AdminPage() {
                   </label>
                   <input
                     type="text"
-                    value={cluster}
-                    onChange={(e) => setCluster(e.target.value)}
+                    value={currentForm.state.cluster}
+                    onChange={(e) =>
+                      currentForm.setField("cluster", e.target.value)
+                    }
                     list="available-clusters"
                     placeholder="e.g., Algebra, Functions, Number & Quantity"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
@@ -2835,8 +3764,13 @@ export default function AdminPage() {
                   </label>
                   <input
                     type="number"
-                    value={points}
-                    onChange={(e) => setPoints(parseInt(e.target.value) || 1)}
+                    value={currentForm.state.points}
+                    onChange={(e) =>
+                      currentForm.setField(
+                        "points",
+                        parseInt(e.target.value) || 1,
+                      )
+                    }
                     placeholder="1"
                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                   />
@@ -3051,6 +3985,192 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Link Questions Modal */}
+        {showLinkModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-purple-50">
+                <div className="p-2 bg-purple-100 rounded-full">
+                  <svg
+                    className="w-5 h-5 text-purple-600"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">
+                  Group Questions
+                </h2>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  Add a shared passage for these questions. The passage will be
+                  displayed above both questions when students take the quiz.
+                </p>
+
+                {/* Selected Questions Preview */}
+                <div className="mb-4 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                  <p className="text-xs font-bold text-gray-700 mb-2">
+                    Selected Questions:
+                  </p>
+                  <div className="space-y-1">
+                    {selectedForGrouping.map((id, idx) => {
+                      const q = questions.find((q) => q.id === id);
+                      return (
+                        <p key={id} className="text-sm text-gray-900 truncate">
+                          {idx + 1}.{" "}
+                          {q?.name ||
+                            q?.question_text?.slice(0, 50) ||
+                            `Question ${idx + 1}`}
+                        </p>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Passage Text */}
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-gray-900 mb-1">
+                    Passage Text
+                  </label>
+                  <textarea
+                    value={linkPassageText}
+                    onChange={(e) => setLinkPassageText(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                    rows={4}
+                    placeholder="Enter the shared passage text... (supports LaTeX: $x^2$)"
+                  />
+                </div>
+
+                {/* Passage Image */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-1">
+                    Passage Image (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    id="link-passage-image"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setLinkPassageImage(file);
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) =>
+                          setLinkPassageImagePreview(
+                            ev.target?.result as string,
+                          );
+                        reader.readAsDataURL(file);
+                      } else {
+                        setLinkPassageImagePreview(null);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="link-passage-image"
+                    className="cursor-pointer block"
+                    onDragOver={(e) => handleDragOver(e, "linkPassage")}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) =>
+                      handleDrop(
+                        e,
+                        setLinkPassageImage,
+                        setLinkPassageImagePreview,
+                      )
+                    }
+                  >
+                    {linkPassageImagePreview ? (
+                      <div
+                        className={`relative w-full h-32 rounded-lg border-2 overflow-hidden transition-all ${
+                          draggedOver === "linkPassage"
+                            ? "border-purple-500 ring-2 ring-purple-200"
+                            : "border-gray-300"
+                        }`}
+                      >
+                        <img
+                          src={linkPassageImagePreview}
+                          alt="Passage preview"
+                          className="w-full h-full object-contain bg-gray-50"
+                        />
+                        {draggedOver === "linkPassage" && (
+                          <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
+                            <span className="text-sm font-bold text-purple-700">
+                              Drop to replace
+                            </span>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setLinkPassageImage(null);
+                            setLinkPassageImagePreview(null);
+                          }}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 shadow-md"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        className={`w-full h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-gray-400 transition-colors ${
+                          draggedOver === "linkPassage"
+                            ? "border-purple-500 bg-purple-50"
+                            : "border-gray-300 hover:border-purple-500"
+                        }`}
+                      >
+                        <svg
+                          className="w-8 h-8 mb-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <span className="text-sm font-medium">
+                          Drop image here
+                        </span>
+                        <span className="text-xs">or click to browse</span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={cancelLinkQuestions}
+                  disabled={isLinking}
+                  className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmLinkQuestions}
+                  disabled={
+                    isLinking || (!linkPassageText.trim() && !linkPassageImage)
+                  }
+                  className="px-4 py-2 text-sm font-bold bg-purple-600 text-white rounded-xl hover:bg-purple-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isLinking ? "Linking..." : "Group Questions"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Delete Test Confirmation Modal */}
         {deleteTestModal.show && deleteTestModal.test && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -3104,7 +4224,9 @@ export default function AdminPage() {
                         <span className="text-sm font-medium text-gray-900">
                           Also delete {deleteTestModal.test.questionCount}{" "}
                           question
-                          {deleteTestModal.test.questionCount !== 1 ? "s" : ""}{" "}
+                          {deleteTestModal.test.questionCount !== 1
+                            ? "s"
+                            : ""}{" "}
                           assigned to this test
                         </span>
                         <p className="text-xs text-gray-500 mt-1">

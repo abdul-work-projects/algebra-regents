@@ -268,6 +268,39 @@ function QuizPageContent() {
   }
 
   const currentQuestion = questions[session.currentQuestionIndex];
+
+  // Find grouped question pair (questions sharing the same passageId)
+  const siblingQuestion = currentQuestion.passageId
+    ? questions.find(
+        (q) =>
+          q.id !== currentQuestion.id &&
+          q.passageId === currentQuestion.passageId
+      )
+    : null;
+  const isGroupedQuestion = !!siblingQuestion;
+
+  // Debug logging for grouped questions
+  if (currentQuestion.passageId) {
+    console.log('Grouped question detected:', {
+      currentId: currentQuestion.id,
+      passageId: currentQuestion.passageId,
+      hasPassage: !!currentQuestion.passage,
+      siblingFound: !!siblingQuestion,
+      siblingId: siblingQuestion?.id,
+    });
+  }
+
+  // For grouped questions, determine which question comes first
+  const currentQuestionIdx = questions.findIndex((q) => q.id === currentQuestion.id);
+  const siblingQuestionIdx = siblingQuestion
+    ? questions.findIndex((q) => q.id === siblingQuestion.id)
+    : -1;
+  const isFirstInGroup = siblingQuestionIdx > currentQuestionIdx;
+
+  // The two questions to display (in order)
+  const question1 = isFirstInGroup ? currentQuestion : siblingQuestion;
+  const question2 = isFirstInGroup ? siblingQuestion : currentQuestion;
+
   const progress =
     ((session.currentQuestionIndex + 1) / questions.length) * 100;
   const selectedAnswer = session.userAnswers[currentQuestion.id] || null;
@@ -275,6 +308,14 @@ function QuizPageContent() {
   const isMarkedForReview = isPracticeMode
     ? practiceMarkedQuestions.has(currentQuestion.id)
     : session.markedForReview[currentQuestion.id] || false;
+
+  // For grouped questions, also track the sibling's answers
+  const siblingSelectedAnswer = siblingQuestion
+    ? session.userAnswers[siblingQuestion.id] || null
+    : null;
+  const siblingCheckedAnswers = siblingQuestion
+    ? session.checkedAnswers[siblingQuestion.id] || []
+    : [];
 
   const handleAnswerSelect = (answerIndex: number) => {
     const timeSpent = Math.floor(
@@ -328,36 +369,92 @@ function QuizPageContent() {
     });
   };
 
+  // Generic handlers for grouped questions that take question as parameter
+  const handleAnswerSelectForQuestion = (question: Question, answerIndex: number) => {
+    const timeSpent = Math.floor(
+      (Date.now() - session.lastQuestionStartTime) / 1000
+    );
+
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        userAnswers: {
+          ...prev.userAnswers,
+          [question.id]: answerIndex,
+        },
+        questionTimes: {
+          ...prev.questionTimes,
+          [question.id]: (prev.questionTimes[question.id] || 0) + timeSpent,
+        },
+      };
+    });
+  };
+
+  const handleCheckAnswerForQuestion = (question: Question, answerIndex: number) => {
+    const isCorrect = answerIndex === question.correctAnswer;
+
+    if (isPracticeMode && practiceSkill) {
+      updateSkillProgress(practiceSkill, question.id, isCorrect);
+    }
+
+    setSession((prev) => {
+      if (!prev) return prev;
+      const currentChecked = prev.checkedAnswers[question.id] || [];
+
+      if (currentChecked.length >= 1) return prev;
+
+      return {
+        ...prev,
+        checkedAnswers: {
+          ...prev.checkedAnswers,
+          [question.id]: [answerIndex],
+        },
+        firstAttemptAnswers: {
+          ...prev.firstAttemptAnswers,
+          [question.id]: answerIndex,
+        },
+      };
+    });
+  };
+
   const handleNext = () => {
     const timeSpent = Math.floor(
       (Date.now() - session.lastQuestionStartTime) / 1000
     );
 
-    if (session.currentQuestionIndex < questions.length - 1) {
+    // For grouped questions, skip the sibling (we show both together)
+    const skipCount = isGroupedQuestion && isFirstInGroup ? 2 : 1;
+    const nextIndex = session.currentQuestionIndex + skipCount;
+
+    if (nextIndex < questions.length) {
       setSession((prev) => {
         if (!prev) return prev;
+        const newTimes = { ...prev.questionTimes };
+        newTimes[currentQuestion.id] = (newTimes[currentQuestion.id] || 0) + timeSpent;
+        // Also record time for sibling if grouped
+        if (siblingQuestion) {
+          newTimes[siblingQuestion.id] = (newTimes[siblingQuestion.id] || 0) + timeSpent;
+        }
         return {
           ...prev,
-          currentQuestionIndex: prev.currentQuestionIndex + 1,
+          currentQuestionIndex: nextIndex,
           lastQuestionStartTime: Date.now(),
-          questionTimes: {
-            ...prev.questionTimes,
-            [currentQuestion.id]:
-              (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
-          },
+          questionTimes: newTimes,
         };
       });
     } else {
-      // Last question
+      // Last question(s)
       setSession((prev) => {
         if (!prev) return prev;
+        const newTimes = { ...prev.questionTimes };
+        newTimes[currentQuestion.id] = (newTimes[currentQuestion.id] || 0) + timeSpent;
+        if (siblingQuestion) {
+          newTimes[siblingQuestion.id] = (newTimes[siblingQuestion.id] || 0) + timeSpent;
+        }
         return {
           ...prev,
-          questionTimes: {
-            ...prev.questionTimes,
-            [currentQuestion.id]:
-              (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
-          },
+          questionTimes: newTimes,
         };
       });
       // In practice mode, go back to question bank; in test mode, go to results
@@ -375,17 +472,35 @@ function QuizPageContent() {
         (Date.now() - session.lastQuestionStartTime) / 1000
       );
 
+      // Check if the previous question is part of a group we need to jump over
+      const prevIndex = session.currentQuestionIndex - 1;
+      const prevQuestion = questions[prevIndex];
+      const prevSibling = prevQuestion?.passageId
+        ? questions.find(
+            (q) => q.id !== prevQuestion.id && q.passageId === prevQuestion.passageId
+          )
+        : null;
+      const prevSiblingIdx = prevSibling
+        ? questions.findIndex((q) => q.id === prevSibling.id)
+        : -1;
+
+      // If prev question has a sibling that comes before it, jump to that sibling
+      const targetIndex = prevSibling && prevSiblingIdx < prevIndex
+        ? prevSiblingIdx
+        : prevIndex;
+
       setSession((prev) => {
         if (!prev) return prev;
+        const newTimes = { ...prev.questionTimes };
+        newTimes[currentQuestion.id] = (newTimes[currentQuestion.id] || 0) + timeSpent;
+        if (siblingQuestion) {
+          newTimes[siblingQuestion.id] = (newTimes[siblingQuestion.id] || 0) + timeSpent;
+        }
         return {
           ...prev,
-          currentQuestionIndex: prev.currentQuestionIndex - 1,
+          currentQuestionIndex: targetIndex,
           lastQuestionStartTime: Date.now(),
-          questionTimes: {
-            ...prev.questionTimes,
-            [currentQuestion.id]:
-              (prev.questionTimes[currentQuestion.id] || 0) + timeSpent,
-          },
+          questionTimes: newTimes,
         };
       });
     }
@@ -395,12 +510,18 @@ function QuizPageContent() {
     if (isPracticeMode) {
       // Use persistent storage for practice mode
       const isNowMarked = toggleMarkedForReview(currentQuestion.id);
+      // Also toggle sibling question if grouped
+      if (siblingQuestion) {
+        toggleMarkedForReview(siblingQuestion.id);
+      }
       setPracticeMarkedQuestions(prev => {
         const newSet = new Set(prev);
         if (isNowMarked) {
           newSet.add(currentQuestion.id);
+          if (siblingQuestion) newSet.add(siblingQuestion.id);
         } else {
           newSet.delete(currentQuestion.id);
+          if (siblingQuestion) newSet.delete(siblingQuestion.id);
         }
         return newSet;
       });
@@ -408,12 +529,18 @@ function QuizPageContent() {
       // Use session storage for test mode
       setSession((prev) => {
         if (!prev) return prev;
+        const newMarkedValue = !prev.markedForReview[currentQuestion.id];
+        const newMarkedForReview = {
+          ...prev.markedForReview,
+          [currentQuestion.id]: newMarkedValue,
+        };
+        // Also mark sibling question if grouped
+        if (siblingQuestion) {
+          newMarkedForReview[siblingQuestion.id] = newMarkedValue;
+        }
         return {
           ...prev,
-          markedForReview: {
-            ...prev.markedForReview,
-            [currentQuestion.id]: !prev.markedForReview[currentQuestion.id],
-          },
+          markedForReview: newMarkedForReview,
         };
       });
     }
@@ -580,13 +707,15 @@ function QuizPageContent() {
           </div>
         </div>
 
-        <div className="max-w-3xl mx-auto px-4 pt-4" style={{ pointerEvents: 'auto' }}>
+        <div className={`mx-auto pt-4 ${isGroupedQuestion ? 'max-w-6xl px-2' : 'max-w-3xl px-4'}`} style={{ pointerEvents: 'auto' }}>
           {/* Question Number and Topic Badges Row */}
           <div className="mb-4 flex items-center gap-2 flex-wrap relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
             {/* Question Number Badge */}
             <div className="flex items-center gap-2" style={{ pointerEvents: 'auto' }}>
               <span className="inline-block text-sm font-bold px-4 py-1.5 rounded-full bg-black text-white">
-                Question {session.currentQuestionIndex + 1}
+                {isGroupedQuestion
+                  ? `Questions ${Math.min(currentQuestionIdx, siblingQuestionIdx) + 1}-${Math.max(currentQuestionIdx, siblingQuestionIdx) + 1}`
+                  : `Question ${session.currentQuestionIndex + 1}`}
               </span>
 
               {/* Mark for Review Button */}
@@ -807,172 +936,409 @@ function QuizPageContent() {
             </div>
           </div>
 
-          {/* Question Card - Image and/or Text */}
-          {(currentQuestion.imageFilename || currentQuestion.questionText) && (
-            <div className="mb-3">
-              {currentQuestion.imageFilename && (
-                <div className="w-full">
-                  <img
-                    src={currentQuestion.imageFilename}
-                    alt="Question"
-                    className="w-full h-auto max-h-64 object-contain rounded-lg"
-                  />
-                </div>
-              )}
-              {currentQuestion.questionText && (
-                <div className={currentQuestion.imageFilename ? "mt-4" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
-                  <MathText
-                    text={currentQuestion.questionText}
-                    className="leading-relaxed"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Embedded Graphing Tool */}
-          {showGraphingTool && (
-            <div className="mb-4 border-2 border-blue-200 rounded-xl overflow-hidden bg-white max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
-              {/* Graph Header */}
-              <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 border-b border-blue-200">
-                <span className="text-xs font-bold text-blue-900">Graph</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      // Clear graph data for this question
-                      setSession((prev) => {
-                        if (!prev) return prev;
-                        const newGraphs = { ...prev.graphs };
-                        delete newGraphs[currentQuestion.id];
-                        return { ...prev, graphs: newGraphs };
-                      });
-                      setGraphClearKey(prev => prev + 1);
-                    }}
-                    className="p-0.5 rounded hover:bg-red-50 active:scale-95 transition-all"
-                    title="Clear graph"
-                  >
-                    <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => setShowGraphingTool(false)}
-                    className="p-0.5 rounded hover:bg-blue-100 transition-colors"
-                    title="Close graph"
-                  >
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              {/* Graph Area */}
-              <div style={{ height: '380px' }}>
-                <GraphingTool
-                  key={`${currentQuestion.id}-${graphClearKey}`}
-                  initialData={session.graphs?.[currentQuestion.id] || DEFAULT_GRAPH_DATA}
-                  onChange={(data: GraphData) => {
-                    setSession((prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        graphs: {
-                          ...prev.graphs,
-                          [currentQuestion.id]: data,
-                        },
-                      };
-                    });
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Answer Choices */}
-          <div
-            className={`mb-6 relative ${
-              currentQuestion.answerLayout === 'grid'
-                ? 'grid grid-cols-2 gap-2'
-                : 'space-y-2'
-            }`}
-            style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}
-          >
-            {currentQuestion.answers.map((answer, index) => {
-              const answerNum = index + 1;
-              const isChecked = checkedAnswers.includes(answerNum);
-              const isCorrectAnswer =
-                answerNum === currentQuestion.correctAnswer;
-              const isSelected = selectedAnswer === answerNum;
-
-              let buttonClass =
-                "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 font-medium active:scale-[0.98]";
-
-              if (isChecked) {
-                if (isCorrectAnswer) {
-                  buttonClass += " bg-green-50 border-black text-green-900";
-                } else {
-                  buttonClass += " bg-rose-50 border-rose-500 text-rose-900";
-                }
-              } else if (isSelected) {
-                buttonClass += " bg-sky-50 border-sky-400 text-sky-900";
-              } else {
-                buttonClass +=
-                  " bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50";
-              }
-
-              const answerImage = currentQuestion.answerImageUrls?.[index];
-
-              // For grid layout: (1)(3) on top row, (2)(4) on bottom row
-              // CSS order: index 0->0, 1->2, 2->1, 3->3
-              const gridOrder = currentQuestion.answerLayout === 'grid'
-                ? [0, 2, 1, 3][index]
-                : index;
-
-              return (
-                <div
-                  key={index}
-                  className="relative group"
-                  style={{ pointerEvents: 'auto', order: gridOrder }}
-                >
-                  <button
-                    onClick={() => handleAnswerSelect(answerNum)}
-                    className={buttonClass}
-                  >
-                    <div className="flex items-start gap-3" style={{ fontSize: '1.125rem' }}>
-                      <span className="font-bold shrink-0 leading-normal" style={{ fontFamily: "'Times New Roman', Times, serif" }}>({answerNum})</span>
-                      <div className="flex-1 min-w-0 overflow-hidden" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-                        {answer && (
-                          <div className="break-words overflow-wrap-anywhere">
-                            <MathText text={answer} className="text-left" />
-                          </div>
-                        )}
-                        {answerImage && (
-                          <img
-                            src={answerImage}
-                            alt={`Answer ${answerNum}`}
-                            className="max-w-full h-auto rounded border border-gray-300 mt-2"
-                          />
-                        )}
-                      </div>
+          {/* GROUPED QUESTIONS LAYOUT */}
+          {isGroupedQuestion && question1 && question2 ? (
+            <>
+              {/* Shared Passage at top */}
+              {currentQuestion.passage && (currentQuestion.passage.passageText || currentQuestion.passage.passageImageUrl) && (
+                <div className="mb-4">
+                  {currentQuestion.passage.passageImageUrl && (
+                    <div className={currentQuestion.passage.passageText ? "mb-3" : ""}>
+                      <img
+                        src={currentQuestion.passage.passageImageUrl}
+                        alt="Passage"
+                        className="w-full h-auto max-h-96 object-contain"
+                      />
                     </div>
-                  </button>
-
-                  {/* Check button when selected - show only if can still attempt and not already checked */}
-                  {isSelected && !isChecked && canAttempt && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCheckAnswer(answerNum);
-                      }}
-                      className="absolute right-3 top-3 px-3 py-1.5 bg-black hover:bg-gray-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-md transition-all"
-                    >
-                      CHECK
-                    </button>
+                  )}
+                  {currentQuestion.passage.passageText && (
+                    <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
+                      <MathText
+                        text={currentQuestion.passage.passageText}
+                        className="leading-relaxed text-gray-800"
+                      />
+                    </div>
                   )}
                 </div>
-              );
-            })}
-            </div>
+              )}
+
+              {/* Embedded Graphing Tool for grouped questions - below passage */}
+              {showGraphingTool && (
+                <div className="mb-4 border-2 border-blue-200 rounded-xl overflow-hidden bg-white max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 border-b border-blue-200">
+                    <span className="text-xs font-bold text-blue-900">Graph</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setSession((prev) => {
+                            if (!prev) return prev;
+                            const newGraphs = { ...prev.graphs };
+                            delete newGraphs[currentQuestion.id];
+                            return { ...prev, graphs: newGraphs };
+                          });
+                          setGraphClearKey(prev => prev + 1);
+                        }}
+                        className="p-0.5 rounded hover:bg-red-50 active:scale-95 transition-all"
+                        title="Clear graph"
+                      >
+                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setShowGraphingTool(false)}
+                        className="p-0.5 rounded hover:bg-blue-100 transition-colors"
+                        title="Close graph"
+                      >
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ height: '380px' }}>
+                    <GraphingTool
+                      key={`grouped-${currentQuestion.id}-${graphClearKey}`}
+                      initialData={session.graphs?.[currentQuestion.id] || DEFAULT_GRAPH_DATA}
+                      onChange={(data: GraphData) => {
+                        setSession((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            graphs: {
+                              ...prev.graphs,
+                              [currentQuestion.id]: data,
+                            },
+                          };
+                        });
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Two questions side by side */}
+              <div className="grid grid-cols-2 gap-0 mb-6">
+                {/* Question 1 */}
+                <div className="pr-4 border-r-2 border-dashed border-gray-300">
+                  <div className="text-xs font-bold text-gray-500 mb-2">Q{questions.findIndex(q => q.id === question1.id) + 1}</div>
+                  {/* Q1 Question Card */}
+                  {(question1.imageFilename || question1.questionText) && (
+                    <div className="mb-3">
+                      {question1.imageFilename && (
+                        <div className="w-full">
+                          <img src={question1.imageFilename} alt="Question" className="w-full h-auto max-h-48 object-contain rounded-lg" />
+                        </div>
+                      )}
+                      {question1.questionText && (
+                        <div className={question1.imageFilename ? "mt-2" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
+                          <MathText text={question1.questionText} className="leading-relaxed" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Q1 Answers */}
+                  <div className="space-y-2 relative z-[60]" style={{ pointerEvents: 'auto' }}>
+                    {question1.answers.map((answer, index) => {
+                      const answerNum = index + 1;
+                      const q1Selected = session.userAnswers[question1.id] || null;
+                      const q1Checked = session.checkedAnswers[question1.id] || [];
+                      const isChecked = q1Checked.includes(answerNum);
+                      const isCorrectAnswer = answerNum === question1.correctAnswer;
+                      const isSelected = q1Selected === answerNum;
+                      const q1CanAttempt = q1Checked.length < 1;
+
+                      let btnClass = "w-full px-3 py-2 text-left rounded-lg border-2 transition-all duration-200 font-medium active:scale-[0.98] text-sm";
+                      if (isChecked) {
+                        btnClass += isCorrectAnswer ? " bg-green-50 border-black text-green-900" : " bg-rose-50 border-rose-500 text-rose-900";
+                      } else if (isSelected) {
+                        btnClass += " bg-sky-50 border-sky-400 text-sky-900";
+                      } else {
+                        btnClass += " bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50";
+                      }
+
+                      return (
+                        <div key={index} className="relative">
+                          <button onClick={() => handleAnswerSelectForQuestion(question1, answerNum)} className={btnClass}>
+                            <div className="flex items-start gap-2" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                              <span className="font-bold shrink-0">({answerNum})</span>
+                              <div className="flex-1 min-w-0">
+                                {answer && <MathText text={answer} className="text-left" />}
+                                {question1.answerImageUrls?.[index] && (
+                                  <img src={question1.answerImageUrls[index]} alt={`Answer ${answerNum}`} className="max-w-full h-auto rounded border border-gray-300 mt-1" />
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                          {isSelected && !isChecked && q1CanAttempt && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleCheckAnswerForQuestion(question1, answerNum); }}
+                              className="absolute right-2 top-2 px-2 py-1 bg-black hover:bg-gray-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-md transition-all"
+                            >
+                              CHECK
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Question 2 */}
+                <div className="pl-4">
+                  <div className="text-xs font-bold text-gray-500 mb-2">Q{questions.findIndex(q => q.id === question2.id) + 1}</div>
+                  {/* Q2 Question Card */}
+                  {(question2.imageFilename || question2.questionText) && (
+                    <div className="mb-3">
+                      {question2.imageFilename && (
+                        <div className="w-full">
+                          <img src={question2.imageFilename} alt="Question" className="w-full h-auto max-h-48 object-contain rounded-lg" />
+                        </div>
+                      )}
+                      {question2.questionText && (
+                        <div className={question2.imageFilename ? "mt-2" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
+                          <MathText text={question2.questionText} className="leading-relaxed" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Q2 Answers */}
+                  <div className="space-y-2 relative z-[60]" style={{ pointerEvents: 'auto' }}>
+                    {question2.answers.map((answer, index) => {
+                      const answerNum = index + 1;
+                      const q2Selected = session.userAnswers[question2.id] || null;
+                      const q2Checked = session.checkedAnswers[question2.id] || [];
+                      const isChecked = q2Checked.includes(answerNum);
+                      const isCorrectAnswer = answerNum === question2.correctAnswer;
+                      const isSelected = q2Selected === answerNum;
+                      const q2CanAttempt = q2Checked.length < 1;
+
+                      let btnClass = "w-full px-3 py-2 text-left rounded-lg border-2 transition-all duration-200 font-medium active:scale-[0.98] text-sm";
+                      if (isChecked) {
+                        btnClass += isCorrectAnswer ? " bg-green-50 border-black text-green-900" : " bg-rose-50 border-rose-500 text-rose-900";
+                      } else if (isSelected) {
+                        btnClass += " bg-sky-50 border-sky-400 text-sky-900";
+                      } else {
+                        btnClass += " bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50";
+                      }
+
+                      return (
+                        <div key={index} className="relative">
+                          <button onClick={() => handleAnswerSelectForQuestion(question2, answerNum)} className={btnClass}>
+                            <div className="flex items-start gap-2" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                              <span className="font-bold shrink-0">({answerNum})</span>
+                              <div className="flex-1 min-w-0">
+                                {answer && <MathText text={answer} className="text-left" />}
+                                {question2.answerImageUrls?.[index] && (
+                                  <img src={question2.answerImageUrls[index]} alt={`Answer ${answerNum}`} className="max-w-full h-auto rounded border border-gray-300 mt-1" />
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                          {isSelected && !isChecked && q2CanAttempt && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleCheckAnswerForQuestion(question2, answerNum); }}
+                              className="absolute right-2 top-2 px-2 py-1 bg-black hover:bg-gray-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-md transition-all"
+                            >
+                              CHECK
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* SINGLE QUESTION LAYOUT (original) */}
+              {/* Shared Passage (for grouped questions) */}
+              {currentQuestion.passage && (currentQuestion.passage.passageText || currentQuestion.passage.passageImageUrl) && (
+                <div className="mb-4 p-4 bg-gray-50 border-2 border-gray-200 rounded-xl">
+                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Passage</div>
+                  {currentQuestion.passage.passageImageUrl && (
+                    <div className="mb-3">
+                      <img
+                        src={currentQuestion.passage.passageImageUrl}
+                        alt="Passage"
+                        className="w-full h-auto max-h-80 object-contain rounded-lg"
+                      />
+                    </div>
+                  )}
+                  {currentQuestion.passage.passageText && (
+                    <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
+                      <MathText
+                        text={currentQuestion.passage.passageText}
+                        className="leading-relaxed text-gray-800"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Question Card - Image and/or Text */}
+              {(currentQuestion.imageFilename || currentQuestion.questionText) && (
+                <div className="mb-3">
+                  {currentQuestion.imageFilename && (
+                    <div className="w-full">
+                      <img
+                        src={currentQuestion.imageFilename}
+                        alt="Question"
+                        className="w-full h-auto max-h-64 object-contain rounded-lg"
+                      />
+                    </div>
+                  )}
+                  {currentQuestion.questionText && (
+                    <div className={currentQuestion.imageFilename ? "mt-4" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
+                      <MathText
+                        text={currentQuestion.questionText}
+                        className="leading-relaxed"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Embedded Graphing Tool */}
+              {showGraphingTool && (
+                <div className="mb-4 border-2 border-blue-200 rounded-xl overflow-hidden bg-white max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
+                  {/* Graph Header */}
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 border-b border-blue-200">
+                    <span className="text-xs font-bold text-blue-900">Graph</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setSession((prev) => {
+                            if (!prev) return prev;
+                            const newGraphs = { ...prev.graphs };
+                            delete newGraphs[currentQuestion.id];
+                            return { ...prev, graphs: newGraphs };
+                          });
+                          setGraphClearKey(prev => prev + 1);
+                        }}
+                        className="p-0.5 rounded hover:bg-red-50 active:scale-95 transition-all"
+                        title="Clear graph"
+                      >
+                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setShowGraphingTool(false)}
+                        className="p-0.5 rounded hover:bg-blue-100 transition-colors"
+                        title="Close graph"
+                      >
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ height: '380px' }}>
+                    <GraphingTool
+                      key={`${currentQuestion.id}-${graphClearKey}`}
+                      initialData={session.graphs?.[currentQuestion.id] || DEFAULT_GRAPH_DATA}
+                      onChange={(data: GraphData) => {
+                        setSession((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            graphs: {
+                              ...prev.graphs,
+                              [currentQuestion.id]: data,
+                            },
+                          };
+                        });
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Answer Choices */}
+              <div
+                className={`mb-6 relative ${
+                  currentQuestion.answerLayout === 'grid'
+                    ? 'grid grid-cols-2 gap-2'
+                    : 'space-y-2'
+                }`}
+                style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}
+              >
+                {currentQuestion.answers.map((answer, index) => {
+                  const answerNum = index + 1;
+                  const isChecked = checkedAnswers.includes(answerNum);
+                  const isCorrectAnswer =
+                    answerNum === currentQuestion.correctAnswer;
+                  const isSelected = selectedAnswer === answerNum;
+
+                  let buttonClass =
+                    "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 font-medium active:scale-[0.98]";
+
+                  if (isChecked) {
+                    if (isCorrectAnswer) {
+                      buttonClass += " bg-green-50 border-black text-green-900";
+                    } else {
+                      buttonClass += " bg-rose-50 border-rose-500 text-rose-900";
+                    }
+                  } else if (isSelected) {
+                    buttonClass += " bg-sky-50 border-sky-400 text-sky-900";
+                  } else {
+                    buttonClass +=
+                      " bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50";
+                  }
+
+                  const answerImage = currentQuestion.answerImageUrls?.[index];
+                  const gridOrder = currentQuestion.answerLayout === 'grid'
+                    ? [0, 2, 1, 3][index]
+                    : index;
+
+                  return (
+                    <div
+                      key={index}
+                      className="relative group"
+                      style={{ pointerEvents: 'auto', order: gridOrder }}
+                    >
+                      <button
+                        onClick={() => handleAnswerSelect(answerNum)}
+                        className={buttonClass}
+                      >
+                        <div className="flex items-start gap-3" style={{ fontSize: '1.125rem' }}>
+                          <span className="font-bold shrink-0 leading-normal" style={{ fontFamily: "'Times New Roman', Times, serif" }}>({answerNum})</span>
+                          <div className="flex-1 min-w-0 overflow-hidden" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                            {answer && (
+                              <div className="break-words overflow-wrap-anywhere">
+                                <MathText text={answer} className="text-left" />
+                              </div>
+                            )}
+                            {answerImage && (
+                              <img
+                                src={answerImage}
+                                alt={`Answer ${answerNum}`}
+                                className="max-w-full h-auto rounded border border-gray-300 mt-2"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </button>
+
+                      {isSelected && !isChecked && canAttempt && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCheckAnswer(answerNum);
+                          }}
+                          className="absolute right-3 top-3 px-3 py-1.5 bg-black hover:bg-gray-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-md transition-all"
+                        >
+                          CHECK
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
             {/* Calculator on Mobile - inline below answers */}
             {showCalculator && (
@@ -1063,6 +1429,18 @@ function QuizPageContent() {
                 const checkedArray = session.checkedAnswers[q.id] || [];
                 const isChecked = checkedArray.length > 0;
 
+                // Check if this question is part of a group
+                const hasPassage = !!q.passageId;
+                const siblingQ = hasPassage
+                  ? questions.find((sq) => sq.id !== q.id && sq.passageId === q.passageId)
+                  : null;
+                const siblingIdx = siblingQ ? questions.findIndex((sq) => sq.id === siblingQ.id) : -1;
+                const isFirstInPair = siblingIdx > index;
+                const isPartOfCurrentGroup = siblingQ && (
+                  index === session.currentQuestionIndex ||
+                  siblingIdx === session.currentQuestionIndex
+                );
+
                 // In practice mode, mark based on selection; in test mode, only mark if checked
                 const isCorrectAnswer = userAnswer === q.correctAnswer;
                 const shouldShowResult = isPracticeMode ? isAnswered : isChecked;
@@ -1074,7 +1452,7 @@ function QuizPageContent() {
                   : session.markedForReview[q.id] || false;
 
                 let bgClass = "bg-white border-2 border-gray-200 text-gray-700";
-                if (isCurrent) {
+                if (isCurrent || isPartOfCurrentGroup) {
                   bgClass = "bg-slate-700 border-slate-700 text-white";
                 } else if (shouldShowResult) {
                   if (isCorrect) {
@@ -1085,6 +1463,9 @@ function QuizPageContent() {
                 } else if (isAnswered) {
                   bgClass = "bg-gray-100 border-gray-300 text-gray-600";
                 }
+
+                // For grouped questions, navigate to the first question in the pair
+                const targetIndex = hasPassage && !isFirstInPair && siblingIdx !== -1 ? siblingIdx : index;
 
                 return (
                   <button
@@ -1097,7 +1478,7 @@ function QuizPageContent() {
                         if (!prev) return prev;
                         return {
                           ...prev,
-                          currentQuestionIndex: index,
+                          currentQuestionIndex: targetIndex,
                           lastQuestionStartTime: Date.now(),
                           questionTimes: {
                             ...prev.questionTimes,
@@ -1110,7 +1491,7 @@ function QuizPageContent() {
                       setShowAllQuestions(false);
                     }}
                     className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass}`}
-                    title={`Question ${index + 1}${
+                    title={`Question ${index + 1}${hasPassage ? " (Grouped)" : ""}${
                       isMarked ? " (Marked for review)" : ""
                     }`}
                   >
@@ -1268,13 +1649,35 @@ function QuizPageContent() {
       <ExplanationSlider
         isOpen={showExplanation}
         onClose={() => setShowExplanation(false)}
-        explanationText={currentQuestion.explanation}
-        explanationImageUrl={currentQuestion.explanationImageUrl}
+        explanationText={question1?.explanation || currentQuestion.explanation}
+        explanationImageUrl={question1?.explanationImageUrl || currentQuestion.explanationImageUrl}
         correctAnswer={
-          currentQuestion.answers[currentQuestion.correctAnswer - 1]
+          question1
+            ? question1.answers[question1.correctAnswer - 1]
+            : currentQuestion.answers[currentQuestion.correctAnswer - 1]
         }
-        isCorrect={isCorrect}
-        hasAnswered={checkedAnswers.length > 0}
+        isCorrect={
+          question1
+            ? (session.userAnswers[question1.id] === question1.correctAnswer)
+            : isCorrect
+        }
+        hasAnswered={
+          question1
+            ? (session.checkedAnswers[question1.id]?.length > 0)
+            : checkedAnswers.length > 0
+        }
+        additionalExplanations={
+          isGroupedQuestion && question2
+            ? [{
+                questionNumber: 2,
+                explanationText: question2.explanation,
+                explanationImageUrl: question2.explanationImageUrl,
+                correctAnswer: question2.answers[question2.correctAnswer - 1],
+                isCorrect: session.userAnswers[question2.id] === question2.correctAnswer,
+                hasAnswered: (session.checkedAnswers[question2.id]?.length || 0) > 0,
+              }]
+            : undefined
+        }
       />
 
       {/* Reference Image Modal - Shows default PDF if no specific reference */}
