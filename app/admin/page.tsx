@@ -4065,48 +4065,41 @@ export default function AdminPage() {
                     <h3 className="text-sm font-medium text-gray-700 mb-2">
                       Preview ({csvPreview.length} questions)
                     </h3>
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <div className="max-h-80 overflow-y-auto">
-                          <table className="w-full text-xs" style={{ minWidth: '1200px' }}>
-                            <thead className="bg-gray-50 sticky top-0 z-10">
-                              <tr>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap">#</th>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap" style={{ minWidth: '200px' }}>Question</th>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap" style={{ minWidth: '120px' }}>Choice 1</th>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap" style={{ minWidth: '120px' }}>Choice 2</th>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap" style={{ minWidth: '120px' }}>Choice 3</th>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap" style={{ minWidth: '120px' }}>Choice 4</th>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap">Correct</th>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap">Pts</th>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap">Difficulty</th>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap" style={{ minWidth: '100px' }}>Skill</th>
-                                <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap" style={{ minWidth: '150px' }}>Tags</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {csvPreview.map((q, i) => (
-                                <tr
-                                  key={i}
-                                  className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-                                >
-                                  <td className="px-3 py-2 text-gray-500 border-b border-gray-100">{i + 1}</td>
-                                  <td className="px-3 py-2 text-gray-900 border-b border-gray-100">{q.question_text}</td>
-                                  <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[0] || '-'}</td>
-                                  <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[1] || '-'}</td>
-                                  <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[2] || '-'}</td>
-                                  <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[3] || '-'}</td>
-                                  <td className="px-3 py-2 text-gray-600 font-medium border-b border-gray-100">{q.correct_answer}</td>
-                                  <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.points}</td>
-                                  <td className="px-3 py-2 text-gray-600 capitalize border-b border-gray-100">{q.difficulty || '-'}</td>
-                                  <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.skills[0] || '-'}</td>
-                                  <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.tags.length > 0 ? q.tags.join(', ') : '-'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
+                    <div className="border border-gray-200 rounded-lg overflow-auto max-h-80">
+                      <table className="text-xs border-collapse" style={{ minWidth: '1400px', width: '100%' }}>
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '40px' }}>#</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '250px' }}>Question</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '150px' }}>Choice 1</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '150px' }}>Choice 2</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '150px' }}>Choice 3</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '150px' }}>Choice 4</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '60px' }}>Correct</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '40px' }}>Pts</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '80px' }}>Difficulty</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '120px' }}>Skill</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '200px' }}>Tags</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {csvPreview.map((q, i) => (
+                            <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                              <td className="px-3 py-2 text-gray-500 border-b border-gray-100">{i + 1}</td>
+                              <td className="px-3 py-2 text-gray-900 border-b border-gray-100">{q.question_text}</td>
+                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[0] || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[1] || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[2] || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[3] || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600 font-medium border-b border-gray-100">{q.correct_answer}</td>
+                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.points}</td>
+                              <td className="px-3 py-2 text-gray-600 capitalize border-b border-gray-100">{q.difficulty || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.skills[0] || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.tags.length > 0 ? q.tags.join(', ') : '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
