@@ -146,6 +146,10 @@ export default function AdminPage() {
       question_text: string;
       answers: string[];
       correct_answer: number;
+      points: number;
+      difficulty: 'easy' | 'medium' | 'hard' | null;
+      skills: string[];
+      tags: string[];
     }>
   >([]);
   const [csvError, setCsvError] = useState<string | null>(null);
@@ -508,7 +512,9 @@ export default function AdminPage() {
     setShowTestModal(true);
   };
 
-  // CSV parsing function
+  // CSV parsing function - supports two formats:
+  // Format 1 (old): Question, 1, 2, 3, 4, Correct
+  // Format 2 (new): question_number, question_text, choice_1-4, correct_answer, Points, difficulty_level, Main Skill, [tags...]
   const parseCSV = (text: string) => {
     const lines = text
       .split("\n")
@@ -518,35 +524,8 @@ export default function AdminPage() {
       throw new Error("CSV must have a header row and at least one data row");
     }
 
-    // Parse header to find column indices
-    const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-    const questionIdx = header.findIndex((h) => h === "question");
-    const correctIdx = header.findIndex((h) => h === "correct");
-
-    // Find answer columns (1, 2, 3, 4)
-    const answerIndices = [
-      header.findIndex((h) => h === "1"),
-      header.findIndex((h) => h === "2"),
-      header.findIndex((h) => h === "3"),
-      header.findIndex((h) => h === "4"),
-    ];
-
-    if (questionIdx === -1)
-      throw new Error('CSV must have a "Question" column');
-    if (correctIdx === -1) throw new Error('CSV must have a "Correct" column');
-    if (answerIndices.some((i) => i === -1))
-      throw new Error('CSV must have columns "1", "2", "3", "4" for answers');
-
-    const questions: Array<{
-      question_text: string;
-      answers: string[];
-      correct_answer: number;
-    }> = [];
-
-    // Parse each data row
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      // Handle CSV with commas inside quoted fields
+    // Parse header row with quote handling
+    const parseRow = (line: string): string[] => {
       const values: string[] = [];
       let current = "";
       let inQuotes = false;
@@ -562,11 +541,103 @@ export default function AdminPage() {
           current += char;
         }
       }
-      values.push(current.trim()); // Push last value
+      values.push(current.trim());
+      return values;
+    };
+
+    const headerRow = parseRow(lines[0]);
+    const header = headerRow.map((h) => h.trim().toLowerCase());
+
+    // Detect format based on header columns
+    const isNewFormat = header.includes("question_text") || header.includes("choice_1");
+
+    let questionIdx: number;
+    let correctIdx: number;
+    let answerIndices: number[];
+    let pointsIdx = -1;
+    let difficultyIdx = -1;
+    let mainSkillIdx = -1;
+    let tagStartIdx = -1;
+
+    if (isNewFormat) {
+      // New format: question_text, choice_1-4, correct_answer, Points, difficulty_level, Main Skill, [tags...]
+      questionIdx = header.findIndex((h) => h === "question_text");
+      correctIdx = header.findIndex((h) => h === "correct_answer");
+      answerIndices = [
+        header.findIndex((h) => h === "choice_1"),
+        header.findIndex((h) => h === "choice_2"),
+        header.findIndex((h) => h === "choice_3"),
+        header.findIndex((h) => h === "choice_4"),
+      ];
+      pointsIdx = header.findIndex((h) => h === "points");
+      difficultyIdx = header.findIndex((h) => h === "difficulty_level");
+      mainSkillIdx = header.findIndex((h) => h === "main skill");
+
+      // All columns after Main Skill are tags
+      if (mainSkillIdx !== -1) {
+        tagStartIdx = mainSkillIdx + 1;
+      }
+    } else {
+      // Old format: Question, 1, 2, 3, 4, Correct
+      questionIdx = header.findIndex((h) => h === "question");
+      correctIdx = header.findIndex((h) => h === "correct");
+      answerIndices = [
+        header.findIndex((h) => h === "1"),
+        header.findIndex((h) => h === "2"),
+        header.findIndex((h) => h === "3"),
+        header.findIndex((h) => h === "4"),
+      ];
+    }
+
+    if (questionIdx === -1)
+      throw new Error('CSV must have a "Question" or "question_text" column');
+    if (correctIdx === -1)
+      throw new Error('CSV must have a "Correct" or "correct_answer" column');
+    if (answerIndices.some((i) => i === -1))
+      throw new Error('CSV must have answer columns (1-4 or choice_1-4)');
+
+    const questions: Array<{
+      question_text: string;
+      answers: string[];
+      correct_answer: number;
+      points: number;
+      difficulty: 'easy' | 'medium' | 'hard' | null;
+      skills: string[];
+      tags: string[];
+    }> = [];
+
+    // Parse each data row
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseRow(lines[i]);
 
       const questionText = values[questionIdx] || "";
       const answers = answerIndices.map((idx) => values[idx] || "");
       const correctAnswer = parseInt(values[correctIdx]) || 1;
+
+      // Parse new format fields
+      const points = pointsIdx !== -1 ? parseInt(values[pointsIdx]) || 1 : 1;
+      const difficultyRaw = difficultyIdx !== -1 ? values[difficultyIdx]?.toLowerCase() : null;
+      const difficulty: 'easy' | 'medium' | 'hard' | null =
+        difficultyRaw === 'easy' ? 'easy' :
+        difficultyRaw === 'medium' ? 'medium' :
+        difficultyRaw === 'hard' ? 'hard' : null;
+
+      // Main Skill goes into skills array
+      const skills: string[] = [];
+      if (mainSkillIdx !== -1 && values[mainSkillIdx]?.trim()) {
+        skills.push(values[mainSkillIdx].trim());
+      }
+
+      // All columns after Main Skill are tags
+      const tags: string[] = [];
+      if (tagStartIdx !== -1) {
+        for (let t = tagStartIdx; t < values.length; t++) {
+          const tagValue = values[t]?.trim();
+          if (tagValue) {
+            tags.push(tagValue);
+          }
+        }
+      }
 
       if (!questionText.trim()) continue; // Skip empty rows
 
@@ -574,6 +645,10 @@ export default function AdminPage() {
         question_text: questionText,
         answers,
         correct_answer: correctAnswer,
+        points,
+        difficulty,
+        skills,
+        tags,
       });
     }
 
@@ -630,10 +705,10 @@ export default function AdminPage() {
         correct_answer: q.correct_answer,
         explanation_text: "See solution in your notes.",
         explanation_image_url: null,
-        skills: [],
-        tags: [],
-        difficulty: null,
-        points: 1,
+        skills: q.skills,
+        tags: q.tags,
+        difficulty: q.difficulty,
+        points: q.points,
         passage_id: null,
         display_order: questions.length + index + 1,
       }));
@@ -3954,7 +4029,7 @@ export default function AdminPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Format: Problem, Question, 1, 2, 3, 4, Correct
+                    Format: question_text, choice_1-4, correct_answer, Points, difficulty_level, Main Skill, [tags...]
                   </p>
                 </div>
 
@@ -3993,14 +4068,26 @@ export default function AdminPage() {
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
                       {/* Fixed Header */}
                       <div className="grid grid-cols-12 bg-gray-50 border-b border-gray-200">
-                        <div className="col-span-1 px-3 py-2 text-left text-xs font-bold text-gray-700">
+                        <div className="col-span-1 px-2 py-2 text-left text-xs font-bold text-gray-700">
                           #
                         </div>
-                        <div className="col-span-7 px-3 py-2 text-left text-xs font-bold text-gray-700">
+                        <div className="col-span-4 px-2 py-2 text-left text-xs font-bold text-gray-700">
                           Question
                         </div>
-                        <div className="col-span-4 px-3 py-2 text-left text-xs font-bold text-gray-700">
+                        <div className="col-span-2 px-2 py-2 text-left text-xs font-bold text-gray-700">
                           Correct
+                        </div>
+                        <div className="col-span-1 px-2 py-2 text-left text-xs font-bold text-gray-700">
+                          Pts
+                        </div>
+                        <div className="col-span-1 px-2 py-2 text-left text-xs font-bold text-gray-700">
+                          Diff
+                        </div>
+                        <div className="col-span-1 px-2 py-2 text-left text-xs font-bold text-gray-700">
+                          Skill
+                        </div>
+                        <div className="col-span-2 px-2 py-2 text-left text-xs font-bold text-gray-700">
+                          Tags
                         </div>
                       </div>
                       {/* Scrollable Body */}
@@ -4010,15 +4097,26 @@ export default function AdminPage() {
                             key={i}
                             className={`grid grid-cols-12 border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
                           >
-                            <div className="col-span-1 px-3 py-2 text-sm text-gray-500">
+                            <div className="col-span-1 px-2 py-2 text-xs text-gray-500">
                               {i + 1}
                             </div>
-                            <div className="col-span-7 px-3 py-2 text-sm text-gray-900 truncate">
+                            <div className="col-span-4 px-2 py-2 text-xs text-gray-900 truncate">
                               {q.question_text}
                             </div>
-                            <div className="col-span-4 px-3 py-2 text-sm text-gray-600 truncate">
-                              ({q.correct_answer}){" "}
-                              {q.answers[q.correct_answer - 1]}
+                            <div className="col-span-2 px-2 py-2 text-xs text-gray-600 truncate">
+                              ({q.correct_answer}) {q.answers[q.correct_answer - 1]}
+                            </div>
+                            <div className="col-span-1 px-2 py-2 text-xs text-gray-600">
+                              {q.points}
+                            </div>
+                            <div className="col-span-1 px-2 py-2 text-xs text-gray-600 truncate">
+                              {q.difficulty || '-'}
+                            </div>
+                            <div className="col-span-1 px-2 py-2 text-xs text-gray-600 truncate">
+                              {q.skills[0] || '-'}
+                            </div>
+                            <div className="col-span-2 px-2 py-2 text-xs text-gray-600 truncate">
+                              {q.tags.length > 0 ? q.tags.join(', ') : '-'}
                             </div>
                           </div>
                         ))}
