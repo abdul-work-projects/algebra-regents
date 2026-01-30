@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import chromium from '@sparticuz/chromium-min';
 
 export const maxDuration = 60; // Allow up to 60 seconds for PDF generation
 
@@ -14,14 +14,18 @@ const LOCAL_CHROME_PATHS = {
   linux: '/usr/bin/google-chrome',
 };
 
+// Chromium binary URL for serverless (Vercel)
+// Using the official @sparticuz/chromium releases
+const CHROMIUM_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar';
+
 const getExecutablePath = async () => {
   if (isDev) {
     // Use local Chrome for development
     const platform = process.platform as keyof typeof LOCAL_CHROME_PATHS;
     return LOCAL_CHROME_PATHS[platform] || LOCAL_CHROME_PATHS.linux;
   }
-  // Use serverless chromium for production (Vercel)
-  return await chromium.executablePath();
+  // Use serverless chromium for production (Vercel) - downloads binary at runtime
+  return await chromium.executablePath(CHROMIUM_PACK_URL);
 };
 
 export async function POST(request: NextRequest) {
