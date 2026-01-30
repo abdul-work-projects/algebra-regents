@@ -31,8 +31,8 @@ import {
   updateSubject,
   deleteSubject,
   convertToSubjectFormat,
-  fetchAllClusters,
-  fetchAllSkills,
+  fetchAllSkillNames,
+  fetchAllTags,
   createPassageWithQuestions,
   updatePassage,
   linkQuestionsToNewPassage,
@@ -160,8 +160,8 @@ export default function AdminPage() {
   const [filterSubjectId, setFilterSubjectId] = useState<string>("all");
 
   // Autocomplete options for fields
-  const [availableClusters, setAvailableClusters] = useState<string[]>([]);
-  const [availableSkills, setAvailableSkills] = useState<string[]>([]);
+  const [availableSkillNames, setAvailableSkillNames] = useState<string[]>([]);
+  const [availableTagNames, setAvailableTagNames] = useState<string[]>([]);
 
   // Grouped question state (passage-based questions)
   const [isGroupedQuestion, setIsGroupedQuestion] = useState(false);
@@ -228,9 +228,9 @@ export default function AdminPage() {
     const data = await fetchQuestions();
     setQuestions(data);
 
-    // Extract unique topics from all questions
-    const allTopics = data.flatMap((q) => q.topics);
-    const uniqueTags = Array.from(new Set(allTopics)).sort();
+    // Extract unique skills from all questions for autocomplete
+    const allSkills = data.flatMap((q) => q.skills || []);
+    const uniqueTags = Array.from(new Set(allSkills)).sort();
     setAvailableTags(uniqueTags);
 
     // Load question-test mappings
@@ -255,12 +255,12 @@ export default function AdminPage() {
   };
 
   const loadFieldAutocomplete = async () => {
-    const [clusters, skills] = await Promise.all([
-      fetchAllClusters(),
-      fetchAllSkills(),
+    const [skills, tags] = await Promise.all([
+      fetchAllSkillNames(),
+      fetchAllTags(),
     ]);
-    setAvailableClusters(clusters);
-    setAvailableSkills(skills);
+    setAvailableSkillNames(skills);
+    setAvailableTagNames(tags);
   };
 
   // Load test-specific question order when filter changes
@@ -630,10 +630,10 @@ export default function AdminPage() {
         correct_answer: q.correct_answer,
         explanation_text: "See solution in your notes.",
         explanation_image_url: null,
-        topics: [],
+        skills: [],
+        tags: [],
+        difficulty: null,
         points: 1,
-        student_friendly_skill: null,
-        cluster: null,
         passage_id: null,
         display_order: questions.length + index + 1,
       }));
@@ -945,10 +945,10 @@ export default function AdminPage() {
           answer_layout: q1.answer_layout,
           correct_answer: q1.correct_answer,
           explanation_text: q1.explanation_text,
-          topics: q1.topics,
+          skills: q1.skills || [],
+          tags: q1.tags || [],
+          difficulty: q1.difficulty,
           points: q1.points,
-          student_friendly_skill: q1.student_friendly_skill,
-          cluster: q1.cluster,
         });
 
         // Load Q2
@@ -963,10 +963,10 @@ export default function AdminPage() {
           answer_layout: q2.answer_layout,
           correct_answer: q2.correct_answer,
           explanation_text: q2.explanation_text,
-          topics: q2.topics,
+          skills: q2.skills || [],
+          tags: q2.tags || [],
+          difficulty: q2.difficulty,
           points: q2.points,
-          student_friendly_skill: q2.student_friendly_skill,
-          cluster: q2.cluster,
         });
 
         // Load tests for Q1 (both questions should be in same tests)
@@ -994,10 +994,10 @@ export default function AdminPage() {
       answer_layout: question.answer_layout,
       correct_answer: question.correct_answer,
       explanation_text: question.explanation_text,
-      topics: question.topics,
+      skills: question.skills || [],
+      tags: question.tags || [],
+      difficulty: question.difficulty,
       points: question.points,
-      student_friendly_skill: question.student_friendly_skill,
-      cluster: question.cluster,
     });
 
     // Load tests this question belongs to
@@ -1270,10 +1270,10 @@ export default function AdminPage() {
       return;
     }
 
-    if (q1.selectedTopics.length === 0) {
+    if (q1.selectedSkills.length === 0) {
       setNotification({
         type: "error",
-        message: "At least one topic is required",
+        message: "At least one skill is required",
       });
       return;
     }
@@ -1432,10 +1432,10 @@ export default function AdminPage() {
               correct_answer: q1.correctAnswer,
               explanation_text: q1.explanationText,
               explanation_image_url: q1ExplanationImageUrl,
-              topics: q1.selectedTopics,
+              skills: q1.selectedSkills,
+              tags: q1.selectedTags,
+              difficulty: (q1.difficulty as 'easy' | 'medium' | 'hard') || null,
               points: q1.points,
-              student_friendly_skill: q1.studentFriendlySkill.trim() || null,
-              cluster: q1.cluster.trim() || null,
             },
             {
               name: q2.questionName.trim() || null,
@@ -1448,10 +1448,10 @@ export default function AdminPage() {
               correct_answer: q2.correctAnswer,
               explanation_text: q2.explanationText,
               explanation_image_url: q2ExplanationImageUrl,
-              topics: q1.selectedTopics, // Share topics from Q1
+              skills: q1.selectedSkills, // Share skills from Q1
+              tags: q1.selectedTags, // Share tags from Q1
+              difficulty: (q1.difficulty as 'easy' | 'medium' | 'hard') || null, // Share difficulty from Q1
               points: q2.points,
-              student_friendly_skill: q2.studentFriendlySkill.trim() || null,
-              cluster: q2.cluster.trim() || null,
             },
           ],
         );
@@ -1584,10 +1584,10 @@ export default function AdminPage() {
           correct_answer: q1.correctAnswer,
           explanation_text: q1.explanationText,
           explanation_image_url: q1ExplanationImageUrl || null,
-          topics: q1.selectedTopics,
+          skills: q1.selectedSkills,
+          tags: q1.selectedTags,
+          difficulty: (q1.difficulty as 'easy' | 'medium' | 'hard') || null,
           points: q1.points,
-          student_friendly_skill: q1.studentFriendlySkill.trim() || null,
-          cluster: q1.cluster.trim() || null,
         });
 
         // Update Q2
@@ -1602,10 +1602,10 @@ export default function AdminPage() {
           correct_answer: q2.correctAnswer,
           explanation_text: q2.explanationText,
           explanation_image_url: q2ExplanationImageUrl || null,
-          topics: q1.selectedTopics, // Share topics from Q1
+          skills: q1.selectedSkills, // Share skills from Q1
+          tags: q1.selectedTags, // Share tags from Q1
+          difficulty: (q1.difficulty as 'easy' | 'medium' | 'hard') || null, // Share difficulty from Q1
           points: q2.points,
-          student_friendly_skill: q2.studentFriendlySkill.trim() || null,
-          cluster: q2.cluster.trim() || null,
         });
 
         if (q1Result && q2Result) {
@@ -1684,10 +1684,10 @@ export default function AdminPage() {
           correct_answer: q1.correctAnswer,
           explanation_text: q1.explanationText,
           explanation_image_url: explanationImageUrl,
-          topics: q1.selectedTopics,
+          skills: q1.selectedSkills,
+          tags: q1.selectedTags,
+          difficulty: (q1.difficulty as 'easy' | 'medium' | 'hard') || null,
           points: q1.points,
-          student_friendly_skill: q1.studentFriendlySkill.trim() || null,
-          cluster: q1.cluster.trim() || null,
           passage_id: null,
         };
 
@@ -2341,10 +2341,10 @@ export default function AdminPage() {
                                         {testNamesMap[report.test_id]}
                                       </span>
                                     )}
-                                  {question.topics &&
-                                    question.topics.length > 0 && (
+                                  {question.skills &&
+                                    question.skills.length > 0 && (
                                       <span className="px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 rounded">
-                                        {question.topics.join(", ")}
+                                        {question.skills.join(", ")}
                                       </span>
                                     )}
                                 </div>
@@ -2453,7 +2453,7 @@ export default function AdminPage() {
                         return (
                           q.name?.toLowerCase().includes(query) ||
                           q.question_text?.toLowerCase().includes(query) ||
-                          q.topics.some((t) =>
+                          (q.skills || []).some((t) =>
                             t.toLowerCase().includes(query),
                           ) ||
                           q.answers.some((a) =>
@@ -2607,7 +2607,7 @@ export default function AdminPage() {
                           return (
                             q.name?.toLowerCase().includes(query) ||
                             q.question_text?.toLowerCase().includes(query) ||
-                            q.topics.some((t) =>
+                            (q.skills || []).some((t) =>
                               t.toLowerCase().includes(query),
                             ) ||
                             q.answers.some((a) =>
@@ -2762,7 +2762,7 @@ export default function AdminPage() {
                                     </p>
                                   )}
                                   <p className="text-xs text-gray-600 truncate">
-                                    {question.topics.join(", ")}
+                                    {(question.skills || []).join(", ")}
                                   </p>
                                   {/* Test badges */}
                                   {questionTestMap[question.id]?.length > 0 && (
@@ -3748,71 +3748,61 @@ export default function AdminPage() {
                   />
                 </div>
 
-                {/* Topics */}
+                {/* Skills */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Topics <span className="text-red-500">*</span>
+                    Skills <span className="text-red-500">*</span>
                   </label>
                   <TagInput
-                    selectedTags={currentForm.state.selectedTopics}
+                    selectedTags={currentForm.state.selectedSkills}
                     availableTags={availableTags}
                     onChange={(tags) =>
-                      currentForm.setField("selectedTopics", tags)
+                      currentForm.setField("selectedSkills", tags)
                     }
-                    placeholder="Type to search or add new topics (e.g., Algebra, Linear Equations)"
+                    placeholder="Type to search or add new skills (e.g., Linear Equations, Quadratic Functions)"
                   />
-                </div>
-
-                {/* Student Friendly Skill */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Student Friendly Skill
-                  </label>
-                  <input
-                    type="text"
-                    value={currentForm.state.studentFriendlySkill}
-                    onChange={(e) =>
-                      currentForm.setField(
-                        "studentFriendlySkill",
-                        e.target.value,
-                      )
-                    }
-                    list="available-skills"
-                    placeholder="e.g., Solve linear equations with one variable"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  />
-                  <datalist id="available-skills">
-                    {availableSkills.map((skill) => (
-                      <option key={skill} value={skill} />
-                    ))}
-                  </datalist>
                   <p className="text-xs text-gray-500 mt-1">
-                    A clear, student-friendly description of the skill tested
+                    Skills tested by this question
                   </p>
                 </div>
 
-                {/* Cluster */}
+                {/* Tags */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Cluster
+                    Tags
                   </label>
-                  <input
-                    type="text"
-                    value={currentForm.state.cluster}
-                    onChange={(e) =>
-                      currentForm.setField("cluster", e.target.value)
+                  <TagInput
+                    selectedTags={currentForm.state.selectedTags}
+                    availableTags={availableTagNames}
+                    onChange={(tags) =>
+                      currentForm.setField("selectedTags", tags)
                     }
-                    list="available-clusters"
-                    placeholder="e.g., Algebra, Functions, Number & Quantity"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    placeholder="Type to search or add new tags (e.g., Algebra, Functions)"
                   />
-                  <datalist id="available-clusters">
-                    {availableClusters.map((c) => (
-                      <option key={c} value={c} />
-                    ))}
-                  </datalist>
                   <p className="text-xs text-gray-500 mt-1">
-                    Broader category grouping for this question
+                    Broader categorization tags for filtering
+                  </p>
+                </div>
+
+                {/* Difficulty */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Difficulty
+                  </label>
+                  <select
+                    value={currentForm.state.difficulty}
+                    onChange={(e) =>
+                      currentForm.setField("difficulty", e.target.value)
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="">None</option>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Question difficulty level (optional)
                   </p>
                 </div>
 

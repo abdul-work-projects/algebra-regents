@@ -17,10 +17,10 @@ export interface Question {
   correctAnswer: number; // 1-4
   explanation: string;
   explanationImageUrl?: string; // Explanation image URL
-  topics: string[];
+  skills: string[]; // Skills tested by this question (renamed from topics)
+  tags: string[]; // Broader categorization tags
+  difficulty?: 'easy' | 'medium' | 'hard' | null; // Question difficulty level
   points?: number; // Points for this question (default: 2)
-  studentFriendlySkill?: string; // Clear, student-friendly description of the skill tested
-  cluster?: string; // Broader category grouping (e.g., 'Number & Quantity', 'Algebra', 'Functions')
   passageId?: string; // Reference to shared passage for grouped questions
   passage?: Passage; // Joined passage data
 }
@@ -96,13 +96,13 @@ export interface QuizResult {
     correctAnswer: number;
     isCorrect: boolean;
     timeSpent: number;
-    topics: string[];
+    skills: string[]; // Skills tested (renamed from topics)
     points: number;
     firstAttemptAnswer: number | null; // What they answered on first attempt
     missedOnFirstAttempt: boolean; // True if first attempt was wrong
   }[];
-  topicAccuracy: {
-    [topic: string]: {
+  skillAccuracy: {
+    [skill: string]: {
       correct: number;
       total: number;
       percentage: number;

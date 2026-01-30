@@ -230,9 +230,9 @@ export default function ResultsPage() {
             </div>
             <div className="text-center">
               <div className="text-lg font-bold text-gray-900">
-                {Object.keys(result.topicAccuracy).length}
+                {Object.keys(result.skillAccuracy).length}
               </div>
-              <div className="text-xs text-gray-500">Topics</div>
+              <div className="text-xs text-gray-500">Skills</div>
             </div>
             <div className="text-center">
               <div className="text-lg font-bold text-amber-500">
@@ -243,14 +243,14 @@ export default function ResultsPage() {
           </div>
         </div>
 
-        {/* Topic Performance - Collapsible */}
+        {/* Skill Performance - Collapsible */}
         <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-4">
           <button
             onClick={() => setShowTopics(!showTopics)}
             className="w-full flex items-center justify-between text-left"
           >
             <h3 className="text-base font-bold text-gray-900">
-              Performance by Topic
+              Performance by Skill
             </h3>
             <svg
               className={`w-5 h-5 transition-transform ${showTopics ? 'rotate-180' : ''}`}
@@ -263,13 +263,13 @@ export default function ResultsPage() {
           </button>
           {showTopics && (
             <div className="space-y-3 mt-4">
-              {Object.entries(result.topicAccuracy)
+              {Object.entries(result.skillAccuracy)
                 .sort((a, b) => b[1].percentage - a[1].percentage)
-                .map(([topic, stats]) => {
+                .map(([skill, stats]) => {
                   return (
-                    <div key={topic}>
+                    <div key={skill}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-sm text-gray-900">{topic}</span>
+                        <span className="font-medium text-sm text-gray-900">{skill}</span>
                         <span className="text-xs text-gray-500">
                           {stats.correct} / {stats.total} correct ({stats.percentage}%)
                         </span>
@@ -401,25 +401,29 @@ export default function ResultsPage() {
                               </span>
                             )}
                             <span className="text-xs text-gray-500">
-                              {qResult.topics.join(', ')}
+                              {qResult.skills.join(', ')}
                             </span>
                           </div>
 
-                          {/* Skill and Cluster Info */}
-                          {(question.studentFriendlySkill || question.cluster) && (
+                          {/* Tags and Difficulty Info */}
+                          {(question.tags && question.tags.length > 0) || question.difficulty ? (
                             <div className="flex flex-wrap items-center gap-2 mb-2">
-                              {question.cluster && (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700">
-                                  {question.cluster}
+                              {question.tags && question.tags.map(tag => (
+                                <span key={tag} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                                  {tag}
                                 </span>
-                              )}
-                              {question.studentFriendlySkill && (
-                                <span className="text-xs text-gray-600 italic">
-                                  Skill: {question.studentFriendlySkill}
+                              ))}
+                              {question.difficulty && (
+                                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                  question.difficulty === 'easy' ? 'bg-green-50 text-green-700' :
+                                  question.difficulty === 'medium' ? 'bg-yellow-50 text-yellow-700' :
+                                  'bg-red-50 text-red-700'
+                                }`}>
+                                  {question.difficulty.charAt(0).toUpperCase() + question.difficulty.slice(1)}
                                 </span>
                               )}
                             </div>
-                          )}
+                          ) : null}
 
                           {/* View Question Toggle */}
                           <button

@@ -15,10 +15,10 @@ export interface QuestionFormState {
   answerLayout: "grid" | "list";
   correctAnswer: number;
   explanationText: string;
-  selectedTopics: string[];
+  selectedSkills: string[]; // Renamed from selectedTopics
+  selectedTags: string[]; // New field for tags
+  difficulty: string; // 'easy' | 'medium' | 'hard' | '' (empty = none)
   points: number;
-  studentFriendlySkill: string;
-  cluster: string;
 }
 
 const initialState: QuestionFormState = {
@@ -36,10 +36,10 @@ const initialState: QuestionFormState = {
   answerLayout: "list",
   correctAnswer: 1,
   explanationText: "",
-  selectedTopics: [],
+  selectedSkills: [],
+  selectedTags: [],
+  difficulty: "",
   points: 1,
-  studentFriendlySkill: "",
-  cluster: "",
 };
 
 export function useQuestionForm() {
@@ -89,10 +89,10 @@ export function useQuestionForm() {
     answer_layout?: "grid" | "list";
     correct_answer: number;
     explanation_text: string;
-    topics: string[];
+    skills: string[];
+    tags?: string[];
+    difficulty?: 'easy' | 'medium' | 'hard' | null;
     points?: number;
-    student_friendly_skill?: string | null;
-    cluster?: string | null;
   }) => {
     setState({
       questionName: question.name || "",
@@ -109,10 +109,10 @@ export function useQuestionForm() {
       answerLayout: question.answer_layout || "list",
       correctAnswer: question.correct_answer,
       explanationText: question.explanation_text,
-      selectedTopics: question.topics,
+      selectedSkills: question.skills || [],
+      selectedTags: question.tags || [],
+      difficulty: question.difficulty || "",
       points: question.points || 1,
-      studentFriendlySkill: question.student_friendly_skill || "",
-      cluster: question.cluster || "",
     });
   };
 

@@ -129,11 +129,14 @@ function QuizPageContent() {
     const practiceModeFromUrl = searchParams.get('mode');
     const skillFilter = searchParams.get('skill');
     const subjectFilter = searchParams.get('subject');
+    const tagsFilter = searchParams.get('tags'); // Comma-separated tags
+    const difficultyFilter = searchParams.get('difficulty'); // Single difficulty (legacy)
+    const difficultiesFilter = searchParams.get('difficulties'); // Comma-separated difficulties (new)
     const existingSession = loadSession();
 
     async function loadQuestionsAndSession() {
       try {
-        // Practice mode - questions filtered by skill or subject
+        // Practice mode - questions filtered by skill, subject, tags, or difficulty
         if (practiceModeFromUrl === 'practice') {
           let filteredQuestions: Question[];
 
@@ -148,9 +151,30 @@ function QuizPageContent() {
           // Further filter by skill if provided
           if (skillFilter) {
             filteredQuestions = filteredQuestions.filter(q =>
-              q.topics.includes(skillFilter)
+              q.skills.includes(skillFilter)
             );
             setPracticeSkill(skillFilter);
+          }
+
+          // Filter by tags if provided (match any)
+          if (tagsFilter) {
+            const tagsToMatch = tagsFilter.split(',').map(t => t.trim());
+            filteredQuestions = filteredQuestions.filter(q =>
+              q.tags && q.tags.some(tag => tagsToMatch.includes(tag))
+            );
+          }
+
+          // Filter by difficulties if provided (multi-select)
+          if (difficultiesFilter) {
+            const difficultiesToMatch = difficultiesFilter.split(',').map(d => d.trim());
+            filteredQuestions = filteredQuestions.filter(q =>
+              q.difficulty && difficultiesToMatch.includes(q.difficulty)
+            );
+          } else if (difficultyFilter && difficultyFilter !== 'all') {
+            // Legacy single difficulty filter
+            filteredQuestions = filteredQuestions.filter(q =>
+              q.difficulty === difficultyFilter
+            );
           }
 
           if (filteredQuestions.length === 0) {
@@ -775,15 +799,15 @@ function QuizPageContent() {
               </button>
             </div>
 
-            {/* Topic Badges */}
-            {currentQuestion.topics.length > 0 && (
+            {/* Skill Badges */}
+            {currentQuestion.skills && currentQuestion.skills.length > 0 && (
               <>
-                {currentQuestion.topics.map((topic, index) => (
+                {currentQuestion.skills.map((skill, index) => (
                   <span
                     key={index}
                     className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200"
                   >
-                    {topic}
+                    {skill}
                   </span>
                 ))}
               </>

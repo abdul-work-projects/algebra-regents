@@ -76,7 +76,7 @@ function generateReportHTML(result: any, test: any, scaledScore: number, questio
   const statusInfo = getStatus(scaledScore);
   const message = getMessage(scaledScore);
 
-  const sortedTopics = Object.entries(result.topicAccuracy)
+  const sortedSkills = Object.entries(result.skillAccuracy)
     .sort((a: any, b: any) => b[1].percentage - a[1].percentage);
 
   const questionResults = result.questionResults.map((qr: any, i: number) => {
@@ -95,7 +95,7 @@ function generateReportHTML(result: any, test: any, scaledScore: number, questio
       ...qr,
       num: i + 1,
       questionText,
-      skills: question?.topics || [],
+      skills: question?.skills || [],
       userAnswerText: userAnswerIndex >= 0 && question?.answers ? question.answers[userAnswerIndex] : '-',
       correctAnswerText: question?.answers ? question.answers[correctAnswerIndex] : '',
     };
@@ -369,8 +369,8 @@ function generateReportHTML(result: any, test: any, scaledScore: number, questio
             <div class="stat-label">Avg. Time</div>
           </div>
           <div class="stat-item">
-            <div class="stat-value">${Object.keys(result.topicAccuracy).length}</div>
-            <div class="stat-label">Topics</div>
+            <div class="stat-value">${Object.keys(result.skillAccuracy).length}</div>
+            <div class="stat-label">Skills</div>
           </div>
           <div class="stat-item">
             <div class="stat-value" style="color: #f59e0b">${result.missedOnFirstAttemptCount}</div>
@@ -380,10 +380,10 @@ function generateReportHTML(result: any, test: any, scaledScore: number, questio
       </div>
 
       <div class="right-column">
-        <div class="section-title">PERFORMANCE BY TOPIC</div>
-        ${sortedTopics.map(([topic, stats]: [string, any]) => `
+        <div class="section-title">PERFORMANCE BY SKILL</div>
+        ${sortedSkills.map(([skill, stats]: [string, any]) => `
           <div class="topic-row">
-            <div class="topic-name">${topic}</div>
+            <div class="topic-name">${skill}</div>
             <div class="topic-bar">
               <div class="topic-fill" style="width: ${stats.percentage}%; background: ${getTopicColor(stats.percentage)}"></div>
             </div>

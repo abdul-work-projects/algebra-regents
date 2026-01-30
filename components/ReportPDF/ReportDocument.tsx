@@ -244,7 +244,7 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
     day: 'numeric',
   });
 
-  const sortedTopics = Object.entries(result.topicAccuracy)
+  const sortedSkills = Object.entries(result.skillAccuracy)
     .sort((a, b) => b[1].percentage - a[1].percentage);
 
   const getColor = (pct: number) => {
@@ -404,8 +404,8 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
                 <Text style={styles.statLabel}>Avg. Time</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{Object.keys(result.topicAccuracy).length}</Text>
-                <Text style={styles.statLabel}>Topics</Text>
+                <Text style={styles.statValue}>{Object.keys(result.skillAccuracy).length}</Text>
+                <Text style={styles.statLabel}>Skills</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: '#f59e0b' }]}>{result.missedOnFirstAttemptCount}</Text>
@@ -414,12 +414,12 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
             </View>
           </View>
 
-          {/* Right: Topics */}
+          {/* Right: Skills */}
           <View style={styles.rightColumn}>
-            <Text style={styles.sectionTitle}>PERFORMANCE BY TOPIC</Text>
-            {sortedTopics.map(([topic, stats]) => (
-              <View key={topic} style={styles.topicRow}>
-                <Text style={styles.topicName}>{topic}</Text>
+            <Text style={styles.sectionTitle}>PERFORMANCE BY SKILL</Text>
+            {sortedSkills.map(([skill, stats]) => (
+              <View key={skill} style={styles.topicRow}>
+                <Text style={styles.topicName}>{skill}</Text>
                 <View style={styles.topicBar}>
                   <View style={[styles.topicFill, { width: `${stats.percentage}%`, backgroundColor: getColor(stats.percentage) }]} />
                 </View>

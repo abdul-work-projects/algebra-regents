@@ -1,7 +1,7 @@
 'use client';
 
-import { loadSession, clearSession, loadMarkedForReview, saveSelectedSubject, loadSelectedSubject, loadSkillProgress } from '@/lib/storage';
-import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchQuestionsForSubject, fetchAllClusters, fetchTestMetadata, TestMetadata } from '@/lib/supabase';
+import { loadSession, clearSession, loadMarkedForReview, saveSelectedSubject, loadSelectedSubject, loadSkillProgress, AllSkillProgress } from '@/lib/storage';
+import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchQuestionsForSubject, fetchAllTags } from '@/lib/supabase';
 import { Test, Question, Subject } from '@/lib/types';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -16,16 +16,9 @@ interface SkillInfo {
   correctCount: number;
 }
 
-interface ClusterInfo {
-  name: string;
-  questionCount: number;
-  skills: SkillInfo[];
-}
-
-interface SubjectData {
+interface SubjectQuestionsData {
   subject: Subject;
-  clusters: ClusterInfo[];
-  totalQuestions: number;
+  questions: Question[];
 }
 
 function HomeContent() {
@@ -37,16 +30,20 @@ function HomeContent() {
     tabParam === 'question-bank' ? 'question-bank' : 'full-length-tests'
   );
   const [tests, setTests] = useState<Test[]>([]);
-  const [subjectDataList, setSubjectDataList] = useState<SubjectData[]>([]);
+  const [subjectQuestionsData, setSubjectQuestionsData] = useState<SubjectQuestionsData[]>([]);
+  const [markedQuestions, setMarkedQuestions] = useState<Set<string>>(new Set());
+  const [skillProgress, setSkillProgress] = useState<AllSkillProgress>({});
   const [isLoading, setIsLoading] = useState(true);
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all');
-  const [allClusters, setAllClusters] = useState<string[]>([]);
-  const [selectedCluster, setSelectedCluster] = useState<string>('all');
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
   const [skillSearch, setSkillSearch] = useState<string>('');
-  const [testMetadata, setTestMetadata] = useState<TestMetadata[]>([]);
+  const [tagsDropdownOpen, setTagsDropdownOpen] = useState(false);
+  const [difficultyDropdownOpen, setDifficultyDropdownOpen] = useState(false);
 
   // Sync tab with URL parameter
   useEffect(() => {
@@ -77,89 +74,34 @@ function HomeContent() {
 
     async function loadData() {
       try {
-        const [dbTests, dbSubjects, clusters, metadata] = await Promise.all([
+        const [dbTests, dbSubjects, tags] = await Promise.all([
           fetchActiveTests(),
           fetchActiveSubjects(),
-          fetchAllClusters(),
-          fetchTestMetadata(),
+          fetchAllTags(),
         ]);
 
         const formattedSubjects = dbSubjects.map(convertToSubjectFormat);
         setTests(dbTests.map(convertToTestFormat));
         setSubjects(formattedSubjects);
-        setAllClusters(clusters);
-        setTestMetadata(metadata);
+        setAllTags(tags);
 
         // Load marked for review questions and skill progress
-        const markedQuestions = loadMarkedForReview();
-        const skillProgress = loadSkillProgress();
+        const loadedMarkedQuestions = loadMarkedForReview();
+        const loadedSkillProgress = loadSkillProgress();
+        setMarkedQuestions(loadedMarkedQuestions);
+        setSkillProgress(loadedSkillProgress);
 
-        // Fetch questions for each subject and build clusters
+        // Fetch questions for each subject
         const subjectDataPromises = formattedSubjects.map(async (subject) => {
           const questions = await fetchQuestionsForSubject(subject.id);
-
-          // Build clusters from questions
-          const clusterMap = new Map<string, Map<string, { questionIds: Set<string> }>>();
-
-          questions.forEach(q => {
-            const clusterName = q.cluster || 'Other';
-
-            if (!clusterMap.has(clusterName)) {
-              clusterMap.set(clusterName, new Map());
-            }
-
-            q.topics.forEach(topic => {
-              const skillsInCluster = clusterMap.get(clusterName)!;
-              if (!skillsInCluster.has(topic)) {
-                skillsInCluster.set(topic, { questionIds: new Set() });
-              }
-              skillsInCluster.get(topic)!.questionIds.add(q.id);
-            });
-          });
-
-          // Convert to ClusterInfo array
-          const clusters: ClusterInfo[] = Array.from(clusterMap.entries())
-            .map(([clusterName, skillsMap]) => {
-              const skills: SkillInfo[] = Array.from(skillsMap.entries())
-                .map(([skillName, data]) => {
-                  const questionIds = Array.from(data.questionIds);
-                  const markedCount = questionIds.filter(id => markedQuestions.has(id)).length;
-                  const progress = skillProgress[skillName];
-                  const correctCount = progress?.correct || 0;
-
-                  return {
-                    name: skillName,
-                    questionCount: data.questionIds.size,
-                    questionIds,
-                    markedCount,
-                    correctCount,
-                  };
-                })
-                .sort((a, b) => a.name.localeCompare(b.name));
-
-              const totalQuestions = skills.reduce((sum, skill) => sum + skill.questionCount, 0);
-
-              return {
-                name: clusterName,
-                questionCount: totalQuestions,
-                skills,
-              };
-            })
-            .sort((a, b) => {
-              if (a.name === 'Other') return 1;
-              if (b.name === 'Other') return -1;
-              return a.name.localeCompare(b.name);
-            });
-
           return {
             subject,
-            clusters,
-            totalQuestions: questions.length,
+            questions,
           };
         });
 
         const subjectData = await Promise.all(subjectDataPromises);
-        setSubjectDataList(subjectData);
+        setSubjectQuestionsData(subjectData);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -183,6 +125,13 @@ function HomeContent() {
     const params = new URLSearchParams();
     params.set('mode', 'practice');
     params.set('skill', skill);
+    // Pass active filters
+    if (selectedTags.length > 0) {
+      params.set('tags', selectedTags.join(','));
+    }
+    if (selectedDifficulties.length > 0) {
+      params.set('difficulties', selectedDifficulties.join(','));
+    }
     window.location.href = `/quiz?${params.toString()}`;
   };
 
@@ -195,6 +144,13 @@ function HomeContent() {
     const params = new URLSearchParams();
     params.set('mode', 'practice');
     params.set('subject', subjectId);
+    // Pass active filters
+    if (selectedTags.length > 0) {
+      params.set('tags', selectedTags.join(','));
+    }
+    if (selectedDifficulties.length > 0) {
+      params.set('difficulties', selectedDifficulties.join(','));
+    }
     window.location.href = `/quiz?${params.toString()}`;
   };
 
@@ -203,41 +159,92 @@ function HomeContent() {
     ? tests
     : tests.filter(test => test.subjectId === selectedSubjectId);
 
-  // Filter question bank data by cluster and skill search
-  const filteredSubjectDataList = subjectDataList.map(subjectData => {
-    const filteredClusters = subjectData.clusters
-      .filter(cluster => {
-        // Cluster filter
-        if (selectedCluster !== 'all' && cluster.name !== selectedCluster) {
+  // Build filtered subject data - filter questions first, then build skills from filtered questions
+  const filteredSubjectDataList = subjectQuestionsData.map(({ subject, questions }) => {
+    // Step 1: Filter questions by tags and difficulty
+    const filteredQuestions = questions.filter(q => {
+      // Tags filter - show if no tags selected OR question has at least one matching tag
+      if (selectedTags.length > 0) {
+        const questionTags = q.tags || [];
+        if (!questionTags.some(tag => selectedTags.includes(tag))) {
           return false;
+        }
+      }
+
+      // Difficulty filter - show if no difficulties selected OR question matches selected difficulty
+      if (selectedDifficulties.length > 0) {
+        const questionDifficulty = q.difficulty || null;
+        if (questionDifficulty === null || !selectedDifficulties.includes(questionDifficulty)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Step 2: Build skills from filtered questions
+    const skillsMap = new Map<string, Set<string>>();
+    filteredQuestions.forEach(q => {
+      (q.skills || []).forEach(skill => {
+        if (!skillsMap.has(skill)) {
+          skillsMap.set(skill, new Set());
+        }
+        skillsMap.get(skill)!.add(q.id);
+      });
+    });
+
+    // Step 3: Convert to SkillInfo array and apply skill name filter
+    const skills: SkillInfo[] = Array.from(skillsMap.entries())
+      .map(([skillName, questionIdSet]) => {
+        const questionIds = Array.from(questionIdSet);
+        const markedCount = questionIds.filter(id => markedQuestions.has(id)).length;
+        const progress = skillProgress[skillName];
+        const correctCount = progress?.correct || 0;
+
+        return {
+          name: skillName,
+          questionCount: questionIdSet.size,
+          questionIds,
+          markedCount,
+          correctCount,
+        };
+      })
+      .filter(skill => {
+        // Skill name search filter
+        if (skillSearch.trim()) {
+          const searchLower = skillSearch.toLowerCase();
+          if (!skill.name.toLowerCase().includes(searchLower)) {
+            return false;
+          }
         }
         return true;
       })
-      .map(cluster => {
-        // Skill search filter within clusters
-        if (!skillSearch.trim()) return cluster;
-
-        const searchLower = skillSearch.toLowerCase();
-        const filteredSkills = cluster.skills.filter(skill =>
-          skill.name.toLowerCase().includes(searchLower)
-        );
-
-        return {
-          ...cluster,
-          skills: filteredSkills,
-          questionCount: filteredSkills.reduce((sum, s) => sum + s.questionCount, 0),
-        };
-      })
-      .filter(cluster => cluster.skills.length > 0); // Remove empty clusters
-
-    const totalQuestions = filteredClusters.reduce((sum, c) => sum + c.questionCount, 0);
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     return {
-      ...subjectData,
-      clusters: filteredClusters,
-      totalQuestions,
+      subject,
+      skills,
+      totalQuestions: filteredQuestions.length,
     };
-  }).filter(subjectData => subjectData.clusters.length > 0); // Remove subjects with no matching content
+  }).filter(subjectData => subjectData.skills.length > 0); // Remove subjects with no matching skills
+
+  // Helper to toggle tag selection
+  const toggleTag = (tagName: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tagName)
+        ? prev.filter(t => t !== tagName)
+        : [...prev, tagName]
+    );
+  };
+
+  // Helper to toggle difficulty selection
+  const toggleDifficulty = (difficulty: string) => {
+    setSelectedDifficulties(prev =>
+      prev.includes(difficulty)
+        ? prev.filter(d => d !== difficulty)
+        : [...prev, difficulty]
+    );
+  };
 
   const existingTest = existingSessionTestId
     ? tests.find((t) => t.id === existingSessionTestId)
@@ -360,81 +367,189 @@ function HomeContent() {
 
               {/* Filters */}
               <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Cluster Filter */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">NYSED Cluster</label>
-                    <select
-                      value={selectedCluster}
-                      onChange={(e) => setSelectedCluster(e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Search Skills */}
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={skillSearch}
+                      onChange={(e) => setSkillSearch(e.target.value)}
+                      placeholder="Search skills..."
+                      className="w-full h-10 px-3 pl-9 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    />
+                    <svg
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <option value="all">All Clusters</option>
-                      {allClusters.map((cluster) => (
-                        <option key={cluster} value={cluster}>
-                          {cluster}
-                        </option>
-                      ))}
-                    </select>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {skillSearch && (
+                      <button
+                        onClick={() => setSkillSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
 
-                  {/* Skill Search */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Search Skills</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={skillSearch}
-                        onChange={(e) => setSkillSearch(e.target.value)}
-                        placeholder="Search student skills..."
-                        className="w-full px-3 py-2 pl-9 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                      />
+                  {/* Tags Filter */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTagsDropdownOpen(!tagsDropdownOpen);
+                        setDifficultyDropdownOpen(false);
+                      }}
+                      className="h-10 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent inline-flex items-center gap-2 whitespace-nowrap"
+                    >
+                      <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      <span>Tags</span>
+                      {selectedTags.length > 0 && (
+                        <span className="bg-black text-white text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                          {selectedTags.length}
+                        </span>
+                      )}
                       <svg
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                        className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${tagsDropdownOpen ? 'rotate-180' : ''}`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
-                      {skillSearch && (
-                        <button
-                          onClick={() => setSkillSearch('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+                    </button>
+                    {tagsDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setTagsDropdownOpen(false)}
+                        />
+                        <div className="absolute right-0 z-20 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                          {allTags.length === 0 ? (
+                            <div className="px-3 py-2 text-sm text-gray-400">No tags available</div>
+                          ) : (
+                            allTags.map((tag) => (
+                              <label
+                                key={tag}
+                                className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTags.includes(tag)}
+                                  onChange={() => toggleTag(tag)}
+                                  className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black"
+                                />
+                                <span className="text-sm text-gray-700">{tag}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Difficulty Filter */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDifficultyDropdownOpen(!difficultyDropdownOpen);
+                        setTagsDropdownOpen(false);
+                      }}
+                      className="h-10 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent inline-flex items-center gap-2 whitespace-nowrap"
+                    >
+                      <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                      </svg>
+                      <span>Difficulty</span>
+                      {selectedDifficulties.length > 0 && (
+                        <span className="bg-black text-white text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                          {selectedDifficulties.length}
+                        </span>
                       )}
-                    </div>
+                      <svg
+                        className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${difficultyDropdownOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {difficultyDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setDifficultyDropdownOpen(false)}
+                        />
+                        <div className="absolute right-0 z-20 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg">
+                          {['easy', 'medium', 'hard'].map((difficulty) => (
+                            <label
+                              key={difficulty}
+                              className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedDifficulties.includes(difficulty)}
+                                onChange={() => toggleDifficulty(difficulty)}
+                                className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black"
+                              />
+                              <span className="text-sm text-gray-700 capitalize">{difficulty}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* Active Filters Summary */}
-                {(selectedCluster !== 'all' || skillSearch.trim()) && (
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                    <span className="text-xs text-gray-500">Active filters:</span>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedCluster !== 'all' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs">
-                          {selectedCluster}
-                          <button onClick={() => setSelectedCluster('all')} className="hover:text-gray-900">×</button>
-                        </span>
-                      )}
-                      {skillSearch.trim() && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs">
-                          &quot;{skillSearch}&quot;
-                          <button onClick={() => setSkillSearch('')} className="hover:text-gray-900">×</button>
-                        </span>
-                      )}
-                    </div>
+                {(selectedTags.length > 0 || selectedDifficulties.length > 0 || skillSearch.trim()) && (
+                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                    {selectedTags.map(tag => (
+                      <span key={tag} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-black text-white rounded-full text-xs font-medium">
+                        {tag}
+                        <button onClick={() => toggleTag(tag)} className="hover:text-gray-300 ml-0.5">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                    {selectedDifficulties.map(difficulty => (
+                      <span key={difficulty} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium capitalize">
+                        {difficulty}
+                        <button onClick={() => toggleDifficulty(difficulty)} className="hover:text-gray-900 ml-0.5">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                    {skillSearch.trim() && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                        &quot;{skillSearch}&quot;
+                        <button onClick={() => setSkillSearch('')} className="hover:text-gray-900 ml-0.5">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    )}
                     <button
                       onClick={() => {
-                        setSelectedCluster('all');
+                        setSelectedTags([]);
+                        setSelectedDifficulties([]);
                         setSkillSearch('');
                       }}
-                      className="ml-auto text-xs text-gray-500 hover:text-gray-700"
+                      className="ml-auto text-xs text-gray-500 hover:text-gray-700 font-medium"
                     >
                       Clear all
                     </button>
@@ -446,11 +561,11 @@ function HomeContent() {
                 <div className="text-center py-12 text-gray-500">Loading skills...</div>
               ) : filteredSubjectDataList.length === 0 ? (
                 <div className="text-center py-12 text-gray-500 bg-white border-2 border-gray-200 rounded-xl">
-                  {subjectDataList.length === 0 ? 'No subjects available yet.' : 'No skills match your filters.'}
+                  {subjectQuestionsData.length === 0 ? 'No subjects available yet.' : 'No skills match your filters.'}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {filteredSubjectDataList.map(({ subject, clusters, totalQuestions }) => (
+                  {filteredSubjectDataList.map(({ subject, skills, totalQuestions }) => (
                     <div
                       key={subject.id}
                       className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden"
@@ -472,54 +587,41 @@ function HomeContent() {
                           onClick={() => handleAllTopicsForSubject(subject.id)}
                           className="px-4 py-2 bg-white rounded-full text-sm font-medium text-gray-700 hover:bg-gray-100 transition-all shadow-sm"
                         >
-                          All Topics
+                          All Skills
                         </button>
                       </div>
 
-                      {/* Clusters and Skills */}
+                      {/* Skills List */}
                       <div className="p-4">
-                        {clusters.length === 0 ? (
+                        {skills.length === 0 ? (
                           <p className="text-gray-500 text-center py-4">No questions available yet.</p>
                         ) : (
-                          <div className="space-y-4">
-                            {clusters.map((cluster) => (
-                              <div key={cluster.name}>
-                                {/* Cluster Header */}
-                                <div className="flex items-center justify-between mb-2">
-                                  <h4 className="font-bold text-gray-900">{cluster.name}</h4>
-                                  <span className="text-gray-400 text-sm">{cluster.questionCount} questions</span>
-                                </div>
-
-                                {/* Skills List */}
-                                <div className="space-y-0.5">
-                                  {cluster.skills.map((skill) => (
-                                    <div
-                                      key={skill.name}
-                                      onClick={() => handlePracticeSkill(skill.name)}
-                                      className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 transition-all cursor-pointer"
-                                    >
-                                      <span className="text-gray-700">{skill.name}</span>
-                                      <div className="flex items-center gap-2">
-                                        {skill.correctCount > 0 && (
-                                          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                                            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                            </svg>
-                                            {skill.correctCount}
-                                          </span>
-                                        )}
-                                        {skill.markedCount > 0 && (
-                                          <span className="flex items-center gap-1 text-yellow-600 text-xs">
-                                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                                              <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                                            </svg>
-                                            {skill.markedCount}
-                                          </span>
-                                        )}
-                                        <span className="text-gray-400 text-sm">{skill.questionCount} questions</span>
-                                      </div>
-                                    </div>
-                                  ))}
+                          <div className="space-y-0.5">
+                            {skills.map((skill) => (
+                              <div
+                                key={skill.name}
+                                onClick={() => handlePracticeSkill(skill.name)}
+                                className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 transition-all cursor-pointer"
+                              >
+                                <span className="text-gray-700">{skill.name}</span>
+                                <div className="flex items-center gap-2">
+                                  {skill.correctCount > 0 && (
+                                    <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                      <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                      </svg>
+                                      {skill.correctCount}
+                                    </span>
+                                  )}
+                                  {skill.markedCount > 0 && (
+                                    <span className="flex items-center gap-1 text-yellow-600 text-xs">
+                                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                                      </svg>
+                                      {skill.markedCount}
+                                    </span>
+                                  )}
+                                  <span className="text-gray-400 text-sm">{skill.questionCount} questions</span>
                                 </div>
                               </div>
                             ))}

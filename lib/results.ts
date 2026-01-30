@@ -84,33 +84,33 @@ export function calculateResults(
       correctAnswer: question.correctAnswer,
       isCorrect,
       timeSpent: session.questionTimes[question.id] || 0,
-      topics: question.topics,
+      skills: question.skills || [],
       points,
       firstAttemptAnswer,
       missedOnFirstAttempt,
     };
   });
 
-  // Calculate topic accuracy
-  const topicMap: {
-    [topic: string]: { correct: number; total: number };
+  // Calculate skill accuracy
+  const skillMap: {
+    [skill: string]: { correct: number; total: number };
   } = {};
 
   questionResults.forEach((result) => {
-    result.topics.forEach((topic) => {
-      if (!topicMap[topic]) {
-        topicMap[topic] = { correct: 0, total: 0 };
+    result.skills.forEach((skill) => {
+      if (!skillMap[skill]) {
+        skillMap[skill] = { correct: 0, total: 0 };
       }
-      topicMap[topic].total++;
+      skillMap[skill].total++;
       if (result.isCorrect) {
-        topicMap[topic].correct++;
+        skillMap[skill].correct++;
       }
     });
   });
 
-  const topicAccuracy: QuizResult['topicAccuracy'] = {};
-  Object.entries(topicMap).forEach(([topic, stats]) => {
-    topicAccuracy[topic] = {
+  const skillAccuracy: QuizResult['skillAccuracy'] = {};
+  Object.entries(skillMap).forEach(([skill, stats]) => {
+    skillAccuracy[skill] = {
       correct: stats.correct,
       total: stats.total,
       percentage: Math.round((stats.correct / stats.total) * 100),
@@ -132,7 +132,7 @@ export function calculateResults(
     averageTime,
     missedOnFirstAttemptCount,
     questionResults,
-    topicAccuracy,
+    skillAccuracy,
   };
 }
 

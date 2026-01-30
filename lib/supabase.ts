@@ -57,10 +57,10 @@ export interface DatabaseQuestion {
   correct_answer: number;
   explanation_text: string;
   explanation_image_url: string | null;
-  topics: string[];
+  skills: string[]; // Skills tested (renamed from topics)
+  tags: string[]; // Broader categorization tags
+  difficulty: 'easy' | 'medium' | 'hard' | null; // Question difficulty level
   points: number;
-  student_friendly_skill: string | null;
-  cluster: string | null;
   passage_id: string | null; // Reference to shared passage
   display_order?: number;
   created_at: string;
@@ -252,10 +252,10 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: 
     correctAnswer: dbQuestion.correct_answer,
     explanation: dbQuestion.explanation_text,
     explanationImageUrl: dbQuestion.explanation_image_url || undefined,
-    topics: dbQuestion.topics,
+    skills: dbQuestion.skills || [],
+    tags: dbQuestion.tags || [],
+    difficulty: dbQuestion.difficulty,
     points: dbQuestion.points,
-    studentFriendlySkill: dbQuestion.student_friendly_skill || undefined,
-    cluster: dbQuestion.cluster || undefined,
     passageId: dbQuestion.passage_id || undefined,
     passage: dbQuestion.passages ? {
       id: dbQuestion.passages.id,
@@ -271,16 +271,28 @@ export async function fetchQuestionsForQuiz(): Promise<Question[]> {
   return dbQuestions.map(convertToQuizFormat);
 }
 
-// Fetch all unique topics from questions
-export async function fetchAllTopics(): Promise<string[]> {
+// Fetch all unique skills from questions
+export async function fetchAllSkillNames(): Promise<string[]> {
   const dbQuestions = await fetchQuestions();
-  const topicsSet = new Set<string>();
+  const skillsSet = new Set<string>();
   dbQuestions.forEach(q => {
-    if (q.topics && Array.isArray(q.topics)) {
-      q.topics.forEach(topic => topicsSet.add(topic));
+    if (q.skills && Array.isArray(q.skills)) {
+      q.skills.forEach(skill => skillsSet.add(skill));
     }
   });
-  return Array.from(topicsSet).sort();
+  return Array.from(skillsSet).sort();
+}
+
+// Fetch all unique tags from questions
+export async function fetchAllTags(): Promise<string[]> {
+  const dbQuestions = await fetchQuestions();
+  const tagsSet = new Set<string>();
+  dbQuestions.forEach(q => {
+    if (q.tags && Array.isArray(q.tags)) {
+      q.tags.forEach(tag => tagsSet.add(tag));
+    }
+  });
+  return Array.from(tagsSet).sort();
 }
 
 // =====================================================
@@ -872,51 +884,6 @@ export function convertToSubjectFormat(dbSubject: DatabaseSubjectWithCount): Sub
   };
 }
 
-// =====================================================
-// Helper Functions for New Question Fields
-// =====================================================
-
-// Fetch all unique clusters from questions
-export async function fetchAllClusters(): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('questions')
-    .select('cluster')
-    .not('cluster', 'is', null);
-
-  if (error) {
-    console.error('Error fetching clusters:', error);
-    return [];
-  }
-
-  const clustersSet = new Set<string>();
-  (data || []).forEach((q) => {
-    if (q.cluster) {
-      clustersSet.add(q.cluster);
-    }
-  });
-  return Array.from(clustersSet).sort();
-}
-
-// Fetch all unique student-friendly skills from questions
-export async function fetchAllSkills(): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('questions')
-    .select('student_friendly_skill')
-    .not('student_friendly_skill', 'is', null);
-
-  if (error) {
-    console.error('Error fetching skills:', error);
-    return [];
-  }
-
-  const skillsSet = new Set<string>();
-  (data || []).forEach((q) => {
-    if (q.student_friendly_skill) {
-      skillsSet.add(q.student_friendly_skill);
-    }
-  });
-  return Array.from(skillsSet).sort();
-}
 
 // Fetch questions for a specific subject (via test associations)
 export async function fetchQuestionsForSubject(subjectId: string): Promise<Question[]> {
@@ -997,55 +964,6 @@ export async function getSubjectForQuestion(questionId: string): Promise<string 
   return test.subject_id;
 }
 
-// Fetch cluster and skill metadata for all tests
-export interface TestMetadata {
-  testId: string;
-  clusters: string[];
-  skills: string[];
-}
-
-export async function fetchTestMetadata(): Promise<TestMetadata[]> {
-  // Fetch all test_questions with question cluster and skill data
-  const { data, error } = await supabase
-    .from('test_questions')
-    .select(`
-      test_id,
-      questions (
-        cluster,
-        student_friendly_skill
-      )
-    `);
-
-  if (error) {
-    console.error('Error fetching test metadata:', error);
-    return [];
-  }
-
-  // Build a map of testId -> { clusters: Set, skills: Set }
-  const testMap = new Map<string, { clusters: Set<string>; skills: Set<string> }>();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (data || []).forEach((tq: any) => {
-    if (!testMap.has(tq.test_id)) {
-      testMap.set(tq.test_id, { clusters: new Set(), skills: new Set() });
-    }
-    const testData = testMap.get(tq.test_id)!;
-
-    if (tq.questions?.cluster) {
-      testData.clusters.add(tq.questions.cluster);
-    }
-    if (tq.questions?.student_friendly_skill) {
-      testData.skills.add(tq.questions.student_friendly_skill);
-    }
-  });
-
-  // Convert to array format
-  return Array.from(testMap.entries()).map(([testId, data]) => ({
-    testId,
-    clusters: Array.from(data.clusters).sort(),
-    skills: Array.from(data.skills).sort(),
-  }));
-}
 
 // =====================================================
 // Passage Management (for grouped questions)
