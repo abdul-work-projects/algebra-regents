@@ -4,12 +4,23 @@ import chromium from '@sparticuz/chromium';
 
 export const maxDuration = 60; // Allow up to 60 seconds for PDF generation
 
-// For local development, you can set LOCAL_CHROME_PATH environment variable
-// e.g., /Applications/Google Chrome.app/Contents/MacOS/Google Chrome on Mac
+// Detect if running locally (development) vs on Vercel (production)
+const isDev = process.env.NODE_ENV === 'development';
+
+// Common Chrome paths for local development
+const LOCAL_CHROME_PATHS = {
+  darwin: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  win32: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  linux: '/usr/bin/google-chrome',
+};
+
 const getExecutablePath = async () => {
-  if (process.env.LOCAL_CHROME_PATH) {
-    return process.env.LOCAL_CHROME_PATH;
+  if (isDev) {
+    // Use local Chrome for development
+    const platform = process.platform as keyof typeof LOCAL_CHROME_PATHS;
+    return LOCAL_CHROME_PATHS[platform] || LOCAL_CHROME_PATHS.linux;
   }
+  // Use serverless chromium for production (Vercel)
   return await chromium.executablePath();
 };
 
@@ -23,9 +34,11 @@ export async function POST(request: NextRequest) {
 
     const executablePath = await getExecutablePath();
 
-    // Launch puppeteer with serverless-compatible chromium
+    // Launch puppeteer - use different args for dev vs production
     const browser = await puppeteer.launch({
-      args: process.env.LOCAL_CHROME_PATH ? ['--no-sandbox', '--disable-setuid-sandbox'] : chromium.args,
+      args: isDev
+        ? ['--no-sandbox', '--disable-setuid-sandbox']
+        : chromium.args,
       defaultViewport: { width: 1280, height: 720 },
       executablePath,
       headless: true,
