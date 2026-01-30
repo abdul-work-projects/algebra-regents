@@ -4066,40 +4066,38 @@ export default function AdminPage() {
                       Preview ({csvPreview.length} questions)
                     </h3>
                     <div className="border border-gray-200 rounded-lg overflow-auto max-h-80">
-                      <table className="text-xs border-collapse" style={{ minWidth: '1400px', width: '100%' }}>
-                        <thead>
-                          <tr className="bg-gray-50">
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '40px' }}>#</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '250px' }}>Question</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '150px' }}>Choice 1</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '150px' }}>Choice 2</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '150px' }}>Choice 3</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '150px' }}>Choice 4</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '60px' }}>Correct</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '40px' }}>Pts</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '80px' }}>Difficulty</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '120px' }}>Skill</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 border-b border-gray-200 sticky top-0 bg-gray-50" style={{ width: '200px' }}>Tags</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {csvPreview.map((q, i) => (
-                            <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                              <td className="px-3 py-2 text-gray-500 border-b border-gray-100">{i + 1}</td>
-                              <td className="px-3 py-2 text-gray-900 border-b border-gray-100">{q.question_text}</td>
-                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[0] || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[1] || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[2] || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.answers[3] || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600 font-medium border-b border-gray-100">{q.correct_answer}</td>
-                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.points}</td>
-                              <td className="px-3 py-2 text-gray-600 capitalize border-b border-gray-100">{q.difficulty || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.skills[0] || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{q.tags.length > 0 ? q.tags.join(', ') : '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <div style={{ minWidth: '1400px' }}>
+                        {/* Header Row */}
+                        <div className="flex bg-gray-50 sticky top-0 border-b border-gray-200 text-xs font-bold text-gray-700">
+                          <div className="px-3 py-2" style={{ width: '40px', flexShrink: 0 }}>#</div>
+                          <div className="px-3 py-2" style={{ width: '250px', flexShrink: 0 }}>Question</div>
+                          <div className="px-3 py-2" style={{ width: '150px', flexShrink: 0 }}>Choice 1</div>
+                          <div className="px-3 py-2" style={{ width: '150px', flexShrink: 0 }}>Choice 2</div>
+                          <div className="px-3 py-2" style={{ width: '150px', flexShrink: 0 }}>Choice 3</div>
+                          <div className="px-3 py-2" style={{ width: '150px', flexShrink: 0 }}>Choice 4</div>
+                          <div className="px-3 py-2" style={{ width: '60px', flexShrink: 0 }}>Correct</div>
+                          <div className="px-3 py-2" style={{ width: '40px', flexShrink: 0 }}>Pts</div>
+                          <div className="px-3 py-2" style={{ width: '80px', flexShrink: 0 }}>Difficulty</div>
+                          <div className="px-3 py-2" style={{ width: '120px', flexShrink: 0 }}>Skill</div>
+                          <div className="px-3 py-2" style={{ width: '200px', flexShrink: 0 }}>Tags</div>
+                        </div>
+                        {/* Data Rows */}
+                        {csvPreview.map((q, i) => (
+                          <div key={i} className={`flex text-xs border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                            <div className="px-3 py-2 text-gray-500" style={{ width: '40px', flexShrink: 0 }}>{i + 1}</div>
+                            <div className="px-3 py-2 text-gray-900" style={{ width: '250px', flexShrink: 0 }}>{q.question_text}</div>
+                            <div className="px-3 py-2 text-gray-600" style={{ width: '150px', flexShrink: 0 }}>{q.answers[0] || '-'}</div>
+                            <div className="px-3 py-2 text-gray-600" style={{ width: '150px', flexShrink: 0 }}>{q.answers[1] || '-'}</div>
+                            <div className="px-3 py-2 text-gray-600" style={{ width: '150px', flexShrink: 0 }}>{q.answers[2] || '-'}</div>
+                            <div className="px-3 py-2 text-gray-600" style={{ width: '150px', flexShrink: 0 }}>{q.answers[3] || '-'}</div>
+                            <div className="px-3 py-2 text-gray-600 font-medium" style={{ width: '60px', flexShrink: 0 }}>{q.correct_answer}</div>
+                            <div className="px-3 py-2 text-gray-600" style={{ width: '40px', flexShrink: 0 }}>{q.points}</div>
+                            <div className="px-3 py-2 text-gray-600 capitalize" style={{ width: '80px', flexShrink: 0 }}>{q.difficulty || '-'}</div>
+                            <div className="px-3 py-2 text-gray-600" style={{ width: '120px', flexShrink: 0 }}>{q.skills[0] || '-'}</div>
+                            <div className="px-3 py-2 text-gray-600" style={{ width: '200px', flexShrink: 0 }}>{q.tags.length > 0 ? q.tags.join(', ') : '-'}</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
