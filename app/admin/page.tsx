@@ -82,6 +82,7 @@ export default function AdminPage() {
   const [draggedQuestionId, setDraggedQuestionId] = useState<string | null>(
     null,
   );
+  const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null); // For dragging grouped questions
   const [originalQuestions, setOriginalQuestions] = useState<
     DatabaseQuestion[] | null
   >(null);
@@ -1029,6 +1030,7 @@ export default function AdminPage() {
   const handleQuestionDragStart = (e: React.DragEvent, questionId: string) => {
     dropSuccessRef.current = false;
     setDraggedQuestionId(questionId);
+    setDraggedGroupId(null);
     setOriginalQuestions([...questions]);
     // Save original test order if filtering by test
     if (filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0) {
@@ -1038,58 +1040,123 @@ export default function AdminPage() {
     e.dataTransfer.setData("text/plain", questionId);
   };
 
+  const handleGroupDragStart = (e: React.DragEvent, passageId: string, questionIds: string[]) => {
+    dropSuccessRef.current = false;
+    setDraggedGroupId(passageId);
+    setDraggedQuestionId(questionIds[0]); // Use first question ID for compatibility
+    setOriginalQuestions([...questions]);
+    if (filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0) {
+      setOriginalTestOrder({ ...testQuestionOrder });
+    }
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", `group:${passageId}`);
+  };
+
   const handleQuestionDragOver = (e: React.DragEvent, questionId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
 
     if (!draggedQuestionId || draggedQuestionId === questionId) return;
 
+    // Check if target is in the same group as dragged
+    const targetQuestion = questions.find((q) => q.id === questionId);
+    if (draggedGroupId && targetQuestion?.passage_id === draggedGroupId) return;
+
     // When a test filter is active, update test-specific order for visual feedback
     if (filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0) {
       const currentOrder = { ...testQuestionOrder };
-      const draggedOrder = currentOrder[draggedQuestionId];
-      const targetOrder = currentOrder[questionId];
 
-      if (draggedOrder === undefined || targetOrder === undefined) return;
-      if (draggedOrder === targetOrder) return;
+      if (draggedGroupId) {
+        // Handle grouped question drag - move all questions in the group
+        const groupQuestionIds = questions
+          .filter((q) => q.passage_id === draggedGroupId)
+          .map((q) => q.id);
 
-      // Reorder by swapping positions
-      const newOrder: { [questionId: string]: number } = {};
-      const entries = Object.entries(currentOrder).sort((a, b) => a[1] - b[1]);
-      const draggedIdx = entries.findIndex(([id]) => id === draggedQuestionId);
-      const targetIdx = entries.findIndex(([id]) => id === questionId);
+        const entries = Object.entries(currentOrder).sort((a, b) => a[1] - b[1]);
+        const targetIdx = entries.findIndex(([id]) => id === questionId);
+        if (targetIdx === -1) return;
 
-      if (draggedIdx === -1 || targetIdx === -1) return;
+        // Remove all group questions from entries
+        const filteredEntries = entries.filter(([id]) => !groupQuestionIds.includes(id));
+        const groupEntries = entries.filter(([id]) => groupQuestionIds.includes(id));
 
-      // Remove dragged item and insert at target position
-      const [draggedEntry] = entries.splice(draggedIdx, 1);
-      entries.splice(targetIdx, 0, draggedEntry);
+        // Find where to insert (adjust for removed items)
+        let insertIdx = filteredEntries.findIndex(([id]) => id === questionId);
+        if (insertIdx === -1) insertIdx = filteredEntries.length;
 
-      // Rebuild order map
-      entries.forEach(([id], index) => {
-        newOrder[id] = index;
-      });
+        // Insert group entries at target position
+        filteredEntries.splice(insertIdx, 0, ...groupEntries);
 
-      setTestQuestionOrder(newOrder);
+        // Rebuild order map
+        const newOrder: { [questionId: string]: number } = {};
+        filteredEntries.forEach(([id], index) => {
+          newOrder[id] = index;
+        });
+
+        setTestQuestionOrder(newOrder);
+      } else {
+        // Single question drag
+        const draggedOrder = currentOrder[draggedQuestionId];
+        const targetOrder = currentOrder[questionId];
+
+        if (draggedOrder === undefined || targetOrder === undefined) return;
+        if (draggedOrder === targetOrder) return;
+
+        const newOrder: { [questionId: string]: number } = {};
+        const entries = Object.entries(currentOrder).sort((a, b) => a[1] - b[1]);
+        const draggedIdx = entries.findIndex(([id]) => id === draggedQuestionId);
+        const targetIdx = entries.findIndex(([id]) => id === questionId);
+
+        if (draggedIdx === -1 || targetIdx === -1) return;
+
+        const [draggedEntry] = entries.splice(draggedIdx, 1);
+        entries.splice(targetIdx, 0, draggedEntry);
+
+        entries.forEach(([id], index) => {
+          newOrder[id] = index;
+        });
+
+        setTestQuestionOrder(newOrder);
+      }
     } else {
-      // Original behavior for no test filter
-      const draggedIndex = questions.findIndex(
-        (q) => q.id === draggedQuestionId,
-      );
-      const targetIndex = questions.findIndex((q) => q.id === questionId);
+      // No test filter - reorder global question list
+      if (draggedGroupId) {
+        // Handle grouped question drag
+        const groupQuestions = questions.filter((q) => q.passage_id === draggedGroupId);
+        const groupQuestionIds = groupQuestions.map((q) => q.id);
 
-      if (
-        draggedIndex === -1 ||
-        targetIndex === -1 ||
-        draggedIndex === targetIndex
-      )
-        return;
+        const targetIndex = questions.findIndex((q) => q.id === questionId);
+        if (targetIndex === -1) return;
 
-      // Reorder the list visually
-      const newQuestions = [...questions];
-      const [draggedQuestion] = newQuestions.splice(draggedIndex, 1);
-      newQuestions.splice(targetIndex, 0, draggedQuestion);
-      setQuestions(newQuestions);
+        // Remove group questions from list
+        const newQuestions = questions.filter((q) => !groupQuestionIds.includes(q.id));
+
+        // Find new target index (adjusted for removed items)
+        let newTargetIndex = newQuestions.findIndex((q) => q.id === questionId);
+        if (newTargetIndex === -1) newTargetIndex = newQuestions.length;
+
+        // Insert group questions at target
+        newQuestions.splice(newTargetIndex, 0, ...groupQuestions);
+        setQuestions(newQuestions);
+      } else {
+        // Single question drag
+        const draggedIndex = questions.findIndex(
+          (q) => q.id === draggedQuestionId,
+        );
+        const targetIndex = questions.findIndex((q) => q.id === questionId);
+
+        if (
+          draggedIndex === -1 ||
+          targetIndex === -1 ||
+          draggedIndex === targetIndex
+        )
+          return;
+
+        const newQuestions = [...questions];
+        const [draggedQuestion] = newQuestions.splice(draggedIndex, 1);
+        newQuestions.splice(targetIndex, 0, draggedQuestion);
+        setQuestions(newQuestions);
+      }
     }
   };
 
@@ -1099,6 +1166,7 @@ export default function AdminPage() {
 
     // Clear drag state
     setDraggedQuestionId(null);
+    setDraggedGroupId(null);
     setOriginalQuestions(null);
     setOriginalTestOrder(null);
 
@@ -1159,6 +1227,7 @@ export default function AdminPage() {
       }
     }
     setDraggedQuestionId(null);
+    setDraggedGroupId(null);
     setOriginalQuestions(null);
     setOriginalTestOrder(null);
   };
@@ -2809,10 +2878,22 @@ export default function AdminPage() {
                         } else {
                           // Grouped questions - render in a connected container
                           const startIndex = displayIndex;
+                          const groupQuestionIds = item.questions.map((q) => q.id);
+                          const isGroupBeingDragged = draggedGroupId === item.passageId;
                           return (
                             <div
                               key={`group-${item.passageId}`}
-                              className="relative"
+                              className={`relative cursor-grab active:cursor-grabbing ${isGroupBeingDragged ? "opacity-40" : ""}`}
+                              draggable
+                              onDragStart={(e) =>
+                                handleGroupDragStart(e, item.passageId!, groupQuestionIds)
+                              }
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                handleQuestionDragOver(e, item.questions[0].id);
+                              }}
+                              onDrop={handleQuestionDrop}
+                              onDragEnd={handleQuestionDragEnd}
                             >
                               {/* Purple left border to indicate grouping */}
                               <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-400 rounded-l-xl" />
