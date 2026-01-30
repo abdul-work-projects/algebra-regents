@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
+
+export const maxDuration = 60; // Allow up to 60 seconds for PDF generation
+
+// For local development, you can set LOCAL_CHROME_PATH environment variable
+// e.g., /Applications/Google Chrome.app/Contents/MacOS/Google Chrome on Mac
+const getExecutablePath = async () => {
+  if (process.env.LOCAL_CHROME_PATH) {
+    return process.env.LOCAL_CHROME_PATH;
+  }
+  return await chromium.executablePath();
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,10 +21,14 @@ export async function POST(request: NextRequest) {
     // Generate HTML content with KaTeX
     const html = generateReportHTML(result, test, scaledScore, questions);
 
-    // Launch puppeteer and generate PDF
+    const executablePath = await getExecutablePath();
+
+    // Launch puppeteer with serverless-compatible chromium
     const browser = await puppeteer.launch({
+      args: process.env.LOCAL_CHROME_PATH ? ['--no-sandbox', '--disable-setuid-sandbox'] : chromium.args,
+      defaultViewport: { width: 1280, height: 720 },
+      executablePath,
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
 
     const page = await browser.newPage();
