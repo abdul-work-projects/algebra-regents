@@ -4065,62 +4065,44 @@ export default function AdminPage() {
                     <h3 className="text-sm font-medium text-gray-700 mb-2">
                       Preview ({csvPreview.length} questions)
                     </h3>
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      {/* Fixed Header */}
-                      <div className="grid grid-cols-12 bg-gray-50 border-b border-gray-200">
-                        <div className="col-span-1 px-2 py-2 text-left text-xs font-bold text-gray-700">
-                          #
-                        </div>
-                        <div className="col-span-4 px-2 py-2 text-left text-xs font-bold text-gray-700">
-                          Question
-                        </div>
-                        <div className="col-span-2 px-2 py-2 text-left text-xs font-bold text-gray-700">
-                          Correct
-                        </div>
-                        <div className="col-span-1 px-2 py-2 text-left text-xs font-bold text-gray-700">
-                          Pts
-                        </div>
-                        <div className="col-span-1 px-2 py-2 text-left text-xs font-bold text-gray-700">
-                          Diff
-                        </div>
-                        <div className="col-span-1 px-2 py-2 text-left text-xs font-bold text-gray-700">
-                          Skill
-                        </div>
-                        <div className="col-span-2 px-2 py-2 text-left text-xs font-bold text-gray-700">
-                          Tags
-                        </div>
-                      </div>
-                      {/* Scrollable Body */}
-                      <div className="max-h-64 overflow-y-auto">
-                        {csvPreview.map((q, i) => (
-                          <div
-                            key={i}
-                            className={`grid grid-cols-12 border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-                          >
-                            <div className="col-span-1 px-2 py-2 text-xs text-gray-500">
-                              {i + 1}
-                            </div>
-                            <div className="col-span-4 px-2 py-2 text-xs text-gray-900 truncate">
-                              {q.question_text}
-                            </div>
-                            <div className="col-span-2 px-2 py-2 text-xs text-gray-600 truncate">
-                              ({q.correct_answer}) {q.answers[q.correct_answer - 1]}
-                            </div>
-                            <div className="col-span-1 px-2 py-2 text-xs text-gray-600">
-                              {q.points}
-                            </div>
-                            <div className="col-span-1 px-2 py-2 text-xs text-gray-600 truncate">
-                              {q.difficulty || '-'}
-                            </div>
-                            <div className="col-span-1 px-2 py-2 text-xs text-gray-600 truncate">
-                              {q.skills[0] || '-'}
-                            </div>
-                            <div className="col-span-2 px-2 py-2 text-xs text-gray-600 truncate">
-                              {q.tags.length > 0 ? q.tags.join(', ') : '-'}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="border border-gray-200 rounded-lg overflow-auto max-h-96">
+                      <table className="w-full min-w-[900px] text-xs">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr className="border-b border-gray-200">
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 w-10">#</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 min-w-[250px]">Question</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 min-w-[80px]">Choice 1</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 min-w-[80px]">Choice 2</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 min-w-[80px]">Choice 3</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 min-w-[80px]">Choice 4</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 w-16">Correct</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 w-12">Pts</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 w-16">Difficulty</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 min-w-[100px]">Skill</th>
+                            <th className="px-3 py-2 text-left font-bold text-gray-700 min-w-[150px]">Tags</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {csvPreview.map((q, i) => (
+                            <tr
+                              key={i}
+                              className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+                            >
+                              <td className="px-3 py-2 text-gray-500">{i + 1}</td>
+                              <td className="px-3 py-2 text-gray-900">{q.question_text}</td>
+                              <td className="px-3 py-2 text-gray-600">{q.answers[0] || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600">{q.answers[1] || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600">{q.answers[2] || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600">{q.answers[3] || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600 font-medium">{q.correct_answer}</td>
+                              <td className="px-3 py-2 text-gray-600">{q.points}</td>
+                              <td className="px-3 py-2 text-gray-600 capitalize">{q.difficulty || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600">{q.skills[0] || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600">{q.tags.length > 0 ? q.tags.join(', ') : '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
