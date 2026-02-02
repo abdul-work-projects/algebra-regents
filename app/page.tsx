@@ -226,7 +226,7 @@ function HomeContent() {
       skills,
       totalQuestions: filteredQuestions.length,
     };
-  }).filter(subjectData => subjectData.skills.length > 0); // Remove subjects with no matching skills
+  }).filter(subjectData => subjectData.totalQuestions > 0); // Remove subjects with no matching questions
 
   // Helper to toggle tag selection
   const toggleTag = (tagName: string) => {
