@@ -77,10 +77,10 @@ export default function AdminPage() {
   } | null>(null);
   const [draggedOver, setDraggedOver] = useState<string | null>(null);
   const [answerDraggedOver, setAnswerDraggedOver] = useState<number | null>(
-    null,
+    null
   );
   const [draggedQuestionId, setDraggedQuestionId] = useState<string | null>(
-    null,
+    null
   );
   const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null); // For dragging grouped questions
   const [originalQuestions, setOriginalQuestions] = useState<
@@ -135,7 +135,7 @@ export default function AdminPage() {
   });
   const [expandedBugId, setExpandedBugId] = useState<string | null>(null);
   const [testNamesMap, setTestNamesMap] = useState<{ [id: string]: string }>(
-    {},
+    {}
   );
 
   // CSV bulk upload state
@@ -147,7 +147,7 @@ export default function AdminPage() {
       answers: string[];
       correct_answer: number;
       points: number;
-      difficulty: 'easy' | 'medium' | 'hard' | null;
+      difficulty: "easy" | "medium" | "hard" | null;
       skills: string[];
       tags: string[];
     }>
@@ -172,7 +172,7 @@ export default function AdminPage() {
   const [passageText, setPassageText] = useState("");
   const [passageImage, setPassageImage] = useState<File | null>(null);
   const [passageImagePreview, setPassageImagePreview] = useState<string | null>(
-    null,
+    null
   );
   const [activeQuestionTab, setActiveQuestionTab] = useState<1 | 2>(1);
   const [editingQ2Id, setEditingQ2Id] = useState<string | null>(null); // Second question ID when editing grouped questions
@@ -316,7 +316,7 @@ export default function AdminPage() {
 
   const handleBugStatusChange = async (
     reportId: string,
-    newStatus: "open" | "reviewed" | "resolved",
+    newStatus: "open" | "reviewed" | "resolved"
   ) => {
     const success = await updateBugReportStatus(reportId, newStatus);
     if (success) {
@@ -484,7 +484,9 @@ export default function AdminPage() {
       if (success) {
         const message =
           deleteTestModal.deleteQuestions && deletedQuestionsCount > 0
-            ? `Test and ${deletedQuestionsCount} question${deletedQuestionsCount !== 1 ? "s" : ""} deleted successfully`
+            ? `Test and ${deletedQuestionsCount} question${
+                deletedQuestionsCount !== 1 ? "s" : ""
+              } deleted successfully`
             : "Test deleted successfully";
         setNotification({ type: "success", message });
         loadTestsData();
@@ -549,7 +551,8 @@ export default function AdminPage() {
     const header = headerRow.map((h) => h.trim().toLowerCase());
 
     // Detect format based on header columns
-    const isNewFormat = header.includes("question_text") || header.includes("choice_1");
+    const isNewFormat =
+      header.includes("question_text") || header.includes("choice_1");
 
     let questionIdx: number;
     let correctIdx: number;
@@ -559,34 +562,22 @@ export default function AdminPage() {
     let mainSkillIdx = -1;
     let tagStartIdx = -1;
 
-    if (isNewFormat) {
-      // New format: question_text, choice_1-4, correct_answer, Points, difficulty_level, Main Skill, [tags...]
-      questionIdx = header.findIndex((h) => h === "question_text");
-      correctIdx = header.findIndex((h) => h === "correct_answer");
-      answerIndices = [
-        header.findIndex((h) => h === "choice_1"),
-        header.findIndex((h) => h === "choice_2"),
-        header.findIndex((h) => h === "choice_3"),
-        header.findIndex((h) => h === "choice_4"),
-      ];
-      pointsIdx = header.findIndex((h) => h === "points");
-      difficultyIdx = header.findIndex((h) => h === "difficulty_level");
-      mainSkillIdx = header.findIndex((h) => h === "main skill");
+    // New format: question_text, choice_1-4, correct_answer, Points, difficulty_level, main_skill, [tags...]
+    questionIdx = header.findIndex((h) => h === "question_text");
+    correctIdx = header.findIndex((h) => h === "correct_answer");
+    answerIndices = [
+      header.findIndex((h) => h === "choice_1"),
+      header.findIndex((h) => h === "choice_2"),
+      header.findIndex((h) => h === "choice_3"),
+      header.findIndex((h) => h === "choice_4"),
+    ];
+    pointsIdx = header.findIndex((h) => h === "points");
+    difficultyIdx = header.findIndex((h) => h === "difficulty_level");
+    mainSkillIdx = header.findIndex((h) => h === "main_skill");
 
-      // All columns after Main Skill are tags
-      if (mainSkillIdx !== -1) {
-        tagStartIdx = mainSkillIdx + 1;
-      }
-    } else {
-      // Old format: Question, 1, 2, 3, 4, Correct
-      questionIdx = header.findIndex((h) => h === "question");
-      correctIdx = header.findIndex((h) => h === "correct");
-      answerIndices = [
-        header.findIndex((h) => h === "1"),
-        header.findIndex((h) => h === "2"),
-        header.findIndex((h) => h === "3"),
-        header.findIndex((h) => h === "4"),
-      ];
+    // All columns after Main Skill are tags
+    if (mainSkillIdx !== -1) {
+      tagStartIdx = mainSkillIdx + 1;
     }
 
     if (questionIdx === -1)
@@ -594,14 +585,14 @@ export default function AdminPage() {
     if (correctIdx === -1)
       throw new Error('CSV must have a "Correct" or "correct_answer" column');
     if (answerIndices.some((i) => i === -1))
-      throw new Error('CSV must have answer columns (1-4 or choice_1-4)');
+      throw new Error("CSV must have answer columns (1-4 or choice_1-4)");
 
     const questions: Array<{
       question_text: string;
       answers: string[];
       correct_answer: number;
       points: number;
-      difficulty: 'easy' | 'medium' | 'hard' | null;
+      difficulty: "easy" | "medium" | "hard" | null;
       skills: string[];
       tags: string[];
     }> = [];
@@ -616,11 +607,16 @@ export default function AdminPage() {
 
       // Parse new format fields
       const points = pointsIdx !== -1 ? parseInt(values[pointsIdx]) || 1 : 1;
-      const difficultyRaw = difficultyIdx !== -1 ? values[difficultyIdx]?.toLowerCase() : null;
-      const difficulty: 'easy' | 'medium' | 'hard' | null =
-        difficultyRaw === 'easy' ? 'easy' :
-        difficultyRaw === 'medium' ? 'medium' :
-        difficultyRaw === 'hard' ? 'hard' : null;
+      const difficultyRaw =
+        difficultyIdx !== -1 ? values[difficultyIdx]?.toLowerCase() : null;
+      const difficulty: "easy" | "medium" | "hard" | null =
+        difficultyRaw === "easy"
+          ? "easy"
+          : difficultyRaw === "medium"
+          ? "medium"
+          : difficultyRaw === "hard"
+          ? "hard"
+          : null;
 
       // Main Skill goes into skills array
       const skills: string[] = [];
@@ -744,7 +740,7 @@ export default function AdminPage() {
       setTimeout(() => setNotification(null), 3000);
     } catch (err) {
       setCsvError(
-        err instanceof Error ? err.message : "Failed to upload questions",
+        err instanceof Error ? err.message : "Failed to upload questions"
       );
     } finally {
       setIsUploadingCsv(false);
@@ -767,7 +763,7 @@ export default function AdminPage() {
   const handleImageSelect = (
     event: React.ChangeEvent<HTMLInputElement>,
     setImage: (file: File | null) => void,
-    setPreview: (preview: string | null) => void,
+    setPreview: (preview: string | null) => void
   ) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -795,7 +791,7 @@ export default function AdminPage() {
   const handleDrop = (
     e: React.DragEvent,
     setImage: (file: File | null) => void,
-    setPreview: (preview: string | null) => void,
+    setPreview: (preview: string | null) => void
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -923,12 +919,12 @@ export default function AdminPage() {
       if (linkPassageImage) {
         const sanitizedName = linkPassageImage.name.replace(
           /[^a-zA-Z0-9.-]/g,
-          "_",
+          "_"
         );
         passageImageUrl = await uploadImage(
           "question-images",
           linkPassageImage,
-          `passages/${Date.now()}-${sanitizedName}`,
+          `passages/${Date.now()}-${sanitizedName}`
         );
       }
 
@@ -973,13 +969,13 @@ export default function AdminPage() {
   };
 
   const loadQuestionForEdit = async (
-    question: DatabaseQuestion & { passages?: DatabasePassage | null },
+    question: DatabaseQuestion & { passages?: DatabasePassage | null }
   ) => {
     // Check if this is a grouped question (has a passage_id)
     if (question.passage_id) {
       // Find sibling question with the same passage_id
       const siblingQuestion = questions.find(
-        (q) => q.id !== question.id && q.passage_id === question.passage_id,
+        (q) => q.id !== question.id && q.passage_id === question.passage_id
       );
 
       if (siblingQuestion) {
@@ -1115,7 +1111,11 @@ export default function AdminPage() {
     e.dataTransfer.setData("text/plain", questionId);
   };
 
-  const handleGroupDragStart = (e: React.DragEvent, passageId: string, questionIds: string[]) => {
+  const handleGroupDragStart = (
+    e: React.DragEvent,
+    passageId: string,
+    questionIds: string[]
+  ) => {
     dropSuccessRef.current = false;
     setDraggedGroupId(passageId);
     setDraggedQuestionId(questionIds[0]); // Use first question ID for compatibility
@@ -1147,13 +1147,19 @@ export default function AdminPage() {
           .filter((q) => q.passage_id === draggedGroupId)
           .map((q) => q.id);
 
-        const entries = Object.entries(currentOrder).sort((a, b) => a[1] - b[1]);
+        const entries = Object.entries(currentOrder).sort(
+          (a, b) => a[1] - b[1]
+        );
         const targetIdx = entries.findIndex(([id]) => id === questionId);
         if (targetIdx === -1) return;
 
         // Remove all group questions from entries
-        const filteredEntries = entries.filter(([id]) => !groupQuestionIds.includes(id));
-        const groupEntries = entries.filter(([id]) => groupQuestionIds.includes(id));
+        const filteredEntries = entries.filter(
+          ([id]) => !groupQuestionIds.includes(id)
+        );
+        const groupEntries = entries.filter(([id]) =>
+          groupQuestionIds.includes(id)
+        );
 
         // Find where to insert (adjust for removed items)
         let insertIdx = filteredEntries.findIndex(([id]) => id === questionId);
@@ -1178,8 +1184,12 @@ export default function AdminPage() {
         if (draggedOrder === targetOrder) return;
 
         const newOrder: { [questionId: string]: number } = {};
-        const entries = Object.entries(currentOrder).sort((a, b) => a[1] - b[1]);
-        const draggedIdx = entries.findIndex(([id]) => id === draggedQuestionId);
+        const entries = Object.entries(currentOrder).sort(
+          (a, b) => a[1] - b[1]
+        );
+        const draggedIdx = entries.findIndex(
+          ([id]) => id === draggedQuestionId
+        );
         const targetIdx = entries.findIndex(([id]) => id === questionId);
 
         if (draggedIdx === -1 || targetIdx === -1) return;
@@ -1197,14 +1207,18 @@ export default function AdminPage() {
       // No test filter - reorder global question list
       if (draggedGroupId) {
         // Handle grouped question drag
-        const groupQuestions = questions.filter((q) => q.passage_id === draggedGroupId);
+        const groupQuestions = questions.filter(
+          (q) => q.passage_id === draggedGroupId
+        );
         const groupQuestionIds = groupQuestions.map((q) => q.id);
 
         const targetIndex = questions.findIndex((q) => q.id === questionId);
         if (targetIndex === -1) return;
 
         // Remove group questions from list
-        const newQuestions = questions.filter((q) => !groupQuestionIds.includes(q.id));
+        const newQuestions = questions.filter(
+          (q) => !groupQuestionIds.includes(q.id)
+        );
 
         // Find new target index (adjusted for removed items)
         let newTargetIndex = newQuestions.findIndex((q) => q.id === questionId);
@@ -1216,7 +1230,7 @@ export default function AdminPage() {
       } else {
         // Single question drag
         const draggedIndex = questions.findIndex(
-          (q) => q.id === draggedQuestionId,
+          (q) => q.id === draggedQuestionId
         );
         const targetIndex = questions.findIndex((q) => q.id === questionId);
 
@@ -1249,7 +1263,7 @@ export default function AdminPage() {
     if (filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0) {
       // Get question IDs sorted by the current test order state
       const sortedEntries = Object.entries(testQuestionOrder).sort(
-        (a, b) => a[1] - b[1],
+        (a, b) => a[1] - b[1]
       );
 
       // Update test-specific order
@@ -1331,7 +1345,9 @@ export default function AdminPage() {
       if (!hasText && !hasImage) {
         setNotification({
           type: "error",
-          message: `Question 1 Answer ${i + 1} must have either text or image (or both)`,
+          message: `Question 1 Answer ${
+            i + 1
+          } must have either text or image (or both)`,
         });
         return;
       }
@@ -1387,7 +1403,9 @@ export default function AdminPage() {
         if (!hasText && !hasImage) {
           setNotification({
             type: "error",
-            message: `Question 2 Answer ${i + 1} must have either text or image (or both)`,
+            message: `Question 2 Answer ${
+              i + 1
+            } must have either text or image (or both)`,
           });
           return;
         }
@@ -1415,7 +1433,7 @@ export default function AdminPage() {
           passageImageUrl = await uploadImage(
             "question-images",
             passageImage,
-            `passages/${Date.now()}-${sanitizedName}`,
+            `passages/${Date.now()}-${sanitizedName}`
           );
         }
 
@@ -1426,7 +1444,7 @@ export default function AdminPage() {
           q1ImageUrl = await uploadImage(
             "question-images",
             q1.questionImage,
-            `questions/${Date.now()}-q1-${sanitizedName}`,
+            `questions/${Date.now()}-q1-${sanitizedName}`
           );
         }
 
@@ -1436,7 +1454,7 @@ export default function AdminPage() {
           q1ExplanationImageUrl = await uploadImage(
             "explanation-images",
             q1.explanationImage,
-            `explanations/${Date.now()}-q1-${sanitizedName}`,
+            `explanations/${Date.now()}-q1-${sanitizedName}`
           );
         }
 
@@ -1447,11 +1465,11 @@ export default function AdminPage() {
               return await uploadImage(
                 "answer-images",
                 img,
-                `answers/${Date.now()}-q1-${index}-${sanitizedName}`,
+                `answers/${Date.now()}-q1-${index}-${sanitizedName}`
               );
             }
             return q1.answerImagePreviews[index] || null;
-          }),
+          })
         );
 
         // Upload Q2 images
@@ -1461,7 +1479,7 @@ export default function AdminPage() {
           q2ImageUrl = await uploadImage(
             "question-images",
             q2.questionImage,
-            `questions/${Date.now()}-q2-${sanitizedName}`,
+            `questions/${Date.now()}-q2-${sanitizedName}`
           );
         }
 
@@ -1471,7 +1489,7 @@ export default function AdminPage() {
           q2ExplanationImageUrl = await uploadImage(
             "explanation-images",
             q2.explanationImage,
-            `explanations/${Date.now()}-q2-${sanitizedName}`,
+            `explanations/${Date.now()}-q2-${sanitizedName}`
           );
         }
 
@@ -1482,11 +1500,11 @@ export default function AdminPage() {
               return await uploadImage(
                 "answer-images",
                 img,
-                `answers/${Date.now()}-q2-${index}-${sanitizedName}`,
+                `answers/${Date.now()}-q2-${index}-${sanitizedName}`
               );
             }
             return q2.answerImagePreviews[index] || null;
-          }),
+          })
         );
 
         // Create passage with both questions
@@ -1509,7 +1527,7 @@ export default function AdminPage() {
               explanation_image_url: q1ExplanationImageUrl,
               skills: q1.selectedSkills,
               tags: q1.selectedTags,
-              difficulty: (q1.difficulty as 'easy' | 'medium' | 'hard') || null,
+              difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null,
               points: q1.points,
             },
             {
@@ -1525,10 +1543,10 @@ export default function AdminPage() {
               explanation_image_url: q2ExplanationImageUrl,
               skills: q1.selectedSkills, // Share skills from Q1
               tags: q1.selectedTags, // Share tags from Q1
-              difficulty: (q1.difficulty as 'easy' | 'medium' | 'hard') || null, // Share difficulty from Q1
+              difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, // Share difficulty from Q1
               points: q2.points,
             },
-          ],
+          ]
         );
 
         if (result) {
@@ -1563,7 +1581,7 @@ export default function AdminPage() {
           passageImageUrl = await uploadImage(
             "question-images",
             passageImage,
-            `passages/${Date.now()}-${sanitizedName}`,
+            `passages/${Date.now()}-${sanitizedName}`
           );
         }
 
@@ -1584,7 +1602,7 @@ export default function AdminPage() {
           q1ImageUrl = await uploadImage(
             "question-images",
             q1.questionImage,
-            `questions/${Date.now()}-q1-${sanitizedName}`,
+            `questions/${Date.now()}-q1-${sanitizedName}`
           );
         }
 
@@ -1594,7 +1612,7 @@ export default function AdminPage() {
           q1ExplanationImageUrl = await uploadImage(
             "explanation-images",
             q1.explanationImage,
-            `explanations/${Date.now()}-q1-${sanitizedName}`,
+            `explanations/${Date.now()}-q1-${sanitizedName}`
           );
         }
 
@@ -1605,11 +1623,11 @@ export default function AdminPage() {
               return await uploadImage(
                 "answer-images",
                 img,
-                `answers/${Date.now()}-q1-${index}-${sanitizedName}`,
+                `answers/${Date.now()}-q1-${index}-${sanitizedName}`
               );
             }
             return q1.answerImagePreviews[index] || null;
-          }),
+          })
         );
 
         // Upload Q2 images
@@ -1619,7 +1637,7 @@ export default function AdminPage() {
           q2ImageUrl = await uploadImage(
             "question-images",
             q2.questionImage,
-            `questions/${Date.now()}-q2-${sanitizedName}`,
+            `questions/${Date.now()}-q2-${sanitizedName}`
           );
         }
 
@@ -1629,7 +1647,7 @@ export default function AdminPage() {
           q2ExplanationImageUrl = await uploadImage(
             "explanation-images",
             q2.explanationImage,
-            `explanations/${Date.now()}-q2-${sanitizedName}`,
+            `explanations/${Date.now()}-q2-${sanitizedName}`
           );
         }
 
@@ -1640,11 +1658,11 @@ export default function AdminPage() {
               return await uploadImage(
                 "answer-images",
                 img,
-                `answers/${Date.now()}-q2-${index}-${sanitizedName}`,
+                `answers/${Date.now()}-q2-${index}-${sanitizedName}`
               );
             }
             return q2.answerImagePreviews[index] || null;
-          }),
+          })
         );
 
         // Update Q1
@@ -1661,7 +1679,7 @@ export default function AdminPage() {
           explanation_image_url: q1ExplanationImageUrl || null,
           skills: q1.selectedSkills,
           tags: q1.selectedTags,
-          difficulty: (q1.difficulty as 'easy' | 'medium' | 'hard') || null,
+          difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null,
           points: q1.points,
         });
 
@@ -1679,7 +1697,7 @@ export default function AdminPage() {
           explanation_image_url: q2ExplanationImageUrl || null,
           skills: q1.selectedSkills, // Share skills from Q1
           tags: q1.selectedTags, // Share tags from Q1
-          difficulty: (q1.difficulty as 'easy' | 'medium' | 'hard') || null, // Share difficulty from Q1
+          difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, // Share difficulty from Q1
           points: q2.points,
         });
 
@@ -1707,7 +1725,7 @@ export default function AdminPage() {
           questionImageUrl = await uploadImage(
             "question-images",
             q1.questionImage,
-            `questions/${Date.now()}-${sanitizedName}`,
+            `questions/${Date.now()}-${sanitizedName}`
           );
           if (!questionImageUrl)
             throw new Error("Failed to upload question image");
@@ -1719,7 +1737,7 @@ export default function AdminPage() {
           referenceImageUrl = await uploadImage(
             "reference-images",
             q1.referenceImage,
-            `references/${Date.now()}-${sanitizedName}`,
+            `references/${Date.now()}-${sanitizedName}`
           );
         }
 
@@ -1729,7 +1747,7 @@ export default function AdminPage() {
           explanationImageUrl = await uploadImage(
             "explanation-images",
             q1.explanationImage,
-            `explanations/${Date.now()}-${sanitizedName}`,
+            `explanations/${Date.now()}-${sanitizedName}`
           );
         }
 
@@ -1741,11 +1759,11 @@ export default function AdminPage() {
               return await uploadImage(
                 "answer-images",
                 img,
-                `answers/${Date.now()}-${index}-${sanitizedName}`,
+                `answers/${Date.now()}-${index}-${sanitizedName}`
               );
             }
             return q1.answerImagePreviews[index] || null;
-          }),
+          })
         );
 
         const questionData = {
@@ -1761,7 +1779,7 @@ export default function AdminPage() {
           explanation_image_url: explanationImageUrl,
           skills: q1.selectedSkills,
           tags: q1.selectedTags,
-          difficulty: (q1.difficulty as 'easy' | 'medium' | 'hard') || null,
+          difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null,
           points: q1.points,
           passage_id: null,
         };
@@ -1964,7 +1982,7 @@ export default function AdminPage() {
                   .filter(
                     (test) =>
                       filterSubjectId === "all" ||
-                      test.subjectId === filterSubjectId,
+                      test.subjectId === filterSubjectId
                   )
                   .map((test) => (
                     <div
@@ -2288,8 +2306,8 @@ export default function AdminPage() {
                                   report.status === "open"
                                     ? "bg-red-100 text-red-700"
                                     : report.status === "reviewed"
-                                      ? "bg-yellow-100 text-yellow-700"
-                                      : "bg-green-100 text-green-700"
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : "bg-green-100 text-green-700"
                                 }`}
                               >
                                 {report.status.toUpperCase()}
@@ -2529,10 +2547,10 @@ export default function AdminPage() {
                           q.name?.toLowerCase().includes(query) ||
                           q.question_text?.toLowerCase().includes(query) ||
                           (q.skills || []).some((t) =>
-                            t.toLowerCase().includes(query),
+                            t.toLowerCase().includes(query)
                           ) ||
                           q.answers.some((a) =>
-                            a?.toLowerCase().includes(query),
+                            a?.toLowerCase().includes(query)
                           )
                         );
                       }).length
@@ -2638,7 +2656,7 @@ export default function AdminPage() {
                       resetForm();
                       // Set the new test as selected for new questions
                       setSelectedTestIds(
-                        newTestId !== "all" ? [newTestId] : [],
+                        newTestId !== "all" ? [newTestId] : []
                       );
                     }}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
@@ -2683,10 +2701,10 @@ export default function AdminPage() {
                             q.name?.toLowerCase().includes(query) ||
                             q.question_text?.toLowerCase().includes(query) ||
                             (q.skills || []).some((t) =>
-                              t.toLowerCase().includes(query),
+                              t.toLowerCase().includes(query)
                             ) ||
                             q.answers.some((a) =>
-                              a?.toLowerCase().includes(query),
+                              a?.toLowerCase().includes(query)
                             )
                           );
                         })
@@ -2721,7 +2739,7 @@ export default function AdminPage() {
 
                           // Find all questions with the same passage_id
                           const groupedQuestions = filteredQuestions.filter(
-                            (q) => q.passage_id === question.passage_id,
+                            (q) => q.passage_id === question.passage_id
                           );
                           groupedItems.push({
                             type: "grouped",
@@ -2741,7 +2759,7 @@ export default function AdminPage() {
                         question: (typeof filteredQuestions)[0],
                         index: number,
                         isGrouped: boolean,
-                        groupPosition?: "first" | "last" | "middle",
+                        groupPosition?: "first" | "last" | "middle"
                       ) => (
                         <div
                           key={question.id}
@@ -2757,13 +2775,21 @@ export default function AdminPage() {
                           onDragEnd={
                             !isGrouped ? handleQuestionDragEnd : undefined
                           }
-                          className={`border-2 p-3 hover:bg-gray-50 transition-all ${!isGrouped ? "cursor-grab active:cursor-grabbing rounded-xl" : ""} ${
+                          className={`border-2 p-3 hover:bg-gray-50 transition-all ${
+                            !isGrouped
+                              ? "cursor-grab active:cursor-grabbing rounded-xl"
+                              : ""
+                          } ${
                             editingId === question.id
                               ? "border-black bg-gray-50"
                               : selectedForGrouping.includes(question.id)
-                                ? "border-purple-400 bg-purple-50"
-                                : "border-gray-200"
-                          } ${draggedQuestionId === question.id ? "opacity-40 bg-blue-50 border-blue-300" : ""} ${
+                              ? "border-purple-400 bg-purple-50"
+                              : "border-gray-200"
+                          } ${
+                            draggedQuestionId === question.id
+                              ? "opacity-40 bg-blue-50 border-blue-300"
+                              : ""
+                          } ${
                             isGrouped && groupPosition === "first"
                               ? "rounded-t-xl border-b-0"
                               : ""
@@ -2784,7 +2810,7 @@ export default function AdminPage() {
                                 <input
                                   type="checkbox"
                                   checked={selectedForGrouping.includes(
-                                    question.id,
+                                    question.id
                                   )}
                                   onChange={() =>
                                     toggleQuestionSelection(question.id)
@@ -2846,7 +2872,7 @@ export default function AdminPage() {
                                         .slice(0, 2)
                                         .map((testId) => {
                                           const test = tests.find(
-                                            (t) => t.id === testId,
+                                            (t) => t.id === testId
                                           );
                                           return test ? (
                                             <span
@@ -2948,20 +2974,29 @@ export default function AdminPage() {
                           return renderQuestionItem(
                             question,
                             displayIndex,
-                            false,
+                            false
                           );
                         } else {
                           // Grouped questions - render in a connected container
                           const startIndex = displayIndex;
-                          const groupQuestionIds = item.questions.map((q) => q.id);
-                          const isGroupBeingDragged = draggedGroupId === item.passageId;
+                          const groupQuestionIds = item.questions.map(
+                            (q) => q.id
+                          );
+                          const isGroupBeingDragged =
+                            draggedGroupId === item.passageId;
                           return (
                             <div
                               key={`group-${item.passageId}`}
-                              className={`relative cursor-grab active:cursor-grabbing ${isGroupBeingDragged ? "opacity-40" : ""}`}
+                              className={`relative cursor-grab active:cursor-grabbing ${
+                                isGroupBeingDragged ? "opacity-40" : ""
+                              }`}
                               draggable
                               onDragStart={(e) =>
-                                handleGroupDragStart(e, item.passageId!, groupQuestionIds)
+                                handleGroupDragStart(
+                                  e,
+                                  item.passageId!,
+                                  groupQuestionIds
+                                )
                               }
                               onDragOver={(e) => {
                                 e.preventDefault();
@@ -2979,13 +3014,13 @@ export default function AdminPage() {
                                     qIndex === 0
                                       ? "first"
                                       : qIndex === item.questions.length - 1
-                                        ? "last"
-                                        : "middle";
+                                      ? "last"
+                                      : "middle";
                                   return renderQuestionItem(
                                     question,
                                     displayIndex,
                                     true,
-                                    groupPosition,
+                                    groupPosition
                                   );
                                 })}
                               </div>
@@ -3063,7 +3098,7 @@ export default function AdminPage() {
                         {currentForm.state.answers.some(
                           (a, idx) =>
                             a.trim() ||
-                            currentForm.state.answerImagePreviews[idx],
+                            currentForm.state.answerImagePreviews[idx]
                         ) && (
                           <div
                             className={`${
@@ -3212,7 +3247,7 @@ export default function AdminPage() {
                           handleImageSelect(
                             e,
                             setPassageImage,
-                            setPassageImagePreview,
+                            setPassageImagePreview
                           )
                         }
                         className="hidden"
@@ -3382,8 +3417,8 @@ export default function AdminPage() {
                           (preview) =>
                             currentForm.setField(
                               "questionImagePreview",
-                              preview,
-                            ),
+                              preview
+                            )
                         )
                       }
                       className="hidden"
@@ -3401,8 +3436,8 @@ export default function AdminPage() {
                           (preview) =>
                             currentForm.setField(
                               "questionImagePreview",
-                              preview,
-                            ),
+                              preview
+                            )
                         )
                       }
                     >
@@ -3459,8 +3494,8 @@ export default function AdminPage() {
                           (preview) =>
                             currentForm.setField(
                               "referenceImagePreview",
-                              preview,
-                            ),
+                              preview
+                            )
                         )
                       }
                       className="hidden"
@@ -3479,8 +3514,8 @@ export default function AdminPage() {
                           (preview) =>
                             currentForm.setField(
                               "referenceImagePreview",
-                              preview,
-                            ),
+                              preview
+                            )
                         )
                       }
                     >
@@ -3537,8 +3572,8 @@ export default function AdminPage() {
                           (preview) =>
                             currentForm.setField(
                               "explanationImagePreview",
-                              preview,
-                            ),
+                              preview
+                            )
                         )
                       }
                       className="hidden"
@@ -3557,8 +3592,8 @@ export default function AdminPage() {
                           (preview) =>
                             currentForm.setField(
                               "explanationImagePreview",
-                              preview,
-                            ),
+                              preview
+                            )
                         )
                       }
                     >
@@ -3695,7 +3730,7 @@ export default function AdminPage() {
                                   currentForm.setAnswerImage(
                                     index,
                                     file,
-                                    reader.result as string,
+                                    reader.result as string
                                   );
                                 };
                                 reader.readAsDataURL(file);
@@ -3914,7 +3949,7 @@ export default function AdminPage() {
                     onChange={(e) =>
                       currentForm.setField(
                         "points",
-                        parseInt(e.target.value) || 1,
+                        parseInt(e.target.value) || 1
                       )
                     }
                     placeholder="1"
@@ -3948,8 +3983,8 @@ export default function AdminPage() {
                     {isSubmitting
                       ? "SAVING..."
                       : editingId
-                        ? "UPDATE QUESTION"
-                        : "CREATE QUESTION"}
+                      ? "UPDATE QUESTION"
+                      : "CREATE QUESTION"}
                   </button>
                 </div>
               </form>
@@ -4029,7 +4064,8 @@ export default function AdminPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Format: question_text, choice_1-4, correct_answer, Points, difficulty_level, Main Skill, [tags...]
+                    Format: question_text, choice_1-4, correct_answer, Points,
+                    difficulty_level, Main Skill, [tags...]
                   </p>
                 </div>
 
@@ -4066,35 +4102,150 @@ export default function AdminPage() {
                       Preview ({csvPreview.length} questions)
                     </h3>
                     <div className="border border-gray-200 rounded-lg overflow-auto max-h-80">
-                      <div style={{ minWidth: '1400px' }}>
+                      <div style={{ minWidth: "1400px" }}>
                         {/* Header Row */}
                         <div className="flex bg-gray-50 sticky top-0 border-b border-gray-200 text-xs font-bold text-gray-700">
-                          <div className="px-3 py-2" style={{ width: '40px', flexShrink: 0 }}>#</div>
-                          <div className="px-3 py-2" style={{ width: '250px', flexShrink: 0 }}>Question</div>
-                          <div className="px-3 py-2" style={{ width: '150px', flexShrink: 0 }}>Choice 1</div>
-                          <div className="px-3 py-2" style={{ width: '150px', flexShrink: 0 }}>Choice 2</div>
-                          <div className="px-3 py-2" style={{ width: '150px', flexShrink: 0 }}>Choice 3</div>
-                          <div className="px-3 py-2" style={{ width: '150px', flexShrink: 0 }}>Choice 4</div>
-                          <div className="px-3 py-2" style={{ width: '60px', flexShrink: 0 }}>Correct</div>
-                          <div className="px-3 py-2" style={{ width: '40px', flexShrink: 0 }}>Pts</div>
-                          <div className="px-3 py-2" style={{ width: '80px', flexShrink: 0 }}>Difficulty</div>
-                          <div className="px-3 py-2" style={{ width: '120px', flexShrink: 0 }}>Skill</div>
-                          <div className="px-3 py-2" style={{ width: '200px', flexShrink: 0 }}>Tags</div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "40px", flexShrink: 0 }}
+                          >
+                            #
+                          </div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "250px", flexShrink: 0 }}
+                          >
+                            Question
+                          </div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "150px", flexShrink: 0 }}
+                          >
+                            Choice 1
+                          </div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "150px", flexShrink: 0 }}
+                          >
+                            Choice 2
+                          </div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "150px", flexShrink: 0 }}
+                          >
+                            Choice 3
+                          </div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "150px", flexShrink: 0 }}
+                          >
+                            Choice 4
+                          </div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "60px", flexShrink: 0 }}
+                          >
+                            Correct
+                          </div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "40px", flexShrink: 0 }}
+                          >
+                            Pts
+                          </div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "80px", flexShrink: 0 }}
+                          >
+                            Difficulty
+                          </div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "120px", flexShrink: 0 }}
+                          >
+                            Skill
+                          </div>
+                          <div
+                            className="px-3 py-2"
+                            style={{ width: "200px", flexShrink: 0 }}
+                          >
+                            Tags
+                          </div>
                         </div>
                         {/* Data Rows */}
                         {csvPreview.map((q, i) => (
-                          <div key={i} className={`flex text-xs border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                            <div className="px-3 py-2 text-gray-500" style={{ width: '40px', flexShrink: 0 }}>{i + 1}</div>
-                            <div className="px-3 py-2 text-gray-900" style={{ width: '250px', flexShrink: 0 }}>{q.question_text}</div>
-                            <div className="px-3 py-2 text-gray-600" style={{ width: '150px', flexShrink: 0 }}>{q.answers[0] || '-'}</div>
-                            <div className="px-3 py-2 text-gray-600" style={{ width: '150px', flexShrink: 0 }}>{q.answers[1] || '-'}</div>
-                            <div className="px-3 py-2 text-gray-600" style={{ width: '150px', flexShrink: 0 }}>{q.answers[2] || '-'}</div>
-                            <div className="px-3 py-2 text-gray-600" style={{ width: '150px', flexShrink: 0 }}>{q.answers[3] || '-'}</div>
-                            <div className="px-3 py-2 text-gray-600 font-medium" style={{ width: '60px', flexShrink: 0 }}>{q.correct_answer}</div>
-                            <div className="px-3 py-2 text-gray-600" style={{ width: '40px', flexShrink: 0 }}>{q.points}</div>
-                            <div className="px-3 py-2 text-gray-600 capitalize" style={{ width: '80px', flexShrink: 0 }}>{q.difficulty || '-'}</div>
-                            <div className="px-3 py-2 text-gray-600" style={{ width: '120px', flexShrink: 0 }}>{q.skills[0] || '-'}</div>
-                            <div className="px-3 py-2 text-gray-600" style={{ width: '200px', flexShrink: 0 }}>{q.tags.length > 0 ? q.tags.join(', ') : '-'}</div>
+                          <div
+                            key={i}
+                            className={`flex text-xs border-b border-gray-100 ${
+                              i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                            }`}
+                          >
+                            <div
+                              className="px-3 py-2 text-gray-500"
+                              style={{ width: "40px", flexShrink: 0 }}
+                            >
+                              {i + 1}
+                            </div>
+                            <div
+                              className="px-3 py-2 text-gray-900"
+                              style={{ width: "250px", flexShrink: 0 }}
+                            >
+                              {q.question_text}
+                            </div>
+                            <div
+                              className="px-3 py-2 text-gray-600"
+                              style={{ width: "150px", flexShrink: 0 }}
+                            >
+                              {q.answers[0] || "-"}
+                            </div>
+                            <div
+                              className="px-3 py-2 text-gray-600"
+                              style={{ width: "150px", flexShrink: 0 }}
+                            >
+                              {q.answers[1] || "-"}
+                            </div>
+                            <div
+                              className="px-3 py-2 text-gray-600"
+                              style={{ width: "150px", flexShrink: 0 }}
+                            >
+                              {q.answers[2] || "-"}
+                            </div>
+                            <div
+                              className="px-3 py-2 text-gray-600"
+                              style={{ width: "150px", flexShrink: 0 }}
+                            >
+                              {q.answers[3] || "-"}
+                            </div>
+                            <div
+                              className="px-3 py-2 text-gray-600 font-medium"
+                              style={{ width: "60px", flexShrink: 0 }}
+                            >
+                              {q.correct_answer}
+                            </div>
+                            <div
+                              className="px-3 py-2 text-gray-600"
+                              style={{ width: "40px", flexShrink: 0 }}
+                            >
+                              {q.points}
+                            </div>
+                            <div
+                              className="px-3 py-2 text-gray-600 capitalize"
+                              style={{ width: "80px", flexShrink: 0 }}
+                            >
+                              {q.difficulty || "-"}
+                            </div>
+                            <div
+                              className="px-3 py-2 text-gray-600"
+                              style={{ width: "120px", flexShrink: 0 }}
+                            >
+                              {q.skills[0] || "-"}
+                            </div>
+                            <div
+                              className="px-3 py-2 text-gray-600"
+                              style={{ width: "200px", flexShrink: 0 }}
+                            >
+                              {q.tags.length > 0 ? q.tags.join(", ") : "-"}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -4208,7 +4359,7 @@ export default function AdminPage() {
                         const reader = new FileReader();
                         reader.onload = (ev) =>
                           setLinkPassageImagePreview(
-                            ev.target?.result as string,
+                            ev.target?.result as string
                           );
                         reader.readAsDataURL(file);
                       } else {
@@ -4226,7 +4377,7 @@ export default function AdminPage() {
                       handleDrop(
                         e,
                         setLinkPassageImage,
-                        setLinkPassageImagePreview,
+                        setLinkPassageImagePreview
                       )
                     }
                   >
@@ -4438,8 +4589,8 @@ export default function AdminPage() {
                   {deleteTestModal.isDeleting
                     ? "Deleting..."
                     : deleteTestModal.deleteQuestions
-                      ? "Delete Test & Questions"
-                      : "Delete Test"}
+                    ? "Delete Test & Questions"
+                    : "Delete Test"}
                 </button>
               </div>
             </div>
