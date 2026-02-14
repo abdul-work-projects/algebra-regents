@@ -3172,7 +3172,7 @@ export default function AdminPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
                                     <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">
                                       {question.name || `Q${index + 1}`}
                                     </p>
@@ -3191,6 +3191,12 @@ export default function AdminPage() {
                                         Grouped
                                       </span>
                                     )}
+                                    {/* Section badge — inline with name/grouped tag */}
+                                    {filterTestId !== "all" && testSections.length > 0 && questionSectionMap[question.id] && (
+                                      <span className="inline-block px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-medium flex-shrink-0">
+                                        {testSections.find(s => s.id === questionSectionMap[question.id])?.name || 'Section'}
+                                      </span>
+                                    )}
                                   </div>
                                   {question.name && (
                                     <p className="text-[10px] text-gray-400 dark:text-gray-500">
@@ -3200,8 +3206,8 @@ export default function AdminPage() {
                                   <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
                                     {(question.skills || []).join(", ")}
                                   </p>
-                                  {/* Test badges */}
-                                  {questionTestMap[question.id]?.length > 0 && (
+                                  {/* Test badges - hidden when filtering by a specific test */}
+                                  {filterTestId === "all" && questionTestMap[question.id]?.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-0.5">
                                       {questionTestMap[question.id]
                                         .slice(0, 2)
@@ -3212,7 +3218,7 @@ export default function AdminPage() {
                                           return test ? (
                                             <span
                                               key={testId}
-                                              className="inline-block px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-[10px] font-medium truncate max-w-[80px]"
+                                              className="inline-block px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-xs font-medium truncate max-w-[120px]"
                                               title={test.name}
                                             >
                                               {test.name}
@@ -3221,7 +3227,7 @@ export default function AdminPage() {
                                         })}
                                       {questionTestMap[question.id].length >
                                         2 && (
-                                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">
                                           +
                                           {questionTestMap[question.id].length -
                                             2}
@@ -3229,20 +3235,6 @@ export default function AdminPage() {
                                       )}
                                     </div>
                                   )}
-                                  {/* Section badge */}
-                                  {filterTestId !== "all" && testSections.length > 0 && questionSectionMap[question.id] && (
-                                    <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-medium">
-                                      {testSections.find(s => s.id === questionSectionMap[question.id])?.name || 'Section'}
-                                    </span>
-                                  )}
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                    ✓{" "}
-                                    {
-                                      question.answers[
-                                        question.correct_answer - 1
-                                      ]
-                                    }
-                                  </p>
                                 </div>
                                 {/* Image thumbnail - on right of text */}
                                 {question.question_image_url && (
@@ -3300,6 +3292,11 @@ export default function AdminPage() {
                                   </button>
                                 </div>
                               </div>
+                              {question.question_text && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">
+                                  <MathText text={question.question_text} />
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
