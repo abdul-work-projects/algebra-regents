@@ -25,6 +25,7 @@ interface BucketOrderAnswerProps {
   onOrderChange: (newOrder: string[]) => void;
   onCheck: () => void;
   canAttempt: boolean;
+  orientation?: 'vertical' | 'horizontal';
 }
 
 // --- Sub-components ---
@@ -173,7 +174,9 @@ export default function BucketOrderAnswer({
   onOrderChange,
   onCheck,
   canAttempt,
+  orientation = 'horizontal',
 }: BucketOrderAnswerProps) {
+  const vertical = orientation === 'vertical';
   const n = correctOrder.length;
 
   const [slots, setSlots] = useState<(string | null)[]>(() =>
@@ -313,8 +316,8 @@ export default function BucketOrderAnswer({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {/* Slots row */}
-        <div className="flex flex-wrap gap-4 justify-center">
+        {/* Slots */}
+        <div className={vertical ? 'flex flex-col gap-3 items-center' : 'flex flex-wrap gap-4 justify-center'}>
           {slots.map((item, i) => (
             <DroppableSlot
               key={`slot-${i}`}

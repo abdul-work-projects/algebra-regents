@@ -50,6 +50,12 @@ function QuizPageContent() {
     }
     return 'list';
   });
+  const [dragOrderOrientation, setDragOrderOrientation] = useState<'vertical' | 'horizontal'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('drag-order-orientation') as 'vertical' | 'horizontal') || 'vertical';
+    }
+    return 'vertical';
+  });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [testName, setTestName] = useState<string | undefined>(undefined);
@@ -1447,9 +1453,9 @@ function QuizPageContent() {
               {/* Answer Area */}
               {isDragOrder ? (
                 <div className="mb-6" style={{ pointerEvents: 'auto' }}>
-                  {/* View toggle — hidden after check */}
+                  {/* View toggles — hidden after check */}
                   {!dragOrderChecked && (
-                    <div className="flex items-center gap-1 mb-3 relative z-[60]">
+                    <div className="flex items-center gap-2 mb-3 relative z-[60]">
                       <div className="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden text-xs font-medium">
                         <button
                           onClick={() => { setDragOrderView('list'); localStorage.setItem('drag-order-view', 'list'); }}
@@ -1464,6 +1470,22 @@ function QuizPageContent() {
                           Slots
                         </button>
                       </div>
+                      <div className="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden text-xs font-medium">
+                        <button
+                          onClick={() => { setDragOrderOrientation('vertical'); localStorage.setItem('drag-order-orientation', 'vertical'); }}
+                          className={`px-2 py-1.5 transition-colors ${dragOrderOrientation === 'vertical' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                          title="Vertical layout"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="12" height="3" rx="0.5"/><rect x="2" y="6" width="12" height="3" rx="0.5"/><rect x="2" y="11" width="12" height="3" rx="0.5"/></svg>
+                        </button>
+                        <button
+                          onClick={() => { setDragOrderOrientation('horizontal'); localStorage.setItem('drag-order-orientation', 'horizontal'); }}
+                          className={`px-2 py-1.5 transition-colors ${dragOrderOrientation === 'horizontal' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                          title="Horizontal layout"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="3" height="12" rx="0.5"/><rect x="6" y="2" width="3" height="12" rx="0.5"/><rect x="11" y="2" width="3" height="12" rx="0.5"/></svg>
+                        </button>
+                      </div>
                     </div>
                   )}
                   {dragOrderView === 'list' ? (
@@ -1474,6 +1496,7 @@ function QuizPageContent() {
                       onOrderChange={(newOrder) => handleDragOrderChange(currentQuestion.id, newOrder)}
                       onCheck={() => handleDragOrderCheck(currentQuestion.id)}
                       canAttempt={!dragOrderChecked}
+                      orientation={dragOrderOrientation}
                     />
                   ) : (
                     <BucketOrderAnswer
@@ -1483,6 +1506,7 @@ function QuizPageContent() {
                       onOrderChange={(newOrder) => handleDragOrderChange(currentQuestion.id, newOrder)}
                       onCheck={() => handleDragOrderCheck(currentQuestion.id)}
                       canAttempt={!dragOrderChecked}
+                      orientation={dragOrderOrientation}
                     />
                   )}
                 </div>

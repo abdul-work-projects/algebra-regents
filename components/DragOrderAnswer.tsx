@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -17,6 +17,7 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import MathText from './MathText';
@@ -29,9 +30,10 @@ interface SortableItemProps {
   isChecked: boolean;
   isCorrectPosition: boolean;
   disabled: boolean;
+  horizontal: boolean;
 }
 
-function SortableItem({ id, index, text, imageUrl, isChecked, isCorrectPosition, disabled }: SortableItemProps) {
+function SortableItem({ id, index, text, imageUrl, isChecked, isCorrectPosition, disabled, horizontal }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -65,27 +67,59 @@ function SortableItem({ id, index, text, imageUrl, isChecked, isCorrectPosition,
     borderClass = 'border-blue-400 dark:border-blue-500';
   }
 
+  if (horizontal) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-lg border-2 ${borderClass} ${bgClass} transition-colors min-w-[60px] ${
+          isDragging ? 'shadow-lg z-10 opacity-90' : ''
+        } ${disabled ? '' : 'cursor-grab active:cursor-grabbing touch-none'}`}
+      >
+        <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+          isChecked
+            ? isCorrectPosition
+              ? 'bg-green-500 dark:bg-green-600 text-white'
+              : 'bg-rose-500 dark:bg-rose-600 text-white'
+            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+        }`}>
+          {index + 1}
+        </span>
+        <div className="text-center min-w-0">
+          {text && <MathText text={text} className="text-sm" />}
+          {imageUrl && (
+            <img src={imageUrl} alt={`Option ${index + 1}`} className="max-w-[80px] h-auto rounded border border-gray-300 dark:border-gray-600 mt-1" />
+          )}
+        </div>
+        {isChecked && (
+          <div className="flex-shrink-0">
+            {isCorrectPosition ? (
+              <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 ${borderClass} ${bgClass} transition-colors ${
         isDragging ? 'shadow-lg z-10 opacity-90' : ''
-      } ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}`}
+      } ${disabled ? '' : 'cursor-grab active:cursor-grabbing touch-none'}`}
     >
-      {/* Drag handle */}
-      {!disabled && (
-        <div
-          {...attributes}
-          {...listeners}
-          className="flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 touch-none"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M9 3h2v2H9V3zm4 0h2v2h-2V3zM9 7h2v2H9V7zm4 0h2v2h-2V7zm-4 4h2v2H9v-2zm4 0h2v2h-2v-2zm-4 4h2v2H9v-2zm4 0h2v2h-2v-2zm-4 4h2v2H9v-2zm4 0h2v2h-2v-2z" />
-          </svg>
-        </div>
-      )}
-
       {/* Position number */}
       <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
         isChecked
@@ -135,6 +169,7 @@ interface DragOrderAnswerProps {
   onOrderChange: (newOrder: string[]) => void;
   onCheck: () => void;
   canAttempt: boolean;
+  orientation?: 'vertical' | 'horizontal';
 }
 
 export default function DragOrderAnswer({
@@ -145,7 +180,25 @@ export default function DragOrderAnswer({
   onOrderChange,
   onCheck,
   canAttempt,
+  orientation = 'vertical',
 }: DragOrderAnswerProps) {
+  const horizontal = orientation === 'horizontal';
+  const idCounter = useRef(0);
+
+  // Maintain internal state with stable IDs so dnd-kit animates correctly
+  const [orderedItems, setOrderedItems] = useState(() =>
+    items.map(text => ({ id: `item-${idCounter.current++}`, text }))
+  );
+  const lastEmittedRef = useRef<string[]>(items);
+
+  // Sync from parent when items change externally (not from our own reorders)
+  useEffect(() => {
+    if (JSON.stringify(items) !== JSON.stringify(lastEmittedRef.current)) {
+      setOrderedItems(items.map(text => ({ id: `item-${idCounter.current++}`, text })));
+      lastEmittedRef.current = items;
+    }
+  }, [items]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -163,26 +216,25 @@ export default function DragOrderAnswer({
     })
   );
 
-  // Create stable IDs for items (use index-based since items can have duplicates)
-  const itemIds = items.map((_, i) => `item-${i}`);
+  const sortableIds = orderedItems.map(item => item.id);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = itemIds.indexOf(active.id as string);
-      const newIndex = itemIds.indexOf(over.id as string);
-      const newItems = arrayMove(items, oldIndex, newIndex);
-      onOrderChange(newItems);
+      setOrderedItems(prev => {
+        const oldIndex = prev.findIndex(item => item.id === active.id);
+        const newIndex = prev.findIndex(item => item.id === over.id);
+        const newArr = arrayMove(prev, oldIndex, newIndex);
+        const newTexts = newArr.map(item => item.text);
+        lastEmittedRef.current = newTexts;
+        onOrderChange(newTexts);
+        return newArr;
+      });
     }
   };
 
   const isCorrect = JSON.stringify(items) === JSON.stringify(correctOrder);
-
-  // Build a map from item text to its correct index for position checking
-  const getIsCorrectPosition = (itemText: string, currentIndex: number): boolean => {
-    return correctOrder[currentIndex] === itemText;
-  };
 
   return (
     <div className="space-y-2 relative z-[60]" style={{ pointerEvents: 'auto' }}>
@@ -197,18 +249,19 @@ export default function DragOrderAnswer({
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
-            {items.map((item, index) => (
+        <SortableContext items={sortableIds} strategy={horizontal ? horizontalListSortingStrategy : verticalListSortingStrategy}>
+          <div className={horizontal ? 'flex flex-wrap gap-2' : 'space-y-2'}>
+            {orderedItems.map((item, index) => (
               <SortableItem
-                key={itemIds[index]}
-                id={itemIds[index]}
+                key={item.id}
+                id={item.id}
                 index={index}
-                text={item}
-                imageUrl={answerImageUrls?.[correctOrder.indexOf(item)]}
+                text={item.text}
+                imageUrl={answerImageUrls?.[correctOrder.indexOf(item.text)]}
                 isChecked={isChecked}
-                isCorrectPosition={getIsCorrectPosition(item, index)}
+                isCorrectPosition={correctOrder[index] === item.text}
                 disabled={isChecked}
+                horizontal={horizontal}
               />
             ))}
           </div>

@@ -1349,13 +1349,6 @@ export default function AdminPage() {
     e.preventDefault();
     dropSuccessRef.current = true;
 
-    console.log('[ORDER-DEBUG] handleQuestionDrop fired', JSON.stringify({
-      filterTestId,
-      testQuestionOrderKeys: Object.keys(testQuestionOrder).length,
-      branch: filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0 ? 'TEST-SPECIFIC' : 'GLOBAL',
-      editingId: editingId?.slice(0, 8) || null,
-    }));
-
     // Clear drag state
     setDraggedQuestionId(null);
     setDraggedGroupId(null);
@@ -1375,13 +1368,7 @@ export default function AdminPage() {
         display_order: index + 1,
       }));
 
-      console.log('[ORDER-DEBUG] TEST-SPECIFIC reorder:', JSON.stringify(testOrders.map(o => ({
-        qId: o.questionId.slice(0, 8),
-        order: o.display_order,
-      }))));
-
       const success = await updateTestQuestionOrders(filterTestId, testOrders);
-      console.log('[ORDER-DEBUG] updateTestQuestionOrders result:', success);
       if (!success) {
         setNotification({
           type: "error",
@@ -1403,13 +1390,7 @@ export default function AdminPage() {
         display_order: index + 1,
       }));
 
-      console.log('[ORDER-DEBUG] GLOBAL reorder, first 10:', JSON.stringify(orders.slice(0, 10).map(o => ({
-        id: o.id.slice(0, 8),
-        order: o.display_order,
-      }))));
-
       const success = await updateQuestionOrders(orders);
-      console.log('[ORDER-DEBUG] updateQuestionOrders result:', success);
       if (!success) {
         setNotification({
           type: "error",
@@ -1927,23 +1908,11 @@ export default function AdminPage() {
           if (editIndex !== -1) {
             questionData.display_order = editIndex + 1;
           }
-          console.log('[ORDER-DEBUG] Saving edit for question', JSON.stringify({
-            editingId: editingId.slice(0, 8),
-            editIndex,
-            display_order_being_set: questionData.display_order,
-            total_questions: questions.length,
-            edited_q_in_state: questions[editIndex] ? {
-              id: questions[editIndex].id.slice(0, 8),
-              name: questions[editIndex].name?.slice(0, 30),
-              db_display_order: questions[editIndex].display_order,
-            } : 'NOT FOUND',
-          }));
           result = await updateQuestion(editingId, questionData as Partial<DatabaseQuestion>);
           questionId = editingId;
         } else {
           // Set display_order so new question appears at the end in a defined position
           questionData.display_order = questions.length + 1;
-          console.log('[ORDER-DEBUG] Creating new question with display_order:', questionData.display_order);
           result = await createQuestion(questionData as Omit<DatabaseQuestion, 'id' | 'created_at' | 'updated_at'>);
           questionId = result?.id || "";
         }

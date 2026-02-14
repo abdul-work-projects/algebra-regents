@@ -94,22 +94,6 @@ export async function fetchQuestions(): Promise<(DatabaseQuestion & { passages?:
     return [];
   }
 
-  const fetched = data || [];
-  // Log questions with mismatched index vs display_order, plus last 5
-  const mismatched = fetched.filter((q, i) => q.display_order !== i + 1);
-  const lastFive = fetched.slice(-5);
-  console.log('[ORDER-DEBUG] fetchQuestions returned', JSON.stringify({
-    total: fetched.length,
-    nullDisplayOrders: fetched.filter(q => q.display_order == null).map(q => q.id.slice(0, 8)),
-    mismatchedCount: mismatched.length,
-    last5: lastFive.map((q, i) => ({
-      index: fetched.length - 5 + i,
-      id: q.id.slice(0, 8),
-      name: q.name?.slice(0, 30),
-      display_order: q.display_order,
-    })),
-  }));
-
   return data || [];
 }
 
@@ -169,12 +153,6 @@ export async function bulkCreateQuestions(questions: Omit<DatabaseQuestion, 'id'
 
 // Update an existing question
 export async function updateQuestion(id: string, updates: Partial<DatabaseQuestion>) {
-  console.log('[ORDER-DEBUG] updateQuestion called', JSON.stringify({
-    id: id.slice(0, 8),
-    display_order_in_update: updates.display_order,
-    has_display_order: 'display_order' in updates,
-  }));
-
   const { data, error } = await supabase
     .from('questions')
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -185,11 +163,6 @@ export async function updateQuestion(id: string, updates: Partial<DatabaseQuesti
     console.error('Error updating question:', error);
     return null;
   }
-
-  console.log('[ORDER-DEBUG] updateQuestion result', JSON.stringify({
-    id: id.slice(0, 8),
-    returned_display_order: data?.[0]?.display_order,
-  }));
 
   return data?.[0] || null;
 }
@@ -241,11 +214,6 @@ export async function deleteQuestionsForTest(testId: string): Promise<{ success:
 
 // Update the display order of multiple questions
 export async function updateQuestionOrders(orders: { id: string; display_order: number }[]) {
-  console.log('[ORDER-DEBUG] updateQuestionOrders called with', orders.map(o => ({
-    id: o.id.slice(0, 8),
-    display_order: o.display_order,
-  })));
-
   const updates = orders.map(({ id, display_order }) =>
     supabase
       .from('questions')
@@ -257,11 +225,10 @@ export async function updateQuestionOrders(orders: { id: string; display_order: 
   const hasError = results.some(result => result.error);
 
   if (hasError) {
-    console.error('[ORDER-DEBUG] updateQuestionOrders HAD ERRORS', results.filter(r => r.error).map(r => r.error));
+    console.error('Error updating question orders:', results.filter(r => r.error).map(r => r.error));
     return false;
   }
 
-  console.log('[ORDER-DEBUG] updateQuestionOrders SUCCESS');
   return true;
 }
 
@@ -614,19 +581,6 @@ export async function fetchQuestionsForTest(testId: string): Promise<(DatabaseQu
     }))
     .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
 
-  console.log('[ORDER-DEBUG] fetchQuestionsForTest', JSON.stringify({
-    testId: testId.slice(0, 8),
-    raw_test_questions: (data || []).map((tq: any) => ({
-      qId: tq.questions?.id?.slice(0, 8),
-      test_display_order: tq.display_order,
-    })),
-    sorted_result: questions.map((q: any) => ({
-      id: q.id?.slice(0, 8),
-      name: q.name?.slice(0, 30),
-      display_order: q.display_order,
-    })),
-  }));
-
   return questions;
 }
 
@@ -735,15 +689,6 @@ export async function setTestsForQuestion(
 
   const testsToAdd = testIds.filter((id) => !existingMap.has(id));
   const testsKept = testIds.filter((id) => existingMap.has(id));
-
-  console.log('[ORDER-DEBUG] setTestsForQuestion', JSON.stringify({
-    questionId: questionId.slice(0, 8),
-    requestedTestIds: testIds.map(id => id.slice(0, 8)),
-    existingRows: (existing || []).map(r => ({ testId: r.test_id.slice(0, 8), display_order: r.display_order })),
-    testsToRemove: testsToRemove.map(id => id.slice(0, 8)),
-    testsToAdd: testsToAdd.map(id => id.slice(0, 8)),
-    testsKept: testsKept.map(id => id.slice(0, 8)),
-  }));
 
   // Remove only the tests that were un-checked
   if (testsToRemove.length > 0) {
