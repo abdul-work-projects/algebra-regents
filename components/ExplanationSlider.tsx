@@ -76,15 +76,15 @@ export default function ExplanationSlider({
 
       {/* Slider Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full md:w-2/3 lg:w-1/2 bg-white shadow-2xl z-[260] transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-full w-full md:w-2/3 lg:w-1/2 bg-white dark:bg-gray-800 shadow-2xl z-[260] transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className="h-full flex flex-col">
           {/* Header */}
           <div className={`p-5 border-b-2 ${
-            !anyAnswered ? 'bg-gray-50 border-gray-200' :
-            allCorrect ? 'bg-green-50 border-green-200' : 'bg-rose-50 border-rose-200'
+            !anyAnswered ? 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700' :
+            allCorrect ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700' : 'bg-rose-50 dark:bg-rose-900/30 border-rose-200 dark:border-rose-700'
           }`}>
             <div className="flex items-center justify-between">
               <div>
@@ -92,27 +92,27 @@ export default function ExplanationSlider({
                   <>
                     <h2 className="text-xl font-bold">
                       {allCorrect ? (
-                        <span className="text-green-600">✓ {isGrouped ? 'All Correct!' : 'Correct!'}</span>
+                        <span className="text-green-600 dark:text-green-400">✓ {isGrouped ? 'All Correct!' : 'Correct!'}</span>
                       ) : (
-                        <span className="text-rose-600">✗ {isGrouped ? 'Review Answers' : 'Incorrect'}</span>
+                        <span className="text-rose-600 dark:text-rose-400">✗ {isGrouped ? 'Review Answers' : 'Incorrect'}</span>
                       )}
                     </h2>
                     {!isGrouped && (
-                      <div className="text-sm text-gray-600 mt-1.5 font-medium flex items-baseline gap-1 flex-wrap">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 font-medium flex items-baseline gap-1 flex-wrap">
                         <span>Correct answer:</span>
-                        <MathText text={correctAnswer} className="text-gray-800 inline text-base" />
+                        <MathText text={correctAnswer} className="text-gray-800 dark:text-gray-200 inline text-base" />
                       </div>
                     )}
                   </>
                 ) : (
                   <>
-                    <h2 className="text-xl font-bold text-gray-700">
+                    <h2 className="text-xl font-bold text-gray-700 dark:text-gray-300">
                       {isGrouped ? 'Explanations' : 'Explanation'}
                     </h2>
                     {!isGrouped && (
-                      <div className="text-sm text-gray-600 mt-1.5 font-medium flex items-baseline gap-1 flex-wrap">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 font-medium flex items-baseline gap-1 flex-wrap">
                         <span>Correct answer:</span>
-                        <MathText text={correctAnswer} className="text-gray-800 inline text-base" />
+                        <MathText text={correctAnswer} className="text-gray-800 dark:text-gray-200 inline text-base" />
                       </div>
                     )}
                   </>
@@ -120,11 +120,11 @@ export default function ExplanationSlider({
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-white active:scale-95 transition-all"
+                className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-gray-700 active:scale-95 transition-all"
                 aria-label="Close explanation"
               >
                 <svg
-                  className="w-5 h-5 text-gray-700"
+                  className="w-5 h-5 text-gray-700 dark:text-gray-300"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -148,32 +148,32 @@ export default function ExplanationSlider({
                 {/* First question explanation */}
                 <div className={`rounded-xl border-2 p-4 ${
                   hasAnswered
-                    ? isCorrect ? 'border-green-300 bg-green-50' : 'border-rose-300 bg-rose-50'
-                    : 'border-gray-200 bg-white'
+                    ? isCorrect ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30' : 'border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/30'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
                 }`}>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="px-2 py-0.5 bg-gray-800 text-white text-xs font-bold rounded">
+                    <span className="px-2 py-0.5 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-800 text-xs font-bold rounded">
                       Q1
                     </span>
                     {hasAnswered && (
-                      <span className={`text-sm font-bold ${isCorrect ? 'text-green-600' : 'text-rose-600'}`}>
+                      <span className={`text-sm font-bold ${isCorrect ? 'text-green-600 dark:text-green-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {isCorrect ? '✓ Correct' : '✗ Incorrect'}
                       </span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-600 mb-2 font-medium flex items-baseline gap-1 flex-wrap">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium flex items-baseline gap-1 flex-wrap">
                     <span>Correct answer:</span>
-                    <MathText text={correctAnswer} className="text-gray-800 inline" />
+                    <MathText text={correctAnswer} className="text-gray-800 dark:text-gray-200 inline" />
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-gray-200">
-                    <h4 className="text-sm font-bold text-gray-900 mb-2">Explanation</h4>
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Explanation</h4>
                     <MathText
                       text={explanationText}
-                      className="text-gray-700 leading-relaxed text-sm"
+                      className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm"
                     />
                   </div>
                   {explanationImageUrl && (
-                    <div className="mt-3 bg-white rounded-lg p-2 border border-gray-200">
+                    <div className="mt-3 bg-white dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-700">
                       <img
                         src={explanationImageUrl}
                         alt="Explanation"
@@ -189,33 +189,33 @@ export default function ExplanationSlider({
                     key={index}
                     className={`rounded-xl border-2 p-4 ${
                       exp.hasAnswered
-                        ? exp.isCorrect ? 'border-green-300 bg-green-50' : 'border-rose-300 bg-rose-50'
-                        : 'border-gray-200 bg-white'
+                        ? exp.isCorrect ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30' : 'border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/30'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="px-2 py-0.5 bg-gray-800 text-white text-xs font-bold rounded">
+                      <span className="px-2 py-0.5 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-800 text-xs font-bold rounded">
                         Q{index + 2}
                       </span>
                       {exp.hasAnswered && (
-                        <span className={`text-sm font-bold ${exp.isCorrect ? 'text-green-600' : 'text-rose-600'}`}>
+                        <span className={`text-sm font-bold ${exp.isCorrect ? 'text-green-600 dark:text-green-400' : 'text-rose-600 dark:text-rose-400'}`}>
                           {exp.isCorrect ? '✓ Correct' : '✗ Incorrect'}
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-gray-600 mb-2 font-medium flex items-baseline gap-1 flex-wrap">
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium flex items-baseline gap-1 flex-wrap">
                       <span>Correct answer:</span>
-                      <MathText text={exp.correctAnswer} className="text-gray-800 inline" />
+                      <MathText text={exp.correctAnswer} className="text-gray-800 dark:text-gray-200 inline" />
                     </div>
-                    <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <h4 className="text-sm font-bold text-gray-900 mb-2">Explanation</h4>
+                    <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Explanation</h4>
                       <MathText
                         text={exp.explanationText}
-                        className="text-gray-700 leading-relaxed text-sm"
+                        className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm"
                       />
                     </div>
                     {exp.explanationImageUrl && (
-                      <div className="mt-3 bg-white rounded-lg p-2 border border-gray-200">
+                      <div className="mt-3 bg-white dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-700">
                         <img
                           src={exp.explanationImageUrl}
                           alt="Explanation"
@@ -229,18 +229,18 @@ export default function ExplanationSlider({
             ) : (
               // Single question explanation
               <>
-                <div className="bg-white rounded-xl border-2 border-gray-200 p-4 mb-4">
-                  <h3 className="text-base font-bold text-gray-900 mb-2">
+                <div className="bg-white dark:bg-gray-900 rounded-xl border-2 border-gray-200 dark:border-gray-700 p-4 mb-4">
+                  <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-2">
                     Explanation
                   </h3>
                   <MathText
                     text={explanationText}
-                    className="text-gray-700 leading-relaxed text-sm"
+                    className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm"
                   />
                 </div>
 
                 {explanationImageUrl && (
-                  <div className="bg-white rounded-xl border-2 border-gray-200 p-3 overflow-hidden">
+                  <div className="bg-white dark:bg-gray-900 rounded-xl border-2 border-gray-200 dark:border-gray-700 p-3 overflow-hidden">
                     <img
                       src={explanationImageUrl}
                       alt="Explanation"
@@ -253,10 +253,10 @@ export default function ExplanationSlider({
           </div>
 
           {/* Footer */}
-          <div className="p-5 border-t-2 border-gray-200 bg-white">
+          <div className="p-5 border-t-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <button
               onClick={onClose}
-              className="w-full px-5 py-3 text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-[0.98] rounded-xl shadow-md transition-all"
+              className="w-full px-5 py-3 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-[0.98] rounded-xl shadow-md transition-all"
             >
               CONTINUE
             </button>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmail, getCurrentUser } from "@/lib/auth";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -48,18 +49,23 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center px-4 py-8 relative">
+      {/* Theme Toggle - top right */}
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">Admin Login</h1>
-          <p className="text-gray-600 text-lg">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">Admin Login</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-lg">
             Sign in to access the question upload panel
           </p>
         </div>
 
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-8 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-8 shadow-sm">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 text-red-800 border-2 border-red-200 rounded-xl text-sm font-bold">
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-400 border-2 border-red-200 dark:border-red-800 rounded-xl text-sm font-bold">
               {error}
             </div>
           )}
@@ -68,7 +74,7 @@ export default function AdminLoginPage() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-bold text-gray-700 mb-2"
+                className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2"
               >
                 Email
               </label>
@@ -78,7 +84,7 @@ export default function AdminLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-black focus:border-black transition-all text-base"
+                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-gray-400 focus:border-black dark:focus:border-gray-400 transition-all text-base bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 placeholder="admin@example.com"
               />
             </div>
@@ -86,7 +92,7 @@ export default function AdminLoginPage() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-bold text-gray-700 mb-2"
+                className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2"
               >
                 Password
               </label>
@@ -96,7 +102,7 @@ export default function AdminLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-black focus:border-black transition-all text-base"
+                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-gray-400 focus:border-black dark:focus:border-gray-400 transition-all text-base bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 placeholder="••••••••"
               />
             </div>
@@ -104,16 +110,16 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full px-6 py-4 text-base font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-xl shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+              className="w-full px-6 py-4 text-base font-bold text-white bg-black dark:bg-gray-100 dark:text-black hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 rounded-xl shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               {isLoading ? "SIGNING IN..." : "SIGN IN"}
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t-2 border-gray-200">
+          <div className="mt-6 pt-6 border-t-2 border-gray-200 dark:border-gray-700">
             <button
               onClick={() => router.push("/")}
-              className="w-full px-6 py-4 text-base font-bold text-gray-700 bg-white border-2 border-gray-300 hover:border-black hover:bg-gray-50 active:scale-95 rounded-xl transition-all"
+              className="w-full px-6 py-4 text-base font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 rounded-xl transition-all"
             >
               BACK TO HOME
             </button>

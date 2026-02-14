@@ -61,25 +61,25 @@ export default function TestMultiSelect({
           setIsOpen(true);
           setTimeout(() => inputRef.current?.focus(), 0);
         }}
-        className={`min-h-[38px] px-2 py-1.5 border rounded-lg cursor-pointer transition-all ${
+        className={`min-h-[38px] px-2 py-1.5 border rounded-lg cursor-pointer transition-all dark:bg-gray-700 ${
           isOpen
-            ? "border-blue-500 ring-2 ring-blue-200"
-            : "border-gray-300 hover:border-gray-400"
+            ? "border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800"
+            : "border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
         }`}
       >
         {selectedTests.length === 0 ? (
-          <span className="text-gray-400 text-sm">{placeholder}</span>
+          <span className="text-gray-400 dark:text-gray-500 text-sm">{placeholder}</span>
         ) : (
           <div className="flex flex-wrap gap-1">
             {selectedTests.map((test) => (
               <span
                 key={test.id}
-                className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium"
+                className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 rounded text-xs font-medium"
               >
                 {test.name}
                 <button
                   onClick={(e) => removeTest(test.id, e)}
-                  className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+                  className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-colors"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -93,23 +93,23 @@ export default function TestMultiSelect({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
           {/* Search input */}
-          <div className="p-2 border-b border-gray-100">
+          <div className="p-2 border-b border-gray-100 dark:border-gray-700">
             <input
               ref={inputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search tests..."
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
             />
           </div>
 
           {/* Options list */}
           <div className="max-h-48 overflow-y-auto">
             {filteredTests.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-gray-500">No tests found</div>
+              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No tests found</div>
             ) : (
               filteredTests.map((test) => {
                 const isSelected = selectedTestIds.includes(test.id);
@@ -118,20 +118,20 @@ export default function TestMultiSelect({
                     key={test.id}
                     onClick={() => toggleTest(test.id)}
                     className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${
-                      isSelected ? "bg-blue-50" : "hover:bg-gray-50"
+                      isSelected ? "bg-blue-50 dark:bg-blue-900/30" : "hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => {}}
-                      className="w-4 h-4 rounded border-gray-300 pointer-events-none"
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 pointer-events-none"
                     />
-                    <span className="text-sm text-gray-700 flex-1">{test.name}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{test.name}</span>
                     {!test.isActive && (
-                      <span className="text-xs text-gray-400">(inactive)</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">(inactive)</span>
                     )}
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
                       {test.questionCount || 0} Q
                     </span>
                   </div>

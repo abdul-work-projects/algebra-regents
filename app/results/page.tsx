@@ -8,12 +8,13 @@ import { calculateResults, getPerformanceLevel, formatTime, getScoreComment, get
 import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById, convertToTestFormat } from '@/lib/supabase';
 import { Question, QuizResult, Test } from '@/lib/types';
 import MathText from '@/components/MathText';
+import ThemeToggle from '@/components/ThemeToggle';
 import dynamic from 'next/dynamic';
 
 // Dynamic import for PDF generator to avoid SSR issues with @react-pdf/renderer
 const ReportGenerator = dynamic(
   () => import('@/components/ReportPDF/ReportGenerator'),
-  { ssr: false, loading: () => <div className="flex-1 px-6 py-3 text-sm font-bold text-gray-400 bg-gray-100 rounded-xl text-center">Loading PDF...</div> }
+  { ssr: false, loading: () => <div className="flex-1 px-6 py-3 text-sm font-bold text-gray-400 bg-gray-100 dark:bg-gray-800 dark:text-gray-500 rounded-xl text-center">Loading PDF...</div> }
 );
 
 export default function ResultsPage() {
@@ -113,16 +114,16 @@ export default function ResultsPage() {
 
   if (!result) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
-            <svg className="animate-spin w-12 h-12 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg className="animate-spin w-12 h-12 text-black dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Analyzing your test...</h2>
-          <p className="text-gray-500">Generating question-by-question analysis</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Analyzing your test...</h2>
+          <p className="text-gray-500 dark:text-gray-400">Generating question-by-question analysis</p>
         </div>
       </div>
     );
@@ -149,19 +150,22 @@ export default function ResultsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white py-4">
+    <div className="min-h-screen bg-white dark:bg-gray-900 py-4">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="w-12"></div>
-          <h1 className="text-lg md:text-xl font-bold text-gray-900 text-center flex-1">
+          <h1 className="text-lg md:text-xl font-bold text-gray-900 dark:text-gray-100 text-center flex-1">
             {test ? test.name : 'Algebra I Regents Practice Test'}
           </h1>
-          <ReportGenerator result={result} test={test} scaledScore={scaledScore} questions={questions} iconOnly />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <ReportGenerator result={result} test={test} scaledScore={scaledScore} questions={questions} iconOnly />
+          </div>
         </div>
 
         {/* Score Card - Compact Display */}
-        <div className="bg-white rounded-xl p-4 md:p-6 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 mb-4">
           <div className="flex items-center gap-4 md:gap-8">
             {/* Left: Pass/Fail Circle - Smaller */}
             <div className={`flex-shrink-0 w-28 h-28 md:w-36 md:h-36 rounded-full ${scoreComment.circleColor} flex items-center justify-center`}>
@@ -174,39 +178,39 @@ export default function ResultsPage() {
             <div className="flex-1">
               {/* Main Score */}
               <div className="mb-1">
-                <span className="text-3xl md:text-4xl font-bold text-gray-900">
+                <span className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">
                   {scaledScore}
                 </span>
-                <span className="text-lg text-gray-400 ml-1">/100</span>
+                <span className="text-lg text-gray-400 dark:text-gray-500 ml-1">/100</span>
               </div>
 
               {/* Score Breakdown - Inline */}
-              <div className="text-sm text-gray-600 space-y-0.5">
+              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-0.5">
                 <p className="flex items-center gap-1">
-                  Scaled score: <span className="font-semibold text-gray-900">{scaledScore}</span>
+                  Scaled score: <span className="font-semibold text-gray-900 dark:text-gray-100">{scaledScore}</span>
                   <span className="relative group">
-                    <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
                       Your final score, based on your points
-                      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></span>
+                      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></span>
                     </span>
                   </span>
                 </p>
                 <p className="flex items-center gap-1">
-                  Raw score: <span className="font-semibold text-gray-900">{rawScore}</span> / {result.totalPoints}
+                  Raw score: <span className="font-semibold text-gray-900 dark:text-gray-100">{rawScore}</span> / {result.totalPoints}
                   <span className="relative group">
-                    <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
                       How many points you earned
-                      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></span>
+                      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></span>
                     </span>
                   </span>
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 dark:text-gray-500">
                   {result.score} / {result.totalQuestions} questions correct
                 </p>
               </div>
@@ -221,39 +225,39 @@ export default function ResultsPage() {
           </div>
 
           {/* Stats Row - More Compact */}
-          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
+          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
             <div className="text-center">
-              <div className="text-lg font-bold text-gray-900">
+              <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {formatTime(result.averageTime)}
               </div>
-              <div className="text-xs text-gray-500">Avg. Time</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Avg. Time</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-gray-900">
+              <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {Object.keys(result.skillAccuracy).length}
               </div>
-              <div className="text-xs text-gray-500">Skills</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Skills</div>
             </div>
             <div className="text-center">
               <div className="text-lg font-bold text-amber-500">
                 {result.missedOnFirstAttemptCount}
               </div>
-              <div className="text-xs text-gray-500">Missed 1st Try</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Missed 1st Try</div>
             </div>
           </div>
         </div>
 
         {/* Skill Performance - Collapsible */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-4">
+        <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-4">
           <button
             onClick={() => setShowTopics(!showTopics)}
             className="w-full flex items-center justify-between text-left"
           >
-            <h3 className="text-base font-bold text-gray-900">
+            <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
               Performance by Skill
             </h3>
             <svg
-              className={`w-5 h-5 transition-transform ${showTopics ? 'rotate-180' : ''}`}
+              className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform ${showTopics ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -269,12 +273,12 @@ export default function ResultsPage() {
                   return (
                     <div key={skill}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-sm text-gray-900">{skill}</span>
-                        <span className="text-xs text-gray-500">
+                        <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{skill}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
                           {stats.correct} / {stats.total} correct ({stats.percentage}%)
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                         <div
                           className={`h-1.5 rounded-full transition-all ${
                             stats.percentage >= 80
@@ -296,16 +300,16 @@ export default function ResultsPage() {
         </div>
 
         {/* Question-by-Question Details */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-4">
+        <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-4">
           <button
             onClick={() => setShowDetails(!showDetails)}
             className="w-full flex items-center justify-between text-left"
           >
-            <h3 className="text-base font-bold text-gray-900">
+            <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
               Question-by-Question Breakdown
             </h3>
             <svg
-              className={`w-5 h-5 transition-transform ${
+              className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform ${
                 showDetails ? 'rotate-180' : ''
               }`}
               fill="none"
@@ -328,7 +332,7 @@ export default function ResultsPage() {
                 <select
                   value={questionFilter}
                   onChange={(e) => setQuestionFilter(e.target.value as typeof questionFilter)}
-                  className="px-4 py-2 border-2 border-gray-300 rounded-lg text-sm font-medium focus:border-black focus:outline-none"
+                  className="px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium focus:border-black dark:focus:border-white focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="all">All Questions ({result.questionResults.length})</option>
                   <option value="correct">Correct ({result.questionResults.filter(q => q.isCorrect).length})</option>
@@ -367,40 +371,40 @@ export default function ResultsPage() {
                       key={qResult.questionId}
                       className={`p-4 rounded-lg border-2 ${
                         qResult.isCorrect
-                          ? 'bg-green-50 border-green-200'
+                          ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700'
                           : qResult.userAnswer === null
-                          ? 'bg-slate-100 border-slate-400'
-                          : 'bg-red-50 border-red-200'
+                          ? 'bg-slate-100 dark:bg-slate-800 border-slate-400 dark:border-slate-600'
+                          : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700'
                       }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            <span className="font-bold text-gray-900">
+                            <span className="font-bold text-gray-900 dark:text-gray-100">
                               Question {index + 1}
                             </span>
-                            <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-black text-white">
+                            <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-black dark:bg-white text-white dark:text-black">
                               {qResult.isCorrect ? qResult.points : 0}/{qResult.points} pts
                             </span>
                             {qResult.isCorrect ? (
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-400">
                                 ✓ Correct
                               </span>
                             ) : qResult.userAnswer === null ? (
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-200 text-slate-700 border border-slate-400">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500">
                                 Not Answered
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-400">
                                 ✗ Incorrect
                               </span>
                             )}
                             {qResult.missedOnFirstAttempt && (
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-400">
                                 Missed 1st attempt
                               </span>
                             )}
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
                               {qResult.skills.join(', ')}
                             </span>
                           </div>
@@ -409,15 +413,15 @@ export default function ResultsPage() {
                           {(question.tags && question.tags.length > 0) || question.difficulty ? (
                             <div className="flex flex-wrap items-center gap-2 mb-2">
                               {question.tags && question.tags.map(tag => (
-                                <span key={tag} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                                <span key={tag} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                                   {tag}
                                 </span>
                               ))}
                               {question.difficulty && (
                                 <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                  question.difficulty === 'easy' ? 'bg-green-50 text-green-700' :
-                                  question.difficulty === 'medium' ? 'bg-yellow-50 text-yellow-700' :
-                                  'bg-red-50 text-red-700'
+                                  question.difficulty === 'easy' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                                  question.difficulty === 'medium' ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                                  'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                 }`}>
                                   {question.difficulty.charAt(0).toUpperCase() + question.difficulty.slice(1)}
                                 </span>
@@ -428,7 +432,7 @@ export default function ResultsPage() {
                           {/* View Question Toggle */}
                           <button
                             onClick={() => setExpandedQuestionId(isExpanded ? null : qResult.questionId)}
-                            className="text-xs text-blue-600 hover:text-blue-800 font-medium mb-2 flex items-center gap-1"
+                            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium mb-2 flex items-center gap-1"
                           >
                             <svg
                               className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -443,7 +447,12 @@ export default function ResultsPage() {
 
                           {/* Expanded Question View */}
                           {isExpanded && (
-                            <div className="mb-4 p-3 bg-white rounded-lg border border-gray-200">
+                            <div className="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                              {question.aboveImageText && (
+                                <div className="mb-2" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                                  <MathText text={question.aboveImageText} className="leading-relaxed dark:text-gray-200" />
+                                </div>
+                              )}
                               {question.imageFilename && (
                                 <img
                                   src={question.imageFilename}
@@ -460,7 +469,7 @@ export default function ResultsPage() {
                                 <img
                                   src={question.referenceImageUrl}
                                   alt="Reference"
-                                  className="w-full h-auto max-h-48 object-contain rounded-lg mt-2 border border-gray-300"
+                                  className="w-full h-auto max-h-48 object-contain rounded-lg mt-2 border border-gray-300 dark:border-gray-600"
                                 />
                               )}
 
@@ -478,11 +487,11 @@ export default function ResultsPage() {
                                   let buttonClass = "w-full px-3 py-2 text-left rounded-xl border-2 transition-all";
 
                                   if (isCorrectAnswer) {
-                                    buttonClass += " bg-green-50 border-black text-green-900";
+                                    buttonClass += " bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-900 dark:text-green-300";
                                   } else if (isUserAnswer && !qResult.isCorrect) {
-                                    buttonClass += " bg-rose-50 border-rose-500 text-rose-900";
+                                    buttonClass += " bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-900 dark:text-rose-300";
                                   } else {
-                                    buttonClass += " bg-white border-gray-200 text-gray-700";
+                                    buttonClass += " bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300";
                                   }
 
                                   // Grid order: (1)(3) on top, (2)(4) on bottom
@@ -509,7 +518,7 @@ export default function ResultsPage() {
                                               <img
                                                 src={question.answerImageUrls[answerIndex]}
                                                 alt={`Answer ${optionNumber}`}
-                                                className="max-w-full h-auto rounded border border-gray-300 mt-1"
+                                                className="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 mt-1"
                                               />
                                             )}
                                           </div>
@@ -522,48 +531,78 @@ export default function ResultsPage() {
                             </div>
                           )}
 
-                          <div className="text-sm text-gray-700">
-                            {qResult.userAnswer !== null && (
-                              <div className="mb-2">
-                                <span className="block mb-1">Your answer:</span>
-                                <div className="ml-4">
-                                  {question.answers[qResult.userAnswer - 1] && (
-                                    <div className="font-medium">
-                                      <MathText text={question.answers[qResult.userAnswer - 1]} />
-                                    </div>
-                                  )}
-                                  {question.answerImageUrls?.[qResult.userAnswer - 1] && (
-                                    <img
-                                      src={question.answerImageUrls[qResult.userAnswer - 1]}
-                                      alt={`Your answer ${qResult.userAnswer}`}
-                                      className="max-w-[200px] h-auto rounded border border-gray-300 mt-1"
-                                    />
-                                  )}
+                          <div className="text-sm text-gray-700 dark:text-gray-300">
+                            {qResult.questionType === 'drag-order' ? (
+                              <div className="mt-2 space-y-2">
+                                <div>
+                                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Your Order:</span>
+                                  <ol className="list-decimal list-inside text-sm mt-1 space-y-0.5">
+                                    {(qResult.dragOrderAnswer || []).map((item, i) => {
+                                      const isCorrectPosition = qResult.dragOrderCorrect && item === qResult.dragOrderCorrect[i];
+                                      return (
+                                        <li key={i} className={isCorrectPosition ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                                          <MathText text={item} className="inline" />
+                                        </li>
+                                      );
+                                    })}
+                                  </ol>
                                 </div>
+                                {!qResult.isCorrect && (
+                                  <div>
+                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Correct Order:</span>
+                                    <ol className="list-decimal list-inside text-sm mt-1 space-y-0.5 text-green-700 dark:text-green-400">
+                                      {(qResult.dragOrderCorrect || []).map((item, i) => (
+                                        <li key={i}><MathText text={item} className="inline" /></li>
+                                      ))}
+                                    </ol>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                            {!qResult.isCorrect && (
-                              <div className="text-green-700">
-                                <span className="block mb-1">Correct answer:</span>
-                                <div className="ml-4">
-                                  {question.answers[qResult.correctAnswer - 1] && (
-                                    <div className="font-medium">
-                                      <MathText text={question.answers[qResult.correctAnswer - 1]} />
+                            ) : (
+                              <>
+                                {qResult.userAnswer !== null && (
+                                  <div className="mb-2">
+                                    <span className="block mb-1">Your answer:</span>
+                                    <div className="ml-4">
+                                      {question.answers[qResult.userAnswer - 1] && (
+                                        <div className="font-medium">
+                                          <MathText text={question.answers[qResult.userAnswer - 1]} />
+                                        </div>
+                                      )}
+                                      {question.answerImageUrls?.[qResult.userAnswer - 1] && (
+                                        <img
+                                          src={question.answerImageUrls[qResult.userAnswer - 1]}
+                                          alt={`Your answer ${qResult.userAnswer}`}
+                                          className="max-w-[200px] h-auto rounded border border-gray-300 dark:border-gray-600 mt-1"
+                                        />
+                                      )}
                                     </div>
-                                  )}
-                                  {question.answerImageUrls?.[qResult.correctAnswer - 1] && (
-                                    <img
-                                      src={question.answerImageUrls[qResult.correctAnswer - 1]}
-                                      alt={`Correct answer ${qResult.correctAnswer}`}
-                                      className="max-w-[200px] h-auto rounded border border-gray-300 mt-1"
-                                    />
-                                  )}
-                                </div>
-                              </div>
+                                  </div>
+                                )}
+                                {!qResult.isCorrect && (
+                                  <div className="text-green-700 dark:text-green-400">
+                                    <span className="block mb-1">Correct answer:</span>
+                                    <div className="ml-4">
+                                      {question.answers[qResult.correctAnswer - 1] && (
+                                        <div className="font-medium">
+                                          <MathText text={question.answers[qResult.correctAnswer - 1]} />
+                                        </div>
+                                      )}
+                                      {question.answerImageUrls?.[qResult.correctAnswer - 1] && (
+                                        <img
+                                          src={question.answerImageUrls[qResult.correctAnswer - 1]}
+                                          alt={`Correct answer ${qResult.correctAnswer}`}
+                                          className="max-w-[200px] h-auto rounded border border-gray-300 dark:border-gray-600 mt-1"
+                                        />
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
-                        <div className="text-sm text-gray-500 ml-4">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 ml-4">
                           {formatTime(qResult.timeSpent)}
                         </div>
                       </div>
@@ -579,13 +618,13 @@ export default function ResultsPage() {
         <div className="flex flex-col sm:flex-row gap-4">
           <button
             onClick={handleRetakeQuiz}
-            className="flex-1 px-6 py-3 text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-xl shadow-md transition-all"
+            className="flex-1 px-6 py-3 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 rounded-xl shadow-md transition-all"
           >
             RETAKE QUIZ
           </button>
           <button
             onClick={handleBackHome}
-            className="flex-1 px-6 py-3 text-sm font-bold text-gray-700 bg-white border-2 border-gray-300 hover:border-black hover:bg-gray-50 active:scale-95 rounded-xl transition-all"
+            className="flex-1 px-6 py-3 text-sm font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 rounded-xl transition-all"
           >
             BACK TO HOME
           </button>

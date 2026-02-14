@@ -55,9 +55,9 @@ export default function Timer({ startTime, onTick }: TimerProps) {
     <div className="flex items-center gap-1">
       {/* Timer Display */}
       {!isHidden && (
-        <div className="flex items-center gap-1 text-gray-700">
+        <div className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
           <svg
-            className="w-3.5 h-3.5 text-gray-500"
+            className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -73,7 +73,7 @@ export default function Timer({ startTime, onTick }: TimerProps) {
             {formatTime(elapsedSeconds)}
           </span>
           {isPaused && (
-            <span className="text-[10px] text-orange-600 font-medium">PAUSED</span>
+            <span className="text-[10px] text-orange-600 dark:text-orange-400 font-medium">PAUSED</span>
           )}
         </div>
       )}
@@ -82,7 +82,7 @@ export default function Timer({ startTime, onTick }: TimerProps) {
       <div className="flex items-center gap-0.5">
         <button
           onClick={handlePauseToggle}
-          className="p-1 rounded hover:bg-gray-100 active:scale-95 transition-all"
+          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all"
           title={isPaused ? 'Resume timer' : 'Pause timer'}
         >
           {isPaused ? (
@@ -97,7 +97,7 @@ export default function Timer({ startTime, onTick }: TimerProps) {
         </button>
         <button
           onClick={() => setIsHidden(!isHidden)}
-          className="p-1 rounded hover:bg-gray-100 active:scale-95 transition-all"
+          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all"
           title={isHidden ? "Show timer" : "Hide timer"}
         >
           {isHidden ? (

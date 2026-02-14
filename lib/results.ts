@@ -56,17 +56,32 @@ export function calculateResults(
   // Ensure firstAttemptAnswers exists (backward compatibility)
   const firstAttemptAnswers = session.firstAttemptAnswers || {};
 
+  // Ensure dragOrderAnswers exists (backward compatibility)
+  const dragOrderAnswers = session.dragOrderAnswers || {};
+
   const questionResults = questions.map((question) => {
-    const userAnswer = session.userAnswers[question.id] ?? null;
-    // Only correct if user actually answered and the answer matches
-    const isCorrect = userAnswer !== null && userAnswer === question.correctAnswer;
+    const isDragOrder = question.questionType === 'drag-order';
     const points = question.points || 1; // Default 1 point per question
 
+    let isCorrect = false;
+    let userAnswer: number | null = null;
+    let dragOrderAnswer: string[] | undefined;
+    let dragOrderCorrect: string[] | undefined;
+
+    if (isDragOrder) {
+      // Drag-order: compare the student's ordering with the correct ordering
+      dragOrderAnswer = dragOrderAnswers[question.id] || [];
+      dragOrderCorrect = question.answers;
+      isCorrect = dragOrderAnswer.length > 0 && JSON.stringify(dragOrderAnswer) === JSON.stringify(dragOrderCorrect);
+    } else {
+      // Multiple-choice: compare selected answer with correct answer
+      userAnswer = session.userAnswers[question.id] ?? null;
+      isCorrect = userAnswer !== null && userAnswer === question.correctAnswer;
+    }
+
     // First attempt tracking
-    // missedOnFirstAttempt is only true when first attempt was wrong BUT final answer is correct
-    // (i.e., student recovered on second attempt)
     const firstAttemptAnswer = firstAttemptAnswers[question.id] ?? null;
-    const missedOnFirstAttempt = firstAttemptAnswer !== null && firstAttemptAnswer !== question.correctAnswer && isCorrect;
+    const missedOnFirstAttempt = !isDragOrder && firstAttemptAnswer !== null && firstAttemptAnswer !== question.correctAnswer && isCorrect;
 
     if (missedOnFirstAttempt) {
       missedOnFirstAttemptCount++;
@@ -88,6 +103,9 @@ export function calculateResults(
       points,
       firstAttemptAnswer,
       missedOnFirstAttempt,
+      questionType: question.questionType,
+      dragOrderAnswer,
+      dragOrderCorrect,
     };
   });
 

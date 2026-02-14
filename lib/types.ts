@@ -9,12 +9,14 @@ export interface Passage {
 export interface Question {
   id: string;
   questionText?: string; // Optional question text (can have text, image, or both)
+  aboveImageText?: string; // Text displayed above the question image
   imageFilename?: string; // Optional question image (can have text, image, or both)
   referenceImageUrl?: string; // Reference image URL
   answers: string[];
   answerImageUrls?: (string | undefined)[]; // Optional image URLs for each answer (1-4), can be undefined to preserve indices
   answerLayout?: 'grid' | 'list'; // 'grid' = 2x2, 'list' = 1x4 (default)
-  correctAnswer: number; // 1-4
+  questionType?: 'multiple-choice' | 'drag-order'; // Default: 'multiple-choice'
+  correctAnswer: number; // 1-4 (ignored for drag-order)
   explanation: string;
   explanationImageUrl?: string; // Explanation image URL
   skills: string[]; // Skills tested by this question (renamed from topics)
@@ -23,6 +25,18 @@ export interface Question {
   points?: number; // Points for this question (default: 2)
   passageId?: string; // Reference to shared passage for grouped questions
   passage?: Passage; // Joined passage data
+  sectionId?: string; // Section this question belongs to (within a test)
+  sectionName?: string; // Joined section name for display
+}
+
+export interface TestSection {
+  id: string;
+  testId: string;
+  name: string;
+  description?: string;
+  referenceImageUrl?: string; // Section-specific reference sheet
+  displayOrder: number;
+  questionCount?: number; // computed field
 }
 
 export interface Test {
@@ -34,6 +48,7 @@ export interface Test {
   questionCount?: number; // computed field, not stored in DB
   subjectId: string; // Required - which subject this test belongs to
   subjectName?: string; // Joined field for display
+  sections?: TestSection[]; // Sections for this test
   createdAt?: string;
   updatedAt?: string;
 }
@@ -43,6 +58,7 @@ export interface TestQuestion {
   testId: string;
   questionId: string;
   displayOrder?: number;
+  sectionId?: string; // Which section this question belongs to
 }
 
 export interface GraphPoint {
@@ -69,16 +85,27 @@ export interface GraphData {
   };
 }
 
+export interface PassageHighlight {
+  id: string;
+  startOffset: number; // Character offset in passage text
+  endOffset: number;
+  color: string; // Highlight color
+  note?: string; // Optional annotation text
+}
+
 export interface QuizSession {
   testId?: string; // ID of the test being taken
   currentQuestionIndex: number;
+  currentSectionIndex: number; // Track which section user is in
   userAnswers: { [questionId: string]: number | null };
   checkedAnswers: { [questionId: string]: number[] }; // Array of checked answers
   firstAttemptAnswers: { [questionId: string]: number | null }; // First attempt answer (for tracking)
+  dragOrderAnswers: { [questionId: string]: string[] }; // Ordered array of answer strings for drag-order questions
   questionTimes: { [questionId: string]: number }; // time spent in seconds
   drawings: { [questionId: string]: string }; // base64 encoded canvas data
   graphs: { [questionId: string]: GraphData }; // Graph data per question
   markedForReview: { [questionId: string]: boolean }; // Questions marked for review
+  passageHighlights: { [passageId: string]: PassageHighlight[] }; // Highlights on passages
   startTime: number;
   lastQuestionStartTime: number;
 }
@@ -100,6 +127,9 @@ export interface QuizResult {
     points: number;
     firstAttemptAnswer: number | null; // What they answered on first attempt
     missedOnFirstAttempt: boolean; // True if first attempt was wrong
+    questionType?: 'multiple-choice' | 'drag-order';
+    dragOrderAnswer?: string[]; // The student's ordering (for drag-order)
+    dragOrderCorrect?: string[]; // The correct ordering (for drag-order)
   }[];
   skillAccuracy: {
     [skill: string]: {

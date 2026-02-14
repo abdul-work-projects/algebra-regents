@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Question, QuizSession } from "@/lib/types";
+import { Question, QuizSession, TestSection, PassageHighlight } from "@/lib/types";
 import { loadSession, saveSession, createNewSession, updateSkillProgress, loadMarkedForReview, toggleMarkedForReview } from "@/lib/storage";
-import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById, fetchQuestionsForSubject } from "@/lib/supabase";
+import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById, fetchQuestionsForSubject, fetchSectionsWithCounts } from "@/lib/supabase";
+import DragOrderAnswer from "@/components/DragOrderAnswer";
+import BucketOrderAnswer from "@/components/BucketOrderAnswer";
+import ScrollablePassage from "@/components/ScrollablePassage";
+import { seededShuffle } from "@/lib/shuffle";
+import { resolveReferenceImage } from "@/lib/reference";
 import DrawingCanvas from "@/components/DrawingCanvas";
 import FullscreenDrawingCanvas from "@/components/FullscreenDrawingCanvas";
 import Timer from "@/components/Timer";
@@ -12,6 +17,7 @@ import ExplanationSlider from "@/components/ExplanationSlider";
 import ReferenceImageModal from "@/components/ReferenceImageModal";
 import MathText from "@/components/MathText";
 import BugReportModal from "@/components/BugReport/BugReportModal";
+import ThemeToggle from '@/components/ThemeToggle';
 import { GraphData, DEFAULT_GRAPH_DATA } from "@/components/GraphingTool/types";
 import dynamic from "next/dynamic";
 
@@ -19,8 +25,8 @@ import dynamic from "next/dynamic";
 const GraphingTool = dynamic(() => import("@/components/GraphingTool/GraphingTool"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
-      <div className="text-gray-500 text-sm">Loading graph...</div>
+    <div className="w-full h-64 flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+      <div className="text-gray-500 dark:text-gray-400 text-sm">Loading graph...</div>
     </div>
   ),
 });
@@ -38,9 +44,16 @@ function QuizPageContent() {
   const [showBugReport, setShowBugReport] = useState(false);
   const [showGraphingTool, setShowGraphingTool] = useState(false);
   const [graphClearKey, setGraphClearKey] = useState(0);
+  const [dragOrderView, setDragOrderView] = useState<'list' | 'slots'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('drag-order-view') as 'list' | 'slots') || 'list';
+    }
+    return 'list';
+  });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [testName, setTestName] = useState<string | undefined>(undefined);
+  const [sections, setSections] = useState<TestSection[]>([]);
 
   // Practice mode - multiple questions from question bank
   const practiceMode = searchParams.get('mode');
@@ -208,6 +221,11 @@ function QuizPageContent() {
           const testData = await fetchTestById(testId);
           if (testData) {
             setTestName(testData.name);
+            // Load sections for this test
+            const testSections = await fetchSectionsWithCounts(testId);
+            if (testSections.length > 0) {
+              setSections(testSections);
+            }
           }
         } else {
           // Fallback to loading all questions (backward compatibility)
@@ -233,6 +251,18 @@ function QuizPageContent() {
           // Add graphs if it doesn't exist (backward compatibility)
           if (!existingSession.graphs) {
             existingSession.graphs = {};
+          }
+          // Add dragOrderAnswers if it doesn't exist (backward compatibility)
+          if (!existingSession.dragOrderAnswers) {
+            existingSession.dragOrderAnswers = {};
+          }
+          // Add passageHighlights if it doesn't exist (backward compatibility)
+          if (!existingSession.passageHighlights) {
+            existingSession.passageHighlights = {};
+          }
+          // Add currentSectionIndex if it doesn't exist (backward compatibility)
+          if (existingSession.currentSectionIndex === undefined) {
+            existingSession.currentSectionIndex = 0;
           }
           // Convert old format (single number) to new format (array)
           Object.keys(existingSession.checkedAnswers).forEach((key) => {
@@ -267,20 +297,20 @@ function QuizPageContent() {
 
   if (!mounted || !session || isLoadingQuestions) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
             No questions available
           </h2>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
             Please add questions using the admin panel.
           </p>
           <button onClick={() => router.push("/")} className="btn-primary">
@@ -292,6 +322,11 @@ function QuizPageContent() {
   }
 
   const currentQuestion = questions[session.currentQuestionIndex];
+
+  // Determine current section (if sections exist)
+  const currentSection = sections.length > 0 && currentQuestion.sectionId
+    ? sections.find(s => s.id === currentQuestion.sectionId)
+    : undefined;
 
   // Find grouped question pair (questions sharing the same passageId)
   const siblingQuestion = currentQuestion.passageId
@@ -442,6 +477,89 @@ function QuizPageContent() {
     });
   };
 
+  // Drag-order question handlers
+  const handleDragOrderChange = (questionId: string, newOrder: string[]) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        dragOrderAnswers: {
+          ...prev.dragOrderAnswers,
+          [questionId]: newOrder,
+        },
+      };
+    });
+  };
+
+  const handleDragOrderCheck = (questionId: string) => {
+    const question = questions.find(q => q.id === questionId);
+    if (!question) return;
+
+    const studentOrder = session.dragOrderAnswers[questionId] || [];
+    const isCorrect = JSON.stringify(studentOrder) === JSON.stringify(question.answers);
+
+    if (isPracticeMode && practiceSkill) {
+      updateSkillProgress(practiceSkill, questionId, isCorrect);
+    }
+
+    setSession((prev) => {
+      if (!prev) return prev;
+      const currentChecked = prev.checkedAnswers[questionId] || [];
+      if (currentChecked.length >= 1) return prev;
+
+      return {
+        ...prev,
+        checkedAnswers: {
+          ...prev.checkedAnswers,
+          [questionId]: [isCorrect ? 1 : 0], // Use 1/0 as placeholder for drag-order
+        },
+      };
+    });
+  };
+
+  // Passage highlight handlers
+  const handleHighlightAdd = (passageId: string, highlight: PassageHighlight) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const existing = prev.passageHighlights[passageId] || [];
+      return {
+        ...prev,
+        passageHighlights: {
+          ...prev.passageHighlights,
+          [passageId]: [...existing, highlight],
+        },
+      };
+    });
+  };
+
+  const handleHighlightRemove = (passageId: string, highlightId: string) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const existing = prev.passageHighlights[passageId] || [];
+      return {
+        ...prev,
+        passageHighlights: {
+          ...prev.passageHighlights,
+          [passageId]: existing.filter(h => h.id !== highlightId),
+        },
+      };
+    });
+  };
+
+  const handleNoteAdd = (passageId: string, highlightId: string, note: string) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const existing = prev.passageHighlights[passageId] || [];
+      return {
+        ...prev,
+        passageHighlights: {
+          ...prev.passageHighlights,
+          [passageId]: existing.map(h => h.id === highlightId ? { ...h, note } : h),
+        },
+      };
+    });
+  };
+
   const handleNext = () => {
     const timeSpent = Math.floor(
       (Date.now() - session.lastQuestionStartTime) / 1000
@@ -582,6 +700,8 @@ function QuizPageContent() {
 
   const answeredCount = Object.keys(session.userAnswers).filter(
     (key) => session.userAnswers[key] !== null
+  ).length + Object.keys(session.dragOrderAnswers).filter(
+    (key) => session.dragOrderAnswers[key]?.length > 0
   ).length;
 
   const isCorrect =
@@ -591,6 +711,12 @@ function QuizPageContent() {
   const maxAttempts = 1;
   const canAttempt = !isCorrect && attemptsUsed < maxAttempts;
   const hasChecked = attemptsUsed > 0;
+
+  // Drag-order specific state
+  const isDragOrder = currentQuestion.questionType === 'drag-order';
+  const dragOrderAnswer = session.dragOrderAnswers[currentQuestion.id] || [];
+  const dragOrderChecked = isDragOrder && checkedAnswers.length > 0;
+  const dragOrderCorrect = isDragOrder && dragOrderChecked && JSON.stringify(dragOrderAnswer) === JSON.stringify(currentQuestion.answers);
 
   return (
     <>
@@ -613,9 +739,9 @@ function QuizPageContent() {
           canUndo={canUndo}
         />
         {/* Top Progress Bar */}
-        <div className="sticky top-0 z-[200] bg-white border-b border-gray-200" style={{ pointerEvents: 'auto' }}>
+        <div className="sticky top-0 z-[200] bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style={{ pointerEvents: 'auto' }}>
           {!isPracticeMode && (
-            <div className="relative h-2 bg-gray-200">
+            <div className="relative h-2 bg-gray-200 dark:bg-gray-700">
               <div
                 className="h-2 bg-green-500 transition-all duration-300"
                 style={{ width: `${progress}%` }}
@@ -636,11 +762,11 @@ function QuizPageContent() {
                   router.push("/");
                 }
               }}
-              className="p-1.5 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
+              className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all"
               title={isPracticeMode ? "Back to Question Bank" : "Exit"}
             >
               <svg
-                className="w-5 h-5 text-gray-600"
+                className="w-5 h-5 text-gray-600 dark:text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -656,11 +782,11 @@ function QuizPageContent() {
 
             {/* Test/Practice Name */}
             {isPracticeMode ? (
-              <span className="text-sm font-bold text-gray-700 truncate max-w-[200px] md:max-w-none">
+              <span className="text-sm font-bold text-gray-700 dark:text-gray-300 truncate max-w-[200px] md:max-w-none">
                 {practiceSkill ? practiceSkill : 'Practice'} ({questions.length} questions)
               </span>
             ) : (
-              <span className="text-sm font-bold text-gray-700 truncate max-w-[200px] md:max-w-none">
+              <span className="text-sm font-bold text-gray-700 dark:text-gray-300 truncate max-w-[200px] md:max-w-none">
                 {testName || 'Quiz'}
               </span>
             )}
@@ -668,11 +794,11 @@ function QuizPageContent() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowReferenceImage(true)}
-                className="flex flex-col items-center gap-0.5 hover:bg-gray-100 active:scale-95 transition-all rounded-lg p-1"
+                className="flex flex-col items-center gap-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all rounded-lg p-1"
                 title="Reference Sheet"
               >
                 <svg
-                  className="w-5 h-5 text-gray-600"
+                  className="w-5 h-5 text-gray-600 dark:text-gray-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -684,17 +810,17 @@ function QuizPageContent() {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <span className="text-[9px] font-medium text-gray-600">Reference</span>
+                <span className="text-[9px] font-medium text-gray-600 dark:text-gray-400">Reference</span>
               </button>
 
               <button
                 onClick={() => setShowGraphingTool(!showGraphingTool)}
                 className={`flex flex-col items-center gap-0.5 active:scale-95 transition-all rounded-lg p-1 ${
                   showGraphingTool
-                    ? 'bg-blue-100 text-blue-700'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                     : session.graphs?.[currentQuestion.id]
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'hover:bg-gray-100 text-gray-600'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}
                 title="Graphing Tool"
               >
@@ -707,11 +833,11 @@ function QuizPageContent() {
 
               <button
                 onClick={() => setShowCalculator(!showCalculator)}
-                className="flex flex-col items-center gap-0.5 hover:bg-gray-100 active:scale-95 transition-all rounded-lg p-1"
+                className="flex flex-col items-center gap-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all rounded-lg p-1"
                 title="Calculator"
               >
                 <svg
-                  className="w-5 h-5 text-gray-600"
+                  className="w-5 h-5 text-gray-600 dark:text-gray-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -723,8 +849,10 @@ function QuizPageContent() {
                     d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                   />
                 </svg>
-                <span className="text-[9px] font-medium text-gray-600">Calculator</span>
+                <span className="text-[9px] font-medium text-gray-600 dark:text-gray-400">Calculator</span>
               </button>
+
+              <ThemeToggle />
 
               <Timer startTime={session.lastQuestionStartTime} />
             </div>
@@ -734,21 +862,26 @@ function QuizPageContent() {
         <div className={`mx-auto pt-4 ${isGroupedQuestion ? 'max-w-6xl px-2' : 'max-w-3xl px-4'}`} style={{ pointerEvents: 'auto' }}>
           {/* Question Number and Topic Badges Row */}
           <div className="mb-4 flex items-center gap-2 flex-wrap relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
-            {/* Question Number Badge */}
+            {/* Question Number Badge + Section Tag */}
             <div className="flex items-center gap-2" style={{ pointerEvents: 'auto' }}>
-              <span className="inline-block text-sm font-bold px-4 py-1.5 rounded-full bg-black text-white">
+              <span className="inline-block text-sm font-bold px-4 py-1.5 rounded-full bg-black dark:bg-white text-white dark:text-black">
                 {isGroupedQuestion
                   ? `Questions ${Math.min(currentQuestionIdx, siblingQuestionIdx) + 1}-${Math.max(currentQuestionIdx, siblingQuestionIdx) + 1}`
                   : `Question ${session.currentQuestionIndex + 1}`}
               </span>
+              {currentSection && (
+                <span className="inline-block text-xs font-semibold px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
+                  {currentSection.name}
+                </span>
+              )}
 
               {/* Mark for Review Button */}
               <button
                 onClick={handleToggleMarkForReview}
                 className={`px-3 py-1.5 rounded-full border-2 active:scale-95 transition-all flex items-center gap-1.5 ${
                   isMarkedForReview
-                    ? "bg-yellow-50 border-yellow-400 hover:border-yellow-500"
-                    : "border-gray-300 hover:border-black hover:bg-gray-100"
+                    ? "bg-yellow-50 dark:bg-yellow-900/30 border-yellow-400 dark:border-yellow-600 hover:border-yellow-500 dark:hover:border-yellow-500"
+                    : "border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700"
                 }`}
                 title={
                   isMarkedForReview ? "Unmark for review" : "Mark for review"
@@ -756,7 +889,7 @@ function QuizPageContent() {
               >
                 <svg
                   className={`w-4 h-4 ${
-                    isMarkedForReview ? "text-yellow-600" : "text-gray-700"
+                    isMarkedForReview ? "text-yellow-600 dark:text-yellow-400" : "text-gray-700 dark:text-gray-300"
                   }`}
                   fill={isMarkedForReview ? "currentColor" : "none"}
                   stroke="currentColor"
@@ -770,7 +903,7 @@ function QuizPageContent() {
                   />
                 </svg>
                 <span className={`text-xs font-medium ${
-                  isMarkedForReview ? "text-yellow-700" : "text-gray-700"
+                  isMarkedForReview ? "text-yellow-700 dark:text-yellow-400" : "text-gray-700 dark:text-gray-300"
                 }`}>
                   Mark for Review
                 </span>
@@ -779,11 +912,11 @@ function QuizPageContent() {
               {/* Report Bug Button */}
               <button
                 onClick={() => setShowBugReport(true)}
-                className="px-3 py-1.5 rounded-full border-2 border-gray-300 hover:border-red-400 hover:bg-red-50 active:scale-95 transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-red-400 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 active:scale-95 transition-all flex items-center gap-1.5"
                 title="Report an issue with this question"
               >
                 <svg
-                  className="w-4 h-4 text-gray-600"
+                  className="w-4 h-4 text-gray-600 dark:text-gray-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -795,7 +928,7 @@ function QuizPageContent() {
                     d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"
                   />
                 </svg>
-                <span className="text-xs font-medium text-gray-700">Report</span>
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Report</span>
               </button>
             </div>
 
@@ -805,7 +938,7 @@ function QuizPageContent() {
                 {currentQuestion.skills.map((skill, index) => (
                   <span
                     key={index}
-                    className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200"
+                    className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-700"
                   >
                     {skill}
                   </span>
@@ -829,7 +962,7 @@ function QuizPageContent() {
                 className={`relative p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
                   tool === 'pen'
                     ? 'border-2 text-white'
-                    : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
                 style={tool === 'pen' ? { backgroundColor: penColor, borderColor: penColor } : {}}
                 title="Pen"
@@ -846,8 +979,8 @@ function QuizPageContent() {
               {showColorPicker && tool === 'pen' && (
                 <>
                   <div className="fixed inset-0 z-[110]" onClick={() => setShowColorPicker(false)} />
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white border-2 border-gray-200 rounded-lg shadow-xl p-1.5 z-[120]">
-                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-r-2 border-b-2 border-gray-200 rotate-45" />
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-lg shadow-xl p-1.5 z-[120]">
+                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white dark:bg-gray-800 border-r-2 border-b-2 border-gray-200 dark:border-gray-600 rotate-45" />
                     <div className="flex items-center gap-1.5">
                       {[
                         { name: 'Green', value: '#22c55e' },
@@ -864,7 +997,7 @@ function QuizPageContent() {
                             setShowColorPicker(false);
                           }}
                           className={`w-7 h-7 rounded-md transition-all hover:scale-110 active:scale-95 ${
-                            penColor === color.value ? 'ring-2 ring-black ring-offset-1' : 'border-2 border-gray-300'
+                            penColor === color.value ? 'ring-2 ring-black dark:ring-white ring-offset-1 dark:ring-offset-gray-800' : 'border-2 border-gray-300 dark:border-gray-600'
                           }`}
                           style={{ backgroundColor: color.value }}
                           title={color.name}
@@ -880,7 +1013,7 @@ function QuizPageContent() {
             <div style={{ pointerEvents: 'auto' }}>
               <button
                 onClick={handleClear}
-                className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
+                className="p-1.5 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-rose-500 dark:hover:border-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 active:scale-95 transition-all"
                 title="Clear all"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -895,8 +1028,8 @@ function QuizPageContent() {
                 onClick={() => setTool('eraser')}
                 className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
                   tool === 'eraser'
-                    ? 'bg-black border-black text-white'
-                    : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+                    ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
+                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
                 title="Eraser"
               >
@@ -916,8 +1049,8 @@ function QuizPageContent() {
                         onClick={() => setPenSize(size)}
                         className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
                           penSize === size
-                            ? 'bg-black border-black text-white'
-                            : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+                            ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
+                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                       >
                         {size === 2 ? 'S' : 'L'}
@@ -932,8 +1065,8 @@ function QuizPageContent() {
                         onClick={() => setEraserSize(size)}
                         className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
                           eraserSize === size
-                            ? 'bg-black border-black text-white'
-                            : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+                            ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
+                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                       >
                         {size === 15 ? 'S' : 'L'}
@@ -950,7 +1083,7 @@ function QuizPageContent() {
               <button
                 onClick={handleUndo}
                 disabled={!canUndo}
-                className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-black hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                className="p-1.5 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                 title="Undo"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -963,34 +1096,39 @@ function QuizPageContent() {
           {/* GROUPED QUESTIONS LAYOUT */}
           {isGroupedQuestion && question1 && question2 ? (
             <>
-              {/* Shared Passage at top */}
-              {currentQuestion.passage && (currentQuestion.passage.passageText || currentQuestion.passage.passageImageUrl) && (
+              {/* Passage Image (drawable — stays under canvas) */}
+              {currentQuestion.passage?.passageImageUrl && (
                 <div className="mb-4">
-                  {currentQuestion.passage.passageImageUrl && (
-                    <div className={currentQuestion.passage.passageText ? "mb-3" : ""}>
-                      <img
-                        src={currentQuestion.passage.passageImageUrl}
-                        alt="Passage"
-                        className="w-full h-auto max-h-96 object-contain"
-                      />
-                    </div>
+                  <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Passage</div>
+                  <img
+                    src={currentQuestion.passage.passageImageUrl}
+                    alt="Passage"
+                    className="w-full h-auto object-contain rounded-lg"
+                  />
+                </div>
+              )}
+
+              {/* Passage Text (above canvas — scrollable with annotation tools) */}
+              {currentQuestion.passage?.passageText && (
+                <div className="mb-4 relative" style={{ zIndex: 60, pointerEvents: 'auto' }}>
+                  {!currentQuestion.passage.passageImageUrl && (
+                    <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Passage</div>
                   )}
-                  {currentQuestion.passage.passageText && (
-                    <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
-                      <MathText
-                        text={currentQuestion.passage.passageText}
-                        className="leading-relaxed text-gray-800"
-                      />
-                    </div>
-                  )}
+                  <ScrollablePassage
+                    passage={currentQuestion.passage}
+                    highlights={session.passageHighlights[currentQuestion.passage.id] || []}
+                    onHighlightAdd={(highlight) => handleHighlightAdd(currentQuestion.passage!.id, highlight)}
+                    onHighlightRemove={(highlightId) => handleHighlightRemove(currentQuestion.passage!.id, highlightId)}
+                    onNoteAdd={(highlightId, note) => handleNoteAdd(currentQuestion.passage!.id, highlightId, note)}
+                  />
                 </div>
               )}
 
               {/* Embedded Graphing Tool for grouped questions - below passage */}
               {showGraphingTool && (
-                <div className="mb-4 border-2 border-blue-200 rounded-xl overflow-hidden bg-white max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 border-b border-blue-200">
-                    <span className="text-xs font-bold text-blue-900">Graph</span>
+                <div className="mb-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-700">
+                    <span className="text-xs font-bold text-blue-900 dark:text-blue-300">Graph</span>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
@@ -1002,19 +1140,19 @@ function QuizPageContent() {
                           });
                           setGraphClearKey(prev => prev + 1);
                         }}
-                        className="p-0.5 rounded hover:bg-red-50 active:scale-95 transition-all"
+                        className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 active:scale-95 transition-all"
                         title="Clear graph"
                       >
-                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
                       <button
                         onClick={() => setShowGraphingTool(false)}
-                        className="p-0.5 rounded hover:bg-blue-100 transition-colors"
+                        className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
                         title="Close graph"
                       >
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
@@ -1044,11 +1182,16 @@ function QuizPageContent() {
               {/* Two questions side by side */}
               <div className="grid grid-cols-2 gap-0 mb-6">
                 {/* Question 1 */}
-                <div className="pr-4 border-r-2 border-dashed border-gray-300">
-                  <div className="text-xs font-bold text-gray-500 mb-2">Q{questions.findIndex(q => q.id === question1.id) + 1}</div>
+                <div className="pr-4 border-r-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col">
+                  <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">Q{questions.findIndex(q => q.id === question1.id) + 1}</div>
                   {/* Q1 Question Card */}
-                  {(question1.imageFilename || question1.questionText) && (
+                  {(question1.imageFilename || question1.questionText || question1.aboveImageText) && (
                     <div className="mb-3">
+                      {question1.aboveImageText && (
+                        <div className="mb-2" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
+                          <MathText text={question1.aboveImageText} className="leading-relaxed dark:text-gray-200" />
+                        </div>
+                      )}
                       {question1.imageFilename && (
                         <div className="w-full">
                           <img src={question1.imageFilename} alt="Question" className="w-full h-auto max-h-48 object-contain rounded-lg" />
@@ -1056,13 +1199,13 @@ function QuizPageContent() {
                       )}
                       {question1.questionText && (
                         <div className={question1.imageFilename ? "mt-2" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
-                          <MathText text={question1.questionText} className="leading-relaxed" />
+                          <MathText text={question1.questionText} className="leading-relaxed dark:text-gray-200" />
                         </div>
                       )}
                     </div>
                   )}
                   {/* Q1 Answers */}
-                  <div className="space-y-2 relative z-[60]" style={{ pointerEvents: 'auto' }}>
+                  <div className="space-y-2 relative z-[60] mt-auto" style={{ pointerEvents: 'auto' }}>
                     {question1.answers.map((answer, index) => {
                       const answerNum = index + 1;
                       const q1Selected = session.userAnswers[question1.id] || null;
@@ -1074,11 +1217,13 @@ function QuizPageContent() {
 
                       let btnClass = "w-full px-3 py-2 text-left rounded-lg border-2 transition-all duration-200 font-medium active:scale-[0.98] text-sm";
                       if (isChecked) {
-                        btnClass += isCorrectAnswer ? " bg-green-50 border-black text-green-900" : " bg-rose-50 border-rose-500 text-rose-900";
+                        btnClass += isCorrectAnswer
+                          ? " bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-900 dark:text-green-300"
+                          : " bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-900 dark:text-rose-300";
                       } else if (isSelected) {
-                        btnClass += " bg-sky-50 border-sky-400 text-sky-900";
+                        btnClass += " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
                       } else {
-                        btnClass += " bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50";
+                        btnClass += " bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700";
                       }
 
                       return (
@@ -1089,7 +1234,7 @@ function QuizPageContent() {
                               <div className="flex-1 min-w-0">
                                 {answer && <MathText text={answer} className="text-left" />}
                                 {question1.answerImageUrls?.[index] && (
-                                  <img src={question1.answerImageUrls[index]} alt={`Answer ${answerNum}`} className="max-w-full h-auto rounded border border-gray-300 mt-1" />
+                                  <img src={question1.answerImageUrls[index]} alt={`Answer ${answerNum}`} className="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 mt-1" />
                                 )}
                               </div>
                             </div>
@@ -1097,7 +1242,7 @@ function QuizPageContent() {
                           {isSelected && !isChecked && q1CanAttempt && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCheckAnswerForQuestion(question1, answerNum); }}
-                              className="absolute right-2 top-2 px-2 py-1 bg-black hover:bg-gray-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-md transition-all"
+                              className="absolute right-2 top-2 px-2 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
                             >
                               CHECK
                             </button>
@@ -1109,11 +1254,16 @@ function QuizPageContent() {
                 </div>
 
                 {/* Question 2 */}
-                <div className="pl-4">
-                  <div className="text-xs font-bold text-gray-500 mb-2">Q{questions.findIndex(q => q.id === question2.id) + 1}</div>
+                <div className="pl-4 flex flex-col">
+                  <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">Q{questions.findIndex(q => q.id === question2.id) + 1}</div>
                   {/* Q2 Question Card */}
-                  {(question2.imageFilename || question2.questionText) && (
+                  {(question2.imageFilename || question2.questionText || question2.aboveImageText) && (
                     <div className="mb-3">
+                      {question2.aboveImageText && (
+                        <div className="mb-2" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
+                          <MathText text={question2.aboveImageText} className="leading-relaxed dark:text-gray-200" />
+                        </div>
+                      )}
                       {question2.imageFilename && (
                         <div className="w-full">
                           <img src={question2.imageFilename} alt="Question" className="w-full h-auto max-h-48 object-contain rounded-lg" />
@@ -1121,13 +1271,13 @@ function QuizPageContent() {
                       )}
                       {question2.questionText && (
                         <div className={question2.imageFilename ? "mt-2" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
-                          <MathText text={question2.questionText} className="leading-relaxed" />
+                          <MathText text={question2.questionText} className="leading-relaxed dark:text-gray-200" />
                         </div>
                       )}
                     </div>
                   )}
                   {/* Q2 Answers */}
-                  <div className="space-y-2 relative z-[60]" style={{ pointerEvents: 'auto' }}>
+                  <div className="space-y-2 relative z-[60] mt-auto" style={{ pointerEvents: 'auto' }}>
                     {question2.answers.map((answer, index) => {
                       const answerNum = index + 1;
                       const q2Selected = session.userAnswers[question2.id] || null;
@@ -1139,11 +1289,13 @@ function QuizPageContent() {
 
                       let btnClass = "w-full px-3 py-2 text-left rounded-lg border-2 transition-all duration-200 font-medium active:scale-[0.98] text-sm";
                       if (isChecked) {
-                        btnClass += isCorrectAnswer ? " bg-green-50 border-black text-green-900" : " bg-rose-50 border-rose-500 text-rose-900";
+                        btnClass += isCorrectAnswer
+                          ? " bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-900 dark:text-green-300"
+                          : " bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-900 dark:text-rose-300";
                       } else if (isSelected) {
-                        btnClass += " bg-sky-50 border-sky-400 text-sky-900";
+                        btnClass += " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
                       } else {
-                        btnClass += " bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50";
+                        btnClass += " bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700";
                       }
 
                       return (
@@ -1154,7 +1306,7 @@ function QuizPageContent() {
                               <div className="flex-1 min-w-0">
                                 {answer && <MathText text={answer} className="text-left" />}
                                 {question2.answerImageUrls?.[index] && (
-                                  <img src={question2.answerImageUrls[index]} alt={`Answer ${answerNum}`} className="max-w-full h-auto rounded border border-gray-300 mt-1" />
+                                  <img src={question2.answerImageUrls[index]} alt={`Answer ${answerNum}`} className="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 mt-1" />
                                 )}
                               </div>
                             </div>
@@ -1162,7 +1314,7 @@ function QuizPageContent() {
                           {isSelected && !isChecked && q2CanAttempt && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCheckAnswerForQuestion(question2, answerNum); }}
-                              className="absolute right-2 top-2 px-2 py-1 bg-black hover:bg-gray-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-md transition-all"
+                              className="absolute right-2 top-2 px-2 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
                             >
                               CHECK
                             </button>
@@ -1177,33 +1329,45 @@ function QuizPageContent() {
           ) : (
             <>
               {/* SINGLE QUESTION LAYOUT (original) */}
-              {/* Shared Passage (for grouped questions) */}
-              {currentQuestion.passage && (currentQuestion.passage.passageText || currentQuestion.passage.passageImageUrl) && (
-                <div className="mb-4 p-4 bg-gray-50 border-2 border-gray-200 rounded-xl">
-                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Passage</div>
-                  {currentQuestion.passage.passageImageUrl && (
-                    <div className="mb-3">
-                      <img
-                        src={currentQuestion.passage.passageImageUrl}
-                        alt="Passage"
-                        className="w-full h-auto max-h-80 object-contain rounded-lg"
-                      />
-                    </div>
-                  )}
-                  {currentQuestion.passage.passageText && (
-                    <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
-                      <MathText
-                        text={currentQuestion.passage.passageText}
-                        className="leading-relaxed text-gray-800"
-                      />
-                    </div>
-                  )}
+              {/* Passage Image (drawable — stays under canvas) */}
+              {currentQuestion.passage?.passageImageUrl && (
+                <div className="mb-4">
+                  <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Passage</div>
+                  <img
+                    src={currentQuestion.passage.passageImageUrl}
+                    alt="Passage"
+                    className="w-full h-auto object-contain rounded-lg"
+                  />
                 </div>
               )}
 
-              {/* Question Card - Image and/or Text */}
-              {(currentQuestion.imageFilename || currentQuestion.questionText) && (
+              {/* Passage Text (above canvas — scrollable with annotation tools) */}
+              {currentQuestion.passage?.passageText && (
+                <div className="mb-4 relative" style={{ zIndex: 60, pointerEvents: 'auto' }}>
+                  {!currentQuestion.passage.passageImageUrl && (
+                    <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Passage</div>
+                  )}
+                  <ScrollablePassage
+                    passage={currentQuestion.passage}
+                    highlights={session.passageHighlights[currentQuestion.passage.id] || []}
+                    onHighlightAdd={(highlight) => handleHighlightAdd(currentQuestion.passage!.id, highlight)}
+                    onHighlightRemove={(highlightId) => handleHighlightRemove(currentQuestion.passage!.id, highlightId)}
+                    onNoteAdd={(highlightId, note) => handleNoteAdd(currentQuestion.passage!.id, highlightId, note)}
+                  />
+                </div>
+              )}
+
+              {/* Question Card - Above Image Text, Image, and/or Question Text */}
+              {(currentQuestion.imageFilename || currentQuestion.questionText || currentQuestion.aboveImageText) && (
                 <div className="mb-3">
+                  {currentQuestion.aboveImageText && (
+                    <div className="mb-2" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
+                      <MathText
+                        text={currentQuestion.aboveImageText}
+                        className="leading-relaxed dark:text-gray-200"
+                      />
+                    </div>
+                  )}
                   {currentQuestion.imageFilename && (
                     <div className="w-full">
                       <img
@@ -1217,7 +1381,7 @@ function QuizPageContent() {
                     <div className={currentQuestion.imageFilename ? "mt-4" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
                       <MathText
                         text={currentQuestion.questionText}
-                        className="leading-relaxed"
+                        className="leading-relaxed dark:text-gray-200"
                       />
                     </div>
                   )}
@@ -1226,10 +1390,10 @@ function QuizPageContent() {
 
               {/* Embedded Graphing Tool */}
               {showGraphingTool && (
-                <div className="mb-4 border-2 border-blue-200 rounded-xl overflow-hidden bg-white max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
+                <div className="mb-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
                   {/* Graph Header */}
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 border-b border-blue-200">
-                    <span className="text-xs font-bold text-blue-900">Graph</span>
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-700">
+                    <span className="text-xs font-bold text-blue-900 dark:text-blue-300">Graph</span>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
@@ -1241,19 +1405,19 @@ function QuizPageContent() {
                           });
                           setGraphClearKey(prev => prev + 1);
                         }}
-                        className="p-0.5 rounded hover:bg-red-50 active:scale-95 transition-all"
+                        className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 active:scale-95 transition-all"
                         title="Clear graph"
                       >
-                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
                       <button
                         onClick={() => setShowGraphingTool(false)}
-                        className="p-0.5 rounded hover:bg-blue-100 transition-colors"
+                        className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
                         title="Close graph"
                       >
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
@@ -1280,104 +1444,147 @@ function QuizPageContent() {
                 </div>
               )}
 
-              {/* Answer Choices */}
-              <div
-                className={`mb-6 relative ${
-                  currentQuestion.answerLayout === 'grid'
-                    ? 'grid grid-cols-2 gap-2'
-                    : 'space-y-2'
-                }`}
-                style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}
-              >
-                {currentQuestion.answers.map((answer, index) => {
-                  const answerNum = index + 1;
-                  const isChecked = checkedAnswers.includes(answerNum);
-                  const isCorrectAnswer =
-                    answerNum === currentQuestion.correctAnswer;
-                  const isSelected = selectedAnswer === answerNum;
-
-                  let buttonClass =
-                    "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 font-medium active:scale-[0.98]";
-
-                  if (isChecked) {
-                    if (isCorrectAnswer) {
-                      buttonClass += " bg-green-50 border-black text-green-900";
-                    } else {
-                      buttonClass += " bg-rose-50 border-rose-500 text-rose-900";
-                    }
-                  } else if (isSelected) {
-                    buttonClass += " bg-sky-50 border-sky-400 text-sky-900";
-                  } else {
-                    buttonClass +=
-                      " bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50";
-                  }
-
-                  const answerImage = currentQuestion.answerImageUrls?.[index];
-                  const gridOrder = currentQuestion.answerLayout === 'grid'
-                    ? [0, 2, 1, 3][index]
-                    : index;
-
-                  return (
-                    <div
-                      key={index}
-                      className="relative group"
-                      style={{ pointerEvents: 'auto', order: gridOrder }}
-                    >
-                      <button
-                        onClick={() => handleAnswerSelect(answerNum)}
-                        className={buttonClass}
-                      >
-                        <div className="flex items-start gap-3" style={{ fontSize: '1.125rem' }}>
-                          <span className="font-bold shrink-0 leading-normal" style={{ fontFamily: "'Times New Roman', Times, serif" }}>({answerNum})</span>
-                          <div className="flex-1 min-w-0 overflow-hidden" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-                            {answer && (
-                              <div className="break-words overflow-wrap-anywhere">
-                                <MathText text={answer} className="text-left" />
-                              </div>
-                            )}
-                            {answerImage && (
-                              <img
-                                src={answerImage}
-                                alt={`Answer ${answerNum}`}
-                                className="max-w-full h-auto rounded border border-gray-300 mt-2"
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </button>
-
-                      {isSelected && !isChecked && canAttempt && (
+              {/* Answer Area */}
+              {isDragOrder ? (
+                <div className="mb-6" style={{ pointerEvents: 'auto' }}>
+                  {/* View toggle — hidden after check */}
+                  {!dragOrderChecked && (
+                    <div className="flex items-center gap-1 mb-3 relative z-[60]">
+                      <div className="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden text-xs font-medium">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCheckAnswer(answerNum);
-                          }}
-                          className="absolute right-3 top-3 px-3 py-1.5 bg-black hover:bg-gray-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-md transition-all"
+                          onClick={() => { setDragOrderView('list'); localStorage.setItem('drag-order-view', 'list'); }}
+                          className={`px-3 py-1.5 transition-colors ${dragOrderView === 'list' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                         >
-                          CHECK
+                          List
                         </button>
-                      )}
+                        <button
+                          onClick={() => { setDragOrderView('slots'); localStorage.setItem('drag-order-view', 'slots'); }}
+                          className={`px-3 py-1.5 transition-colors ${dragOrderView === 'slots' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                        >
+                          Slots
+                        </button>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                  {dragOrderView === 'list' ? (
+                    <DragOrderAnswer
+                      items={dragOrderAnswer.length > 0 ? dragOrderAnswer : seededShuffle([...currentQuestion.answers], currentQuestion.id + String(session.startTime))}
+                      correctOrder={currentQuestion.answers}
+                      isChecked={dragOrderChecked}
+                      onOrderChange={(newOrder) => handleDragOrderChange(currentQuestion.id, newOrder)}
+                      onCheck={() => handleDragOrderCheck(currentQuestion.id)}
+                      canAttempt={!dragOrderChecked}
+                    />
+                  ) : (
+                    <BucketOrderAnswer
+                      items={dragOrderAnswer.length > 0 ? dragOrderAnswer : seededShuffle([...currentQuestion.answers], currentQuestion.id + String(session.startTime))}
+                      correctOrder={currentQuestion.answers}
+                      isChecked={dragOrderChecked}
+                      onOrderChange={(newOrder) => handleDragOrderChange(currentQuestion.id, newOrder)}
+                      onCheck={() => handleDragOrderCheck(currentQuestion.id)}
+                      canAttempt={!dragOrderChecked}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={`mb-6 relative ${
+                    currentQuestion.answerLayout === 'grid'
+                      ? 'grid grid-cols-2 gap-2'
+                      : 'space-y-2'
+                  }`}
+                  style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}
+                >
+                  {currentQuestion.answers.map((answer, index) => {
+                    const answerNum = index + 1;
+                    const isChecked = checkedAnswers.includes(answerNum);
+                    const isCorrectAnswer =
+                      answerNum === currentQuestion.correctAnswer;
+                    const isSelected = selectedAnswer === answerNum;
+
+                    let buttonClass =
+                      "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 font-medium active:scale-[0.98]";
+
+                    if (isChecked) {
+                      if (isCorrectAnswer) {
+                        buttonClass += " bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-900 dark:text-green-300";
+                      } else {
+                        buttonClass += " bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-900 dark:text-rose-300";
+                      }
+                    } else if (isSelected) {
+                      buttonClass += " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
+                    } else {
+                      buttonClass +=
+                        " bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700";
+                    }
+
+                    const answerImage = currentQuestion.answerImageUrls?.[index];
+                    const gridOrder = currentQuestion.answerLayout === 'grid'
+                      ? [0, 2, 1, 3][index]
+                      : index;
+
+                    return (
+                      <div
+                        key={index}
+                        className="relative group"
+                        style={{ pointerEvents: 'auto', order: gridOrder }}
+                      >
+                        <button
+                          onClick={() => handleAnswerSelect(answerNum)}
+                          className={buttonClass}
+                        >
+                          <div className="flex items-start gap-3" style={{ fontSize: '1.125rem' }}>
+                            <span className="font-bold shrink-0 leading-normal" style={{ fontFamily: "'Times New Roman', Times, serif" }}>({answerNum})</span>
+                            <div className="flex-1 min-w-0 overflow-hidden" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                              {answer && (
+                                <div className="break-words overflow-wrap-anywhere">
+                                  <MathText text={answer} className="text-left" />
+                                </div>
+                              )}
+                              {answerImage && (
+                                <img
+                                  src={answerImage}
+                                  alt={`Answer ${answerNum}`}
+                                  className="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 mt-2"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </button>
+
+                        {isSelected && !isChecked && canAttempt && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCheckAnswer(answerNum);
+                            }}
+                            className="absolute right-3 top-3 px-3 py-1.5 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
+                          >
+                            CHECK
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
 
             {/* Calculator on Mobile - inline below answers */}
             {showCalculator && (
-              <div className="md:hidden w-full bg-white border-2 border-gray-200 rounded-xl overflow-hidden mb-6 relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
-                <div className="flex items-center justify-between p-4 border-b-2 border-gray-200 bg-gray-50">
-                  <h3 className="text-base font-bold text-gray-900">
+              <div className="md:hidden w-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden mb-6 relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
+                <div className="flex items-center justify-between p-4 border-b-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                  <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
                     TI-84 Calculator
                   </h3>
                   <button
                     onClick={() => setShowCalculator(false)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all"
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all"
                     aria-label="Close calculator"
                   >
                     <svg
-                      className="w-5 h-5 text-gray-700"
+                      className="w-5 h-5 text-gray-700 dark:text-gray-300"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -1391,7 +1598,7 @@ function QuizPageContent() {
                     </svg>
                   </button>
                 </div>
-                <div className="w-full h-[650px] bg-gray-50 overflow-hidden">
+                <div className="w-full h-[650px] bg-gray-50 dark:bg-gray-900 overflow-hidden">
                   <iframe
                     src="https://ti84.pages.dev/#popup"
                     className="border-0 w-full h-full"
@@ -1409,27 +1616,27 @@ function QuizPageContent() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black bg-opacity-20 z-[110]"
+            className="fixed inset-0 bg-black bg-opacity-20 dark:bg-opacity-50 z-[110]"
             onClick={() => setShowAllQuestions(false)}
           />
 
           {/* Panel */}
-          <div className="fixed bottom-20 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white rounded-2xl shadow-2xl p-4 md:p-6 z-[120] md:max-w-2xl md:w-full border-2 border-gray-200 max-h-[70vh] md:max-h-[600px] flex flex-col">
+          <div className="fixed bottom-20 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 md:p-6 z-[120] md:max-w-2xl md:w-full border-2 border-gray-200 dark:border-gray-700 max-h-[70vh] md:max-h-[600px] flex flex-col">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   All Questions
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   {answeredCount} of {questions.length} completed
                 </p>
               </div>
               <button
                 onClick={() => setShowAllQuestions(false)}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <svg
-                  className="w-6 h-6 text-gray-500"
+                  className="w-6 h-6 text-gray-500 dark:text-gray-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1445,8 +1652,12 @@ function QuizPageContent() {
             </div>
 
             {/* Question Grid */}
-            <div className="flex flex-wrap gap-2 overflow-y-auto pr-2 flex-1 min-h-0">
+            <div className="flex flex-wrap gap-2 overflow-y-auto pr-2 flex-1 min-h-0 content-start">
               {questions.map((q, index) => {
+                // Show section label when section changes
+                const prevQ = index > 0 ? questions[index - 1] : null;
+                const qSection = sections.length > 0 && q.sectionId ? sections.find(s => s.id === q.sectionId) : null;
+                const showSectionLabel = qSection && (!prevQ || prevQ.sectionId !== q.sectionId);
                 const userAnswer = session.userAnswers[q.id];
                 const isAnswered = userAnswer !== null && userAnswer !== undefined;
                 const isCurrent = index === session.currentQuestionIndex;
@@ -1475,86 +1686,92 @@ function QuizPageContent() {
                   ? practiceMarkedQuestions.has(q.id)
                   : session.markedForReview[q.id] || false;
 
-                let bgClass = "bg-white border-2 border-gray-200 text-gray-700";
+                let bgClass = "bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300";
                 if (isCurrent || isPartOfCurrentGroup) {
-                  bgClass = "bg-slate-700 border-slate-700 text-white";
+                  bgClass = "bg-slate-700 dark:bg-slate-600 border-slate-700 dark:border-slate-600 text-white";
                 } else if (shouldShowResult) {
                   if (isCorrect) {
-                    bgClass = "bg-green-50 border-black text-green-700";
+                    bgClass = "bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-700 dark:text-green-400";
                   } else {
-                    bgClass = "bg-rose-50 border-rose-500 text-rose-700";
+                    bgClass = "bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-700 dark:text-rose-400";
                   }
                 } else if (isAnswered) {
-                  bgClass = "bg-gray-100 border-gray-300 text-gray-600";
+                  bgClass = "bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400";
                 }
 
                 // For grouped questions, navigate to the first question in the pair
                 const targetIndex = hasPassage && !isFirstInPair && siblingIdx !== -1 ? siblingIdx : index;
 
                 return (
-                  <button
-                    key={q.id}
-                    onClick={() => {
-                      const timeSpent = Math.floor(
-                        (Date.now() - session.lastQuestionStartTime) / 1000
-                      );
-                      setSession((prev) => {
-                        if (!prev) return prev;
-                        return {
-                          ...prev,
-                          currentQuestionIndex: targetIndex,
-                          lastQuestionStartTime: Date.now(),
-                          questionTimes: {
-                            ...prev.questionTimes,
-                            [currentQuestion.id]:
-                              (prev.questionTimes[currentQuestion.id] || 0) +
-                              timeSpent,
-                          },
-                        };
-                      });
-                      setShowAllQuestions(false);
-                    }}
-                    className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass}`}
-                    title={`Question ${index + 1}${hasPassage ? " (Grouped)" : ""}${
-                      isMarked ? " (Marked for review)" : ""
-                    }`}
-                  >
-                    {index + 1}
-                    {isMarked && (
-                      <svg
-                        className="absolute -top-1 -right-1 w-4 h-4 text-yellow-500"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                        />
-                      </svg>
+                  <React.Fragment key={q.id}>
+                    {showSectionLabel && (
+                      <div className="w-full text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide pt-2 pb-0.5 first:pt-0">
+                        {qSection!.name}
+                      </div>
                     )}
-                  </button>
+                    <button
+                      onClick={() => {
+                        const timeSpent = Math.floor(
+                          (Date.now() - session.lastQuestionStartTime) / 1000
+                        );
+                        setSession((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            currentQuestionIndex: targetIndex,
+                            lastQuestionStartTime: Date.now(),
+                            questionTimes: {
+                              ...prev.questionTimes,
+                              [currentQuestion.id]:
+                                (prev.questionTimes[currentQuestion.id] || 0) +
+                                timeSpent,
+                            },
+                          };
+                        });
+                        setShowAllQuestions(false);
+                      }}
+                      className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass}`}
+                      title={`Question ${index + 1}${hasPassage ? " (Grouped)" : ""}${
+                        isMarked ? " (Marked for review)" : ""
+                      }`}
+                    >
+                      {index + 1}
+                      {isMarked && (
+                        <svg
+                          className="absolute -top-1 -right-1 w-4 h-4 text-yellow-500"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </React.Fragment>
                 );
               })}
             </div>
 
             {/* Legend at bottom */}
-            <div className="flex items-center justify-center gap-3 md:gap-6 mt-4 pt-4 border-t text-xs text-gray-600 flex-shrink-0 flex-wrap">
+            <div className="flex items-center justify-center gap-3 md:gap-6 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0 flex-wrap">
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded border-2 border-gray-200 bg-white"></div>
+                <div className="w-6 h-6 rounded border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"></div>
                 <span>Unanswered</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded border-2 border-black bg-green-50"></div>
+                <div className="w-6 h-6 rounded border-2 border-black dark:border-green-500 bg-green-50 dark:bg-green-900/30"></div>
                 <span>Correct</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded border-2 border-rose-500 bg-rose-50"></div>
+                <div className="w-6 h-6 rounded border-2 border-rose-500 bg-rose-50 dark:bg-rose-900/30"></div>
                 <span>Incorrect</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded bg-slate-700"></div>
+                <div className="w-6 h-6 rounded bg-slate-700 dark:bg-slate-600"></div>
                 <span>Current</span>
               </div>
             </div>
@@ -1564,7 +1781,7 @@ function QuizPageContent() {
 
       {/* Fixed Bottom Section - Duolingo Style */}
       <div
-        className={`fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 z-[100] transition-all duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t-2 border-gray-200 dark:border-gray-700 z-[100] transition-all duration-300 ${
           showCalculator ? "md:right-[420px]" : "md:right-0"
         }`}
         style={{ pointerEvents: 'auto' }}
@@ -1576,7 +1793,7 @@ function QuizPageContent() {
               {/* Question Counter */}
               <button
                 onClick={() => setShowAllQuestions(true)}
-                className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border-2 border-gray-300 hover:border-black hover:bg-gray-100 text-xs md:text-sm font-bold text-gray-700 active:scale-95 transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700 text-xs md:text-sm font-bold text-gray-700 dark:text-gray-300 active:scale-95 transition-all flex items-center gap-1.5"
               >
                 <span>
                   {session.currentQuestionIndex + 1}/{questions.length}
@@ -1601,18 +1818,18 @@ function QuizPageContent() {
                 <button
                   onClick={handlePrevious}
                   disabled={session.currentQuestionIndex === 0}
-                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                 >
-                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
                 <button
                   onClick={handleNext}
                   disabled={session.currentQuestionIndex === questions.length - 1}
-                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                 >
-                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
@@ -1623,7 +1840,7 @@ function QuizPageContent() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowExplanation(true)}
-                className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-gray-700 bg-white border-2 border-gray-300 hover:border-black hover:bg-gray-50 active:scale-95 rounded-lg md:rounded-xl transition-all"
+                className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 rounded-lg md:rounded-xl transition-all"
               >
                 EXPLANATION
               </button>
@@ -1631,14 +1848,14 @@ function QuizPageContent() {
                 isPracticeMode ? (
                   <button
                     onClick={() => router.push('/?tab=question-bank')}
-                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
+                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
                   >
                     DONE
                   </button>
                 ) : (
                   <button
                     onClick={handleNext}
-                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
+                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
                   >
                     FINISH
                   </button>
@@ -1646,7 +1863,7 @@ function QuizPageContent() {
               ) : (
                 <button
                   onClick={handleNext}
-                  className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all flex items-center gap-1"
+                  className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all flex items-center gap-1"
                 >
                   NEXT
                   <svg
@@ -1708,7 +1925,7 @@ function QuizPageContent() {
       <ReferenceImageModal
         isOpen={showReferenceImage}
         onClose={() => setShowReferenceImage(false)}
-        imageUrl={currentQuestion.referenceImageUrl}
+        imageUrl={resolveReferenceImage(currentQuestion, currentSection)}
       />
 
       {/* Bug Report Modal */}
@@ -1723,12 +1940,12 @@ function QuizPageContent() {
 
       {/* Calculator Panel - Desktop only (right sidebar) */}
       <div
-        className={`hidden md:block fixed top-0 right-0 w-[420px] h-screen bg-white border-l-2 border-gray-200 shadow-2xl z-[100] transition-transform duration-300 ${
+        className={`hidden md:block fixed top-0 right-0 w-[420px] h-screen bg-white dark:bg-gray-800 border-l-2 border-gray-200 dark:border-gray-700 shadow-2xl z-[100] transition-transform duration-300 ${
           showCalculator ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Calculator iframe */}
-        <div className="w-full h-full bg-gray-50 overflow-auto">
+        <div className="w-full h-full bg-gray-50 dark:bg-gray-900 overflow-auto">
           <iframe
             src="https://ti84.pages.dev/#popup"
             className="border-0 w-full h-full"
@@ -1745,8 +1962,8 @@ function QuizPageContent() {
 export default function QuizPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     }>
       <QuizPageContent />

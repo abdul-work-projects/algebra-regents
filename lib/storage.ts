@@ -161,13 +161,16 @@ export const createNewSession = (testId?: string): QuizSession => {
   return {
     testId,
     currentQuestionIndex: 0,
+    currentSectionIndex: 0,
     userAnswers: {},
     checkedAnswers: {},
     firstAttemptAnswers: {},
+    dragOrderAnswers: {},
     questionTimes: {},
     drawings: {},
     graphs: {},
     markedForReview: {},
+    passageHighlights: {},
     startTime: now,
     lastQuestionStartTime: now,
   };

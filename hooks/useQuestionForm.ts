@@ -3,6 +3,7 @@ import { useState } from "react";
 export interface QuestionFormState {
   questionName: string;
   questionText: string;
+  aboveImageText: string;
   questionImage: File | null;
   questionImagePreview: string | null;
   referenceImage: File | null;
@@ -13,6 +14,7 @@ export interface QuestionFormState {
   answerImages: (File | null)[];
   answerImagePreviews: (string | null)[];
   answerLayout: "grid" | "list";
+  questionType: "multiple-choice" | "drag-order";
   correctAnswer: number;
   explanationText: string;
   selectedSkills: string[]; // Renamed from selectedTopics
@@ -24,6 +26,7 @@ export interface QuestionFormState {
 const initialState: QuestionFormState = {
   questionName: "",
   questionText: "",
+  aboveImageText: "",
   questionImage: null,
   questionImagePreview: null,
   referenceImage: null,
@@ -34,6 +37,7 @@ const initialState: QuestionFormState = {
   answerImages: [null, null, null, null],
   answerImagePreviews: [null, null, null, null],
   answerLayout: "list",
+  questionType: "multiple-choice",
   correctAnswer: 1,
   explanationText: "",
   selectedSkills: [],
@@ -81,12 +85,14 @@ export function useQuestionForm() {
   const loadFromQuestion = (question: {
     name?: string | null;
     question_text?: string | null;
+    above_image_text?: string | null;
     question_image_url?: string | null;
     reference_image_url?: string | null;
     explanation_image_url?: string | null;
     answers: string[];
     answer_image_urls?: (string | null)[];
     answer_layout?: "grid" | "list";
+    question_type?: string | null;
     correct_answer: number;
     explanation_text: string;
     skills: string[];
@@ -97,6 +103,7 @@ export function useQuestionForm() {
     setState({
       questionName: question.name || "",
       questionText: question.question_text || "",
+      aboveImageText: question.above_image_text || "",
       questionImage: null,
       questionImagePreview: question.question_image_url || null,
       referenceImage: null,
@@ -107,6 +114,7 @@ export function useQuestionForm() {
       answerImages: [null, null, null, null],
       answerImagePreviews: question.answer_image_urls || [null, null, null, null],
       answerLayout: question.answer_layout || "list",
+      questionType: (question.question_type as "multiple-choice" | "drag-order") || "multiple-choice",
       correctAnswer: question.correct_answer,
       explanationText: question.explanation_text,
       selectedSkills: question.skills || [],

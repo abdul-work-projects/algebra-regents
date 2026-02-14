@@ -36,6 +36,11 @@ import {
   createPassageWithQuestions,
   updatePassage,
   linkQuestionsToNewPassage,
+  fetchSectionsWithCounts,
+  createTestSection,
+  updateTestSection,
+  deleteTestSection,
+  bulkAssignQuestionsToSection,
 } from "@/lib/supabase";
 import { getCurrentUser, signOut, onAuthStateChange } from "@/lib/auth";
 import {
@@ -48,9 +53,11 @@ import {
 import TagInput from "@/components/TagInput";
 import TestModal from "@/components/TestModal";
 import SubjectModal from "@/components/SubjectModal";
+import SectionModal from "@/components/SectionModal";
 import TestMultiSelect from "@/components/TestMultiSelect";
-import { Test, Subject } from "@/lib/types";
+import { Test, Subject, TestSection } from "@/lib/types";
 import MathText from "@/components/MathText";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -121,6 +128,15 @@ export default function AdminPage() {
     deleteQuestions: false,
     isDeleting: false,
   });
+
+  // Section management state
+  const [testSections, setTestSections] = useState<TestSection[]>([]);
+  const [showSectionModal, setShowSectionModal] = useState(false);
+  const [editingSection, setEditingSection] = useState<TestSection | null>(null);
+  const [expandedTestId, setExpandedTestId] = useState<string | null>(null);
+  const [questionSectionMap, setQuestionSectionMap] = useState<{
+    [questionId: string]: string | undefined;
+  }>({});
 
   // Bug reports state
   const [bugReports, setBugReports] = useState<DatabaseBugReport[]>([]);
@@ -267,19 +283,28 @@ export default function AdminPage() {
     setAvailableTagNames(tags);
   };
 
-  // Load test-specific question order when filter changes
+  // Load test-specific question order, sections, and section assignments when filter changes
   useEffect(() => {
     async function loadTestOrder() {
       if (filterTestId === "all") {
         setTestQuestionOrder({});
+        setQuestionSectionMap({});
+        setTestSections([]);
         return;
       }
-      const testQuestions = await fetchQuestionsForTest(filterTestId);
+      const [testQuestions, sections] = await Promise.all([
+        fetchQuestionsForTest(filterTestId),
+        fetchSectionsWithCounts(filterTestId),
+      ]);
       const orderMap: { [questionId: string]: number } = {};
+      const sectionMap: { [questionId: string]: string | undefined } = {};
       testQuestions.forEach((q, index) => {
         orderMap[q.id] = index;
+        sectionMap[q.id] = (q as any)._sectionId;
       });
       setTestQuestionOrder(orderMap);
+      setQuestionSectionMap(sectionMap);
+      setTestSections(sections);
     }
     loadTestOrder();
   }, [filterTestId]);
@@ -514,6 +539,21 @@ export default function AdminPage() {
     setShowTestModal(true);
   };
 
+  const loadSectionsForTest = async (testId: string) => {
+    const sections = await fetchSectionsWithCounts(testId);
+    setTestSections(sections);
+  };
+
+  const handleToggleTestSections = async (testId: string) => {
+    if (expandedTestId === testId) {
+      setExpandedTestId(null);
+      setTestSections([]);
+    } else {
+      setExpandedTestId(testId);
+      await loadSectionsForTest(testId);
+    }
+  };
+
   // CSV parsing function - supports two formats:
   // Format 1 (old): Question, 1, 2, 3, 4, Correct
   // Format 2 (new): question_number, question_text, choice_1-4, correct_answer, Points, difficulty_level, Main Skill, [tags...]
@@ -693,11 +733,13 @@ export default function AdminPage() {
       const questionsToCreate = csvPreview.map((q, index) => ({
         name: null,
         question_text: q.question_text,
+        above_image_text: null,
         question_image_url: null,
         reference_image_url: null,
         answers: q.answers,
         answer_image_urls: [null, null, null, null],
         answer_layout: "list" as const,
+        question_type: "multiple-choice" as const,
         correct_answer: q.correct_answer,
         explanation_text: "See solution in your notes.",
         explanation_image_url: null,
@@ -1008,12 +1050,14 @@ export default function AdminPage() {
         q1Form.loadFromQuestion({
           name: q1.name,
           question_text: q1.question_text,
+          above_image_text: q1.above_image_text,
           question_image_url: q1.question_image_url,
           reference_image_url: q1.reference_image_url,
           explanation_image_url: q1.explanation_image_url,
           answers: q1.answers,
           answer_image_urls: q1.answer_image_urls,
           answer_layout: q1.answer_layout,
+          question_type: q1.question_type,
           correct_answer: q1.correct_answer,
           explanation_text: q1.explanation_text,
           skills: q1.skills || [],
@@ -1026,12 +1070,14 @@ export default function AdminPage() {
         q2Form.loadFromQuestion({
           name: q2.name,
           question_text: q2.question_text,
+          above_image_text: q2.above_image_text,
           question_image_url: q2.question_image_url,
           reference_image_url: q2.reference_image_url,
           explanation_image_url: q2.explanation_image_url,
           answers: q2.answers,
           answer_image_urls: q2.answer_image_urls,
           answer_layout: q2.answer_layout,
+          question_type: q2.question_type,
           correct_answer: q2.correct_answer,
           explanation_text: q2.explanation_text,
           skills: q2.skills || [],
@@ -1057,12 +1103,14 @@ export default function AdminPage() {
     q1Form.loadFromQuestion({
       name: question.name,
       question_text: question.question_text,
+      above_image_text: question.above_image_text,
       question_image_url: question.question_image_url,
       reference_image_url: question.reference_image_url,
       explanation_image_url: question.explanation_image_url,
       answers: question.answers,
       answer_image_urls: question.answer_image_urls,
       answer_layout: question.answer_layout,
+      question_type: question.question_type,
       correct_answer: question.correct_answer,
       explanation_text: question.explanation_text,
       skills: question.skills || [],
@@ -1190,12 +1238,40 @@ export default function AdminPage() {
         const draggedIdx = entries.findIndex(
           ([id]) => id === draggedQuestionId
         );
-        const targetIdx = entries.findIndex(([id]) => id === questionId);
+        let targetIdx = entries.findIndex(([id]) => id === questionId);
 
         if (draggedIdx === -1 || targetIdx === -1) return;
 
+        // If the target belongs to a group, move past the entire group
+        const targetQuestion = questions.find((q) => q.id === questionId);
+        if (targetQuestion?.passage_id) {
+          const groupIds = new Set(
+            questions
+              .filter((q) => q.passage_id === targetQuestion.passage_id)
+              .map((q) => q.id)
+          );
+          // Find the first and last indices of the group in the sorted entries
+          let groupFirst = -1;
+          let groupLast = -1;
+          entries.forEach(([id], idx) => {
+            if (groupIds.has(id)) {
+              if (groupFirst === -1) groupFirst = idx;
+              groupLast = idx;
+            }
+          });
+          // If dragging down (from above group), place after last group member
+          // If dragging up (from below group), place before first group member
+          if (draggedIdx < groupFirst) {
+            targetIdx = groupLast;
+          } else if (draggedIdx > groupLast) {
+            targetIdx = groupFirst;
+          }
+        }
+
         const [draggedEntry] = entries.splice(draggedIdx, 1);
-        entries.splice(targetIdx, 0, draggedEntry);
+        // Adjust targetIdx after removal if dragging down
+        const insertIdx = draggedIdx < targetIdx ? targetIdx : targetIdx;
+        entries.splice(insertIdx, 0, draggedEntry);
 
         entries.forEach(([id], index) => {
           newOrder[id] = index;
@@ -1232,7 +1308,7 @@ export default function AdminPage() {
         const draggedIndex = questions.findIndex(
           (q) => q.id === draggedQuestionId
         );
-        const targetIndex = questions.findIndex((q) => q.id === questionId);
+        let targetIndex = questions.findIndex((q) => q.id === questionId);
 
         if (
           draggedIndex === -1 ||
@@ -1241,9 +1317,29 @@ export default function AdminPage() {
         )
           return;
 
+        // If the target belongs to a group, move past the entire group
+        const targetQuestion = questions[targetIndex];
+        if (targetQuestion?.passage_id) {
+          let groupFirst = -1;
+          let groupLast = -1;
+          questions.forEach((q, idx) => {
+            if (q.passage_id === targetQuestion.passage_id) {
+              if (groupFirst === -1) groupFirst = idx;
+              groupLast = idx;
+            }
+          });
+          if (draggedIndex < groupFirst) {
+            targetIndex = groupLast;
+          } else if (draggedIndex > groupLast) {
+            targetIndex = groupFirst;
+          }
+        }
+
         const newQuestions = [...questions];
         const [draggedQuestion] = newQuestions.splice(draggedIndex, 1);
-        newQuestions.splice(targetIndex, 0, draggedQuestion);
+        // After splice, if we were dragging down the target shifted by -1
+        const insertIdx = draggedIndex < targetIndex ? targetIndex : targetIndex;
+        newQuestions.splice(insertIdx, 0, draggedQuestion);
         setQuestions(newQuestions);
       }
     }
@@ -1252,6 +1348,13 @@ export default function AdminPage() {
   const handleQuestionDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     dropSuccessRef.current = true;
+
+    console.log('[ORDER-DEBUG] handleQuestionDrop fired', JSON.stringify({
+      filterTestId,
+      testQuestionOrderKeys: Object.keys(testQuestionOrder).length,
+      branch: filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0 ? 'TEST-SPECIFIC' : 'GLOBAL',
+      editingId: editingId?.slice(0, 8) || null,
+    }));
 
     // Clear drag state
     setDraggedQuestionId(null);
@@ -1272,7 +1375,13 @@ export default function AdminPage() {
         display_order: index + 1,
       }));
 
+      console.log('[ORDER-DEBUG] TEST-SPECIFIC reorder:', JSON.stringify(testOrders.map(o => ({
+        qId: o.questionId.slice(0, 8),
+        order: o.display_order,
+      }))));
+
       const success = await updateTestQuestionOrders(filterTestId, testOrders);
+      console.log('[ORDER-DEBUG] updateTestQuestionOrders result:', success);
       if (!success) {
         setNotification({
           type: "error",
@@ -1294,7 +1403,13 @@ export default function AdminPage() {
         display_order: index + 1,
       }));
 
+      console.log('[ORDER-DEBUG] GLOBAL reorder, first 10:', JSON.stringify(orders.slice(0, 10).map(o => ({
+        id: o.id.slice(0, 8),
+        order: o.display_order,
+      }))));
+
       const success = await updateQuestionOrders(orders);
+      console.log('[ORDER-DEBUG] updateQuestionOrders result:', success);
       if (!success) {
         setNotification({
           type: "error",
@@ -1327,13 +1442,13 @@ export default function AdminPage() {
     const q1 = q1Form.state;
     const q2 = q2Form.state;
 
-    // Validate that either question text or image is provided
-    const hasQuestionText = q1.questionText.trim();
+    // Validate that either question text (above or below) or image is provided
+    const hasQuestionText = q1.questionText.trim() || q1.aboveImageText.trim();
     const hasQuestionImage = q1.questionImage || q1.questionImagePreview;
     if (!hasQuestionText && !hasQuestionImage) {
       setNotification({
         type: "error",
-        message: "Question 1 must have either text or image (or both)",
+        message: "Question 1 must have text (above or below) or an image",
       });
       return;
     }
@@ -1387,12 +1502,12 @@ export default function AdminPage() {
         return;
       }
 
-      const hasQ2Text = q2.questionText.trim();
+      const hasQ2Text = q2.questionText.trim() || q2.aboveImageText.trim();
       const hasQ2Image = q2.questionImage || q2.questionImagePreview;
       if (!hasQ2Text && !hasQ2Image) {
         setNotification({
           type: "error",
-          message: "Question 2 must have either text or image (or both)",
+          message: "Question 2 must have text (above or below) or an image",
         });
         return;
       }
@@ -1508,6 +1623,7 @@ export default function AdminPage() {
         );
 
         // Create passage with both questions
+        const baseOrder = questions.length + 1;
         const result = await createPassageWithQuestions(
           {
             passage_text: passageText.trim() || null,
@@ -1517,11 +1633,13 @@ export default function AdminPage() {
             {
               name: q1.questionName.trim() || null,
               question_text: q1.questionText.trim() || null,
+              above_image_text: q1.aboveImageText.trim() || null,
               question_image_url: q1ImageUrl,
               reference_image_url: null,
               answers: q1.answers,
               answer_image_urls: q1AnswerImageUrls,
               answer_layout: q1.answerLayout,
+              question_type: q1.questionType,
               correct_answer: q1.correctAnswer,
               explanation_text: q1.explanationText,
               explanation_image_url: q1ExplanationImageUrl,
@@ -1529,15 +1647,18 @@ export default function AdminPage() {
               tags: q1.selectedTags,
               difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null,
               points: q1.points,
+              display_order: baseOrder,
             },
             {
               name: q2.questionName.trim() || null,
               question_text: q2.questionText.trim() || null,
+              above_image_text: q2.aboveImageText.trim() || null,
               question_image_url: q2ImageUrl,
               reference_image_url: null,
               answers: q2.answers,
               answer_image_urls: q2AnswerImageUrls,
               answer_layout: q2.answerLayout,
+              question_type: q2.questionType,
               correct_answer: q2.correctAnswer,
               explanation_text: q2.explanationText,
               explanation_image_url: q2ExplanationImageUrl,
@@ -1545,6 +1666,7 @@ export default function AdminPage() {
               tags: q1.selectedTags, // Share tags from Q1
               difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, // Share difficulty from Q1
               points: q2.points,
+              display_order: baseOrder + 1,
             },
           ]
         );
@@ -1665,15 +1787,21 @@ export default function AdminPage() {
           })
         );
 
+        // Preserve current positions so a concurrent drag-reorder isn't lost
+        const q1Index = questions.findIndex(q => q.id === editingId);
+        const q2Index = editingQ2Id ? questions.findIndex(q => q.id === editingQ2Id) : -1;
+
         // Update Q1
         const q1Result = await updateQuestion(editingId, {
           name: q1.questionName.trim() || null,
           question_text: q1.questionText.trim() || null,
+          above_image_text: q1.aboveImageText.trim() || null,
           question_image_url: q1ImageUrl || null,
           reference_image_url: null,
           answers: q1.answers,
           answer_image_urls: q1AnswerImageUrls,
           answer_layout: q1.answerLayout,
+          question_type: q1.questionType,
           correct_answer: q1.correctAnswer,
           explanation_text: q1.explanationText,
           explanation_image_url: q1ExplanationImageUrl || null,
@@ -1681,17 +1809,20 @@ export default function AdminPage() {
           tags: q1.selectedTags,
           difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null,
           points: q1.points,
+          ...(q1Index !== -1 ? { display_order: q1Index + 1 } : {}),
         });
 
         // Update Q2
         const q2Result = await updateQuestion(editingQ2Id, {
           name: q2.questionName.trim() || null,
           question_text: q2.questionText.trim() || null,
+          above_image_text: q2.aboveImageText.trim() || null,
           question_image_url: q2ImageUrl || null,
           reference_image_url: null,
           answers: q2.answers,
           answer_image_urls: q2AnswerImageUrls,
           answer_layout: q2.answerLayout,
+          question_type: q2.questionType,
           correct_answer: q2.correctAnswer,
           explanation_text: q2.explanationText,
           explanation_image_url: q2ExplanationImageUrl || null,
@@ -1699,6 +1830,7 @@ export default function AdminPage() {
           tags: q1.selectedTags, // Share tags from Q1
           difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, // Share difficulty from Q1
           points: q2.points,
+          ...(q2Index !== -1 ? { display_order: q2Index + 1 } : {}),
         });
 
         if (q1Result && q2Result) {
@@ -1766,14 +1898,16 @@ export default function AdminPage() {
           })
         );
 
-        const questionData = {
+        const questionData: Record<string, unknown> = {
           name: q1.questionName.trim() || null,
           question_text: q1.questionText.trim() || null,
+          above_image_text: q1.aboveImageText.trim() || null,
           question_image_url: questionImageUrl || null,
           reference_image_url: referenceImageUrl,
           answers: q1.answers,
           answer_image_urls: answerImageUrls,
           answer_layout: q1.answerLayout,
+          question_type: q1.questionType,
           correct_answer: q1.correctAnswer,
           explanation_text: q1.explanationText,
           explanation_image_url: explanationImageUrl,
@@ -1787,10 +1921,30 @@ export default function AdminPage() {
         let result;
         let questionId: string;
         if (editingId) {
-          result = await updateQuestion(editingId, questionData);
+          // Preserve the question's current position in the list so a concurrent
+          // drag-reorder that hasn't finished saving yet won't be lost.
+          const editIndex = questions.findIndex(q => q.id === editingId);
+          if (editIndex !== -1) {
+            questionData.display_order = editIndex + 1;
+          }
+          console.log('[ORDER-DEBUG] Saving edit for question', JSON.stringify({
+            editingId: editingId.slice(0, 8),
+            editIndex,
+            display_order_being_set: questionData.display_order,
+            total_questions: questions.length,
+            edited_q_in_state: questions[editIndex] ? {
+              id: questions[editIndex].id.slice(0, 8),
+              name: questions[editIndex].name?.slice(0, 30),
+              db_display_order: questions[editIndex].display_order,
+            } : 'NOT FOUND',
+          }));
+          result = await updateQuestion(editingId, questionData as Partial<DatabaseQuestion>);
           questionId = editingId;
         } else {
-          result = await createQuestion(questionData);
+          // Set display_order so new question appears at the end in a defined position
+          questionData.display_order = questions.length + 1;
+          console.log('[ORDER-DEBUG] Creating new question with display_order:', questionData.display_order);
+          result = await createQuestion(questionData as Omit<DatabaseQuestion, 'id' | 'created_at' | 'updated_at'>);
           questionId = result?.id || "";
         }
 
@@ -1826,32 +1980,33 @@ export default function AdminPage() {
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white py-4">
+    <div className="min-h-screen bg-white dark:bg-gray-900 py-4">
       <div className="max-w-7xl mx-auto px-4">
         {/* Compact Header */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-4 mb-4">
+        <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-4 mb-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
-              {user && <p className="text-sm text-gray-600">{user.email}</p>}
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Admin Panel</h1>
+              {user && <p className="text-sm text-gray-600 dark:text-gray-400">{user.email}</p>}
             </div>
             <div className="flex items-center gap-3">
+              <ThemeToggle />
               <button
                 onClick={handleLogout}
-                className="text-sm px-4 py-2 font-bold text-gray-700 border-2 border-gray-300 hover:border-black hover:bg-gray-50 active:scale-95 rounded-xl transition-all"
+                className="text-sm px-4 py-2 font-bold text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 rounded-xl transition-all"
               >
                 LOGOUT
               </button>
               <button
                 onClick={() => router.push("/")}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all"
               >
                 <svg
                   className="w-5 h-5"
@@ -1878,8 +2033,8 @@ export default function AdminPage() {
               }}
               className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
                 activeTab === "questions"
-                  ? "bg-black text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-black text-white dark:bg-gray-100 dark:text-black"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               Questions
@@ -1891,8 +2046,8 @@ export default function AdminPage() {
               }}
               className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
                 activeTab === "tests"
-                  ? "bg-black text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-black text-white dark:bg-gray-100 dark:text-black"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               Tests ({tests.length})
@@ -1904,8 +2059,8 @@ export default function AdminPage() {
               }}
               className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
                 activeTab === "subjects"
-                  ? "bg-black text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-black text-white dark:bg-gray-100 dark:text-black"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               Subjects ({subjects.length})
@@ -1917,8 +2072,8 @@ export default function AdminPage() {
               }}
               className={`px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
                 activeTab === "bugs"
-                  ? "bg-black text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-black text-white dark:bg-gray-100 dark:text-black"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               Bug Reports
@@ -1939,12 +2094,12 @@ export default function AdminPage() {
 
         {/* Tests Tab Content */}
         {activeTab === "tests" && (
-          <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
+          <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Manage Tests</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Manage Tests</h2>
               <button
                 onClick={handleCreateTest}
-                className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
+                className="px-4 py-2 text-sm font-bold bg-black text-white dark:bg-gray-100 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 transition-all"
               >
                 + NEW TEST
               </button>
@@ -1956,7 +2111,7 @@ export default function AdminPage() {
                 <select
                   value={filterSubjectId}
                   onChange={(e) => setFilterSubjectId(e.target.value)}
-                  className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium focus:border-black focus:outline-none"
+                  className="px-3 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium focus:border-black dark:focus:border-gray-400 focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="all">All Subjects</option>
                   {subjects.map((subject) => (
@@ -1969,11 +2124,11 @@ export default function AdminPage() {
             )}
 
             {isLoadingTests ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 Loading tests...
               </div>
             ) : tests.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 No tests yet. Create your first test to get started.
               </div>
             ) : (
@@ -1987,28 +2142,28 @@ export default function AdminPage() {
                   .map((test) => (
                     <div
                       key={test.id}
-                      className="border-2 border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-all"
+                      className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:border-gray-300 dark:hover:border-gray-600 transition-all"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-bold text-gray-900 truncate">
+                            <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">
                               {test.name}
                             </h3>
                             {!test.isActive && (
-                              <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                              <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
                                 Inactive
                               </span>
                             )}
                           </div>
                           {test.description && (
-                            <p className="text-sm text-gray-600 truncate mb-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate mb-2">
                               {test.description}
                             </p>
                           )}
-                          <div className="flex items-center gap-3 text-sm text-gray-500 flex-wrap">
+                          <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 flex-wrap">
                             {test.subjectName && (
-                              <span className="px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 rounded">
+                              <span className="px-2 py-0.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded">
                                 {test.subjectName}
                               </span>
                             )}
@@ -2051,7 +2206,7 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2 ml-4">
                           <button
                             onClick={() => handleEditTest(test)}
-                            className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg active:scale-95 transition-all"
+                            className="p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg active:scale-95 transition-all"
                             title="Edit test"
                           >
                             <svg
@@ -2070,7 +2225,7 @@ export default function AdminPage() {
                           </button>
                           <button
                             onClick={() => handleDeleteTest(test)}
-                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
+                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg active:scale-95 transition-all"
                             title="Delete test"
                           >
                             <svg
@@ -2087,8 +2242,188 @@ export default function AdminPage() {
                               />
                             </svg>
                           </button>
+                          <button
+                            onClick={() => handleToggleTestSections(test.id)}
+                            className={`p-2 rounded-lg active:scale-95 transition-all ${
+                              expandedTestId === test.id
+                                ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
+                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            }`}
+                            title="Manage sections"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 6h16M4 12h16M4 18h7"
+                              />
+                            </svg>
+                          </button>
                         </div>
                       </div>
+
+                      {/* Section Management (expanded) */}
+                      {expandedTestId === test.id && (
+                        <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300">Sections</h4>
+                            <button
+                              onClick={() => { setEditingSection(null); setShowSectionModal(true); }}
+                              className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                            >
+                              + Add Section
+                            </button>
+                          </div>
+                          {(() => {
+                            // Get ordered question IDs for this test
+                            const testQuestionIds = questions
+                              .filter(q => questionTestMap[q.id]?.includes(test.id))
+                              .sort((a, b) => {
+                                const orderA = testQuestionOrder[a.id] ?? Infinity;
+                                const orderB = testQuestionOrder[b.id] ?? Infinity;
+                                return orderA - orderB;
+                              })
+                              .map(q => q.id);
+                            const totalQs = testQuestionIds.length;
+
+                            // Compute current range for each section based on questionSectionMap
+                            const sectionRanges: { [sectionId: string]: { from: number; to: number } } = {};
+                            testSections.forEach(section => {
+                              let minIdx = Infinity, maxIdx = -1;
+                              testQuestionIds.forEach((qId, idx) => {
+                                if (questionSectionMap[qId] === section.id) {
+                                  minIdx = Math.min(minIdx, idx);
+                                  maxIdx = Math.max(maxIdx, idx);
+                                }
+                              });
+                              if (maxIdx >= 0) {
+                                sectionRanges[section.id] = { from: minIdx + 1, to: maxIdx + 1 };
+                              }
+                            });
+
+                            return testSections.length === 0 ? (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 italic">No sections. Questions will appear without section dividers.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {totalQs > 0 && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">{totalQs} questions in this test. Assign sequential ranges below.</p>
+                                )}
+                                {testSections.map((section) => {
+                                  const range = sectionRanges[section.id];
+                                  return (
+                                    <div key={section.id} className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{section.name}</span>
+                                          {section.questionCount !== undefined && section.questionCount > 0 && (
+                                            <span className="text-[10px] text-gray-400 dark:text-gray-500">({section.questionCount} assigned)</span>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <button
+                                            onClick={() => { setEditingSection(section); setShowSectionModal(true); }}
+                                            className="text-xs px-2 py-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={async () => {
+                                              if (window.confirm('Delete this section?')) {
+                                                await deleteTestSection(section.id);
+                                                loadSectionsForTest(test.id);
+                                              }
+                                            }}
+                                            className="text-xs px-2 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                                          >
+                                            Delete
+                                          </button>
+                                        </div>
+                                      </div>
+                                      {/* Question range assignment */}
+                                      {totalQs > 0 && (
+                                        <form
+                                          className="flex items-center gap-2"
+                                          onSubmit={async (e) => {
+                                            e.preventDefault();
+                                            const form = e.currentTarget;
+                                            const fromInput = form.elements.namedItem('from') as HTMLInputElement;
+                                            const toInput = form.elements.namedItem('to') as HTMLInputElement;
+                                            const from = parseInt(fromInput.value);
+                                            const to = parseInt(toInput.value);
+                                            if (isNaN(from) || isNaN(to) || from < 1 || to > totalQs || from > to) {
+                                              alert(`Enter valid range between 1 and ${totalQs}`);
+                                              return;
+                                            }
+                                            const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+                                            btn.disabled = true;
+                                            btn.textContent = '...';
+
+                                            // First, unassign any questions currently in this section
+                                            const currentlyAssigned = testQuestionIds.filter(qId => questionSectionMap[qId] === section.id);
+                                            if (currentlyAssigned.length > 0) {
+                                              await bulkAssignQuestionsToSection(test.id, currentlyAssigned, null);
+                                            }
+
+                                            // Assign the new range
+                                            const newIds = testQuestionIds.slice(from - 1, to);
+                                            await bulkAssignQuestionsToSection(test.id, newIds, section.id);
+
+                                            // Update local state
+                                            setQuestionSectionMap(prev => {
+                                              const updated = { ...prev };
+                                              currentlyAssigned.forEach(qId => { updated[qId] = undefined; });
+                                              newIds.forEach(qId => { updated[qId] = section.id; });
+                                              return updated;
+                                            });
+
+                                            // Refresh sections to update counts
+                                            loadSectionsForTest(test.id);
+                                            btn.disabled = false;
+                                            btn.textContent = 'Assign';
+                                          }}
+                                        >
+                                          <span className="text-xs text-gray-600 dark:text-gray-400">Q</span>
+                                          <input
+                                            name="from"
+                                            type="number"
+                                            min={1}
+                                            max={totalQs}
+                                            defaultValue={range?.from || ''}
+                                            placeholder="1"
+                                            className="w-14 px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-center"
+                                          />
+                                          <span className="text-xs text-gray-600 dark:text-gray-400">to</span>
+                                          <input
+                                            name="to"
+                                            type="number"
+                                            min={1}
+                                            max={totalQs}
+                                            defaultValue={range?.to || ''}
+                                            placeholder={String(totalQs)}
+                                            className="w-14 px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-center"
+                                          />
+                                          <button
+                                            type="submit"
+                                            className="text-xs px-2.5 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
+                                          >
+                                            Assign
+                                          </button>
+                                        </form>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
                   ))}
               </div>
@@ -2098,25 +2433,25 @@ export default function AdminPage() {
 
         {/* Subjects Tab Content */}
         {activeTab === "subjects" && (
-          <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
+          <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 Manage Subjects
               </h2>
               <button
                 onClick={handleCreateSubject}
-                className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
+                className="px-4 py-2 text-sm font-bold bg-black text-white dark:bg-gray-100 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 transition-all"
               >
                 + NEW SUBJECT
               </button>
             </div>
 
             {isLoadingSubjects ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 Loading subjects...
               </div>
             ) : subjects.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 No subjects yet. Create your first subject to get started.
               </div>
             ) : (
@@ -2124,26 +2459,26 @@ export default function AdminPage() {
                 {subjects.map((subject) => (
                   <div
                     key={subject.id}
-                    className="border-2 border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-all"
+                    className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:border-gray-300 dark:hover:border-gray-600 transition-all"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-gray-900 truncate">
+                          <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">
                             {subject.name}
                           </h3>
                           {!subject.isActive && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
                               Inactive
                             </span>
                           )}
                         </div>
                         {subject.description && (
-                          <p className="text-sm text-gray-600 truncate mb-2">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate mb-2">
                             {subject.description}
                           </p>
                         )}
-                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                           <span className="flex items-center gap-1">
                             <svg
                               className="w-4 h-4"
@@ -2160,7 +2495,7 @@ export default function AdminPage() {
                             </svg>
                             {subject.testCount || 0} tests
                           </span>
-                          <span className="text-gray-400">
+                          <span className="text-gray-400 dark:text-gray-500">
                             Order: {subject.displayOrder}
                           </span>
                         </div>
@@ -2168,7 +2503,7 @@ export default function AdminPage() {
                       <div className="flex items-center gap-2 ml-4">
                         <button
                           onClick={() => handleEditSubject(subject)}
-                          className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg active:scale-95 transition-all"
+                          className="p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg active:scale-95 transition-all"
                           title="Edit subject"
                         >
                           <svg
@@ -2187,7 +2522,7 @@ export default function AdminPage() {
                         </button>
                         <button
                           onClick={() => handleDeleteSubject(subject)}
-                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
+                          className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg active:scale-95 transition-all"
                           title="Delete subject"
                         >
                           <svg
@@ -2215,10 +2550,10 @@ export default function AdminPage() {
 
         {/* Bug Reports Tab Content */}
         {activeTab === "bugs" && (
-          <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
+          <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Bug Reports</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Bug Reports</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {bugCounts.open + bugCounts.reviewed + bugCounts.resolved} total
                 reports
               </p>
@@ -2230,8 +2565,8 @@ export default function AdminPage() {
                 onClick={() => setBugStatusFilter("all")}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                   bugStatusFilter === "all"
-                    ? "bg-black text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    ? "bg-black text-white dark:bg-gray-100 dark:text-black"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                 }`}
               >
                 All ({bugCounts.open + bugCounts.reviewed + bugCounts.resolved})
@@ -2241,7 +2576,7 @@ export default function AdminPage() {
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                   bugStatusFilter === "open"
                     ? "bg-red-600 text-white"
-                    : "bg-red-50 text-red-700 hover:bg-red-100"
+                    : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50"
                 }`}
               >
                 Open ({bugCounts.open})
@@ -2251,7 +2586,7 @@ export default function AdminPage() {
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                   bugStatusFilter === "reviewed"
                     ? "bg-yellow-500 text-white"
-                    : "bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
+                    : "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50"
                 }`}
               >
                 Reviewed ({bugCounts.reviewed})
@@ -2261,7 +2596,7 @@ export default function AdminPage() {
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                   bugStatusFilter === "resolved"
                     ? "bg-green-600 text-white"
-                    : "bg-green-50 text-green-700 hover:bg-green-100"
+                    : "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50"
                 }`}
               >
                 Resolved ({bugCounts.resolved})
@@ -2270,11 +2605,11 @@ export default function AdminPage() {
 
             {/* Bug Reports List */}
             {isLoadingBugs ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 Loading reports...
               </div>
             ) : bugReports.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 {bugStatusFilter === "all"
                   ? "No bug reports yet."
                   : `No ${bugStatusFilter} reports.`}
@@ -2288,11 +2623,11 @@ export default function AdminPage() {
                   return (
                     <div
                       key={report.id}
-                      className="border-2 border-gray-200 rounded-xl overflow-hidden"
+                      className="border-2 border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"
                     >
                       {/* Report Header */}
                       <div
-                        className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                        className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         onClick={() =>
                           setExpandedBugId(isExpanded ? null : report.id)
                         }
@@ -2304,10 +2639,10 @@ export default function AdminPage() {
                               <span
                                 className={`px-2 py-0.5 text-xs font-bold rounded ${
                                   report.status === "open"
-                                    ? "bg-red-100 text-red-700"
+                                    ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
                                     : report.status === "reviewed"
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : "bg-green-100 text-green-700"
+                                    ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
+                                    : "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
                                 }`}
                               >
                                 {report.status.toUpperCase()}
@@ -2315,7 +2650,7 @@ export default function AdminPage() {
 
                               {/* Question Number */}
                               {report.question_number && (
-                                <span className="px-2 py-0.5 text-xs font-bold bg-gray-100 text-gray-700 rounded">
+                                <span className="px-2 py-0.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
                                   Q#{report.question_number}
                                 </span>
                               )}
@@ -2323,7 +2658,7 @@ export default function AdminPage() {
                               {/* Test Name */}
                               {report.test_id &&
                                 testNamesMap[report.test_id] && (
-                                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 rounded">
+                                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded">
                                     {testNamesMap[report.test_id]}
                                   </span>
                                 )}
@@ -2352,19 +2687,19 @@ export default function AdminPage() {
                             </div>
 
                             {/* Description Preview */}
-                            <p className="text-sm text-gray-900 line-clamp-2">
+                            <p className="text-sm text-gray-900 dark:text-gray-100 line-clamp-2">
                               {report.description}
                             </p>
 
                             {/* Date */}
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                               {formatDate(report.created_at)}
                             </p>
                           </div>
 
                           {/* Expand Icon */}
                           <svg
-                            className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
+                            className={`w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform flex-shrink-0 ${
                               isExpanded ? "rotate-180" : ""
                             }`}
                             fill="none"
@@ -2383,13 +2718,13 @@ export default function AdminPage() {
 
                       {/* Expanded Content */}
                       {isExpanded && (
-                        <div className="border-t border-gray-200 p-4 bg-gray-50">
+                        <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
                           {/* Full Description */}
                           <div className="mb-4">
-                            <h4 className="text-xs font-bold text-gray-700 mb-1">
+                            <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
                               Description
                             </h4>
-                            <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                            <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
                               {report.description}
                             </p>
                           </div>
@@ -2397,7 +2732,7 @@ export default function AdminPage() {
                           {/* Screenshot */}
                           {report.screenshot_url && (
                             <div className="mb-4">
-                              <h4 className="text-xs font-bold text-gray-700 mb-2">
+                              <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
                                 Screenshot
                               </h4>
                               <a
@@ -2408,7 +2743,7 @@ export default function AdminPage() {
                                 <img
                                   src={report.screenshot_url}
                                   alt="Bug screenshot"
-                                  className="max-w-sm rounded-lg border border-gray-300 hover:opacity-90 transition-opacity"
+                                  className="max-w-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:opacity-90 transition-opacity"
                                 />
                               </a>
                             </div>
@@ -2417,10 +2752,10 @@ export default function AdminPage() {
                           {/* Question Preview */}
                           {question && (
                             <div className="mb-4">
-                              <h4 className="text-xs font-bold text-gray-700 mb-2">
+                              <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
                                 Question Preview
                               </h4>
-                              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
                                 {/* Question Info Header */}
                                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                                   {report.question_number && (
@@ -2430,13 +2765,13 @@ export default function AdminPage() {
                                   )}
                                   {report.test_id &&
                                     testNamesMap[report.test_id] && (
-                                      <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                                      <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded">
                                         {testNamesMap[report.test_id]}
                                       </span>
                                     )}
                                   {question.skills &&
                                     question.skills.length > 0 && (
-                                      <span className="px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 rounded">
+                                      <span className="px-2 py-0.5 text-xs font-medium bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">
                                         {question.skills.join(", ")}
                                       </span>
                                     )}
@@ -2450,11 +2785,11 @@ export default function AdminPage() {
                                   />
                                 )}
                                 {question.question_text && (
-                                  <div className="text-sm text-gray-800 mb-2">
+                                  <div className="text-sm text-gray-800 dark:text-gray-200 mb-2">
                                     <MathText text={question.question_text} />
                                   </div>
                                 )}
-                                <div className="text-xs text-green-700 mt-2 pt-2 border-t border-gray-100">
+                                <div className="text-xs text-green-700 dark:text-green-400 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                                   <span className="font-semibold">
                                     Correct Answer:
                                   </span>{" "}
@@ -2511,7 +2846,7 @@ export default function AdminPage() {
                                 e.stopPropagation();
                                 handleDeleteBug(report.id);
                               }}
-                              className="px-3 py-1.5 text-xs font-bold text-red-600 border-2 border-red-200 rounded-lg hover:bg-red-50 active:scale-95 transition-all"
+                              className="px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 border-2 border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 active:scale-95 transition-all"
                             >
                               Delete
                             </button>
@@ -2531,9 +2866,9 @@ export default function AdminPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Left: Questions List */}
             <div className="lg:col-span-1">
-              <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-32px)] flex flex-col">
+              <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-32px)] flex flex-col">
                 <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                  <h2 className="text-base font-bold text-gray-900">
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
                     Questions (
                     {
                       questions.filter((q) => {
@@ -2560,12 +2895,12 @@ export default function AdminPage() {
                   <div className="flex gap-2 flex-wrap">
                     {selectedForGrouping.length > 0 && (
                       <>
-                        <span className="text-xs px-2 py-2 text-purple-700 font-medium">
+                        <span className="text-xs px-2 py-2 text-purple-700 dark:text-purple-400 font-medium">
                           {selectedForGrouping.length}/2 selected
                         </span>
                         <button
                           onClick={() => setSelectedForGrouping([])}
-                          className="text-xs px-2 py-2 font-bold text-gray-500 hover:text-gray-700"
+                          className="text-xs px-2 py-2 font-bold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                           title="Clear selection"
                         >
                           Clear
@@ -2583,7 +2918,7 @@ export default function AdminPage() {
                     )}
                     <button
                       onClick={() => setShowCsvModal(true)}
-                      className="text-xs px-3 py-2 font-bold border-2 border-gray-300 text-gray-700 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
+                      className="text-xs px-3 py-2 font-bold border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 transition-all"
                       title="Bulk upload questions from CSV"
                     >
                       Upload CSV
@@ -2591,7 +2926,7 @@ export default function AdminPage() {
                     {editingId && (
                       <button
                         onClick={resetForm}
-                        className="text-xs px-3 py-2 font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 transition-all"
+                        className="text-xs px-3 py-2 font-bold bg-black text-white dark:bg-gray-100 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 transition-all"
                         title="Clear form and add new question"
                       >
                         + NEW
@@ -2622,12 +2957,12 @@ export default function AdminPage() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search questions..."
-                      className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                     />
                     {searchQuery && (
                       <button
                         onClick={() => setSearchQuery("")}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full"
                       >
                         <svg
                           className="w-4 h-4 text-gray-400"
@@ -2659,7 +2994,7 @@ export default function AdminPage() {
                         newTestId !== "all" ? [newTestId] : []
                       );
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   >
                     <option value="all">All Questions</option>
                     {tests.map((test) => (
@@ -2671,11 +3006,11 @@ export default function AdminPage() {
                 </div>
 
                 {isLoadingQuestions ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
                     Loading...
                   </div>
                 ) : questions.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
                     No questions yet
                   </div>
                 ) : (
@@ -2775,19 +3110,19 @@ export default function AdminPage() {
                           onDragEnd={
                             !isGrouped ? handleQuestionDragEnd : undefined
                           }
-                          className={`border-2 p-3 hover:bg-gray-50 transition-all ${
+                          className={`border-2 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all ${
                             !isGrouped
                               ? "cursor-grab active:cursor-grabbing rounded-xl"
                               : ""
                           } ${
                             editingId === question.id
-                              ? "border-black bg-gray-50"
+                              ? "border-black dark:border-gray-400 bg-gray-50 dark:bg-gray-700"
                               : selectedForGrouping.includes(question.id)
-                              ? "border-purple-400 bg-purple-50"
-                              : "border-gray-200"
+                              ? "border-purple-400 bg-purple-50 dark:bg-purple-900/30"
+                              : "border-gray-200 dark:border-gray-700"
                           } ${
                             draggedQuestionId === question.id
-                              ? "opacity-40 bg-blue-50 border-blue-300"
+                              ? "opacity-40 bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700"
                               : ""
                           } ${
                             isGrouped && groupPosition === "first"
@@ -2815,7 +3150,7 @@ export default function AdminPage() {
                                   onChange={() =>
                                     toggleQuestionSelection(question.id)
                                   }
-                                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 cursor-pointer"
+                                  className="w-4 h-4 text-purple-600 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 cursor-pointer dark:bg-gray-700"
                                   title="Select to group with another question"
                                   onClick={(e) => e.stopPropagation()}
                                 />
@@ -2823,7 +3158,7 @@ export default function AdminPage() {
                             )}
                             {/* Drag Handle - only for non-grouped */}
                             {!isGrouped && (
-                              <div className="flex-shrink-0 text-gray-400 hover:text-gray-600 pt-1">
+                              <div className="flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 pt-1">
                                 <svg
                                   className="w-4 h-4"
                                   fill="currentColor"
@@ -2838,12 +3173,12 @@ export default function AdminPage() {
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5">
-                                    <p className="text-xs font-semibold text-gray-900 truncate">
+                                    <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">
                                       {question.name || `Q${index + 1}`}
                                     </p>
                                     {isGrouped && (
                                       <span
-                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-medium flex-shrink-0"
+                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded text-[10px] font-medium flex-shrink-0"
                                         title="Grouped question (shares a passage)"
                                       >
                                         <svg
@@ -2858,11 +3193,11 @@ export default function AdminPage() {
                                     )}
                                   </div>
                                   {question.name && (
-                                    <p className="text-[10px] text-gray-400">
+                                    <p className="text-[10px] text-gray-400 dark:text-gray-500">
                                       Q{index + 1}
                                     </p>
                                   )}
-                                  <p className="text-xs text-gray-600 truncate">
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
                                     {(question.skills || []).join(", ")}
                                   </p>
                                   {/* Test badges */}
@@ -2877,7 +3212,7 @@ export default function AdminPage() {
                                           return test ? (
                                             <span
                                               key={testId}
-                                              className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium truncate max-w-[80px]"
+                                              className="inline-block px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-[10px] font-medium truncate max-w-[80px]"
                                               title={test.name}
                                             >
                                               {test.name}
@@ -2886,7 +3221,7 @@ export default function AdminPage() {
                                         })}
                                       {questionTestMap[question.id].length >
                                         2 && (
-                                        <span className="text-[10px] text-gray-500">
+                                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
                                           +
                                           {questionTestMap[question.id].length -
                                             2}
@@ -2894,7 +3229,13 @@ export default function AdminPage() {
                                       )}
                                     </div>
                                   )}
-                                  <p className="text-xs text-gray-500 truncate">
+                                  {/* Section badge */}
+                                  {filterTestId !== "all" && testSections.length > 0 && questionSectionMap[question.id] && (
+                                    <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-medium">
+                                      {testSections.find(s => s.id === questionSectionMap[question.id])?.name || 'Section'}
+                                    </span>
+                                  )}
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                     ✓{" "}
                                     {
                                       question.answers[
@@ -2917,7 +3258,7 @@ export default function AdminPage() {
                                     onClick={() =>
                                       loadQuestionForEdit(question)
                                     }
-                                    className="p-1.5 text-gray-700 hover:bg-gray-200 rounded-lg active:scale-95 transition-all"
+                                    className="p-1.5 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg active:scale-95 transition-all"
                                     title={
                                       isGrouped
                                         ? "Edit grouped questions"
@@ -2940,7 +3281,7 @@ export default function AdminPage() {
                                   </button>
                                   <button
                                     onClick={() => handleDelete(question.id)}
-                                    className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg active:scale-95 transition-all"
+                                    className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg active:scale-95 transition-all"
                                     title="Delete question"
                                   >
                                     <svg
@@ -3035,9 +3376,9 @@ export default function AdminPage() {
             </div>
 
             {/* Right: Form */}
-            <div className="lg:col-span-2 bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
+            <div className="lg:col-span-2 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   {editingId ? "Edit Question" : "Add New Question"}
                 </h2>
                 <div className="relative">
@@ -3047,7 +3388,7 @@ export default function AdminPage() {
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
                       showPreview
                         ? "bg-blue-600 text-white"
-                        : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                        : "bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500"
                     }`}
                   >
                     i
@@ -3055,9 +3396,9 @@ export default function AdminPage() {
 
                   {/* Preview Tooltip */}
                   {showPreview && (
-                    <div className="absolute right-0 top-full mt-2 w-96 max-h-[70vh] overflow-y-auto bg-white rounded-2xl shadow-2xl border border-gray-200 z-50">
+                    <div className="absolute right-0 top-full mt-2 w-96 max-h-[70vh] overflow-y-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50">
                       {/* Tooltip Arrow */}
-                      <div className="absolute -top-2 right-3 w-4 h-4 bg-white border-l border-t border-gray-200 transform rotate-45"></div>
+                      <div className="absolute -top-2 right-3 w-4 h-4 bg-white dark:bg-gray-800 border-l border-t border-gray-200 dark:border-gray-700 transform rotate-45"></div>
 
                       <div className="p-4 space-y-3">
                         {/* Question Preview */}
@@ -3120,10 +3461,10 @@ export default function AdminPage() {
                                 "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 font-medium";
                               if (isCorrect) {
                                 buttonClass +=
-                                  " bg-green-50 border-green-500 text-green-900";
+                                  " bg-green-50 dark:bg-green-900/30 border-green-500 text-green-900 dark:text-green-400";
                               } else {
                                 buttonClass +=
-                                  " bg-white border-gray-300 text-gray-700";
+                                  " bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300";
                               }
 
                               const answerImage =
@@ -3164,7 +3505,7 @@ export default function AdminPage() {
                                           <img
                                             src={answerImage}
                                             alt={`Answer ${answerNum}`}
-                                            className="max-w-full h-auto rounded border border-gray-300 mt-2"
+                                            className="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 mt-2"
                                           />
                                         )}
                                       </div>
@@ -3180,7 +3521,7 @@ export default function AdminPage() {
                         {!currentForm.state.questionText &&
                           !currentForm.state.questionImagePreview &&
                           !currentForm.state.answers.some((a) => a.trim()) && (
-                            <div className="text-center text-gray-400 py-8 text-sm">
+                            <div className="text-center text-gray-400 dark:text-gray-500 py-8 text-sm">
                               Start typing to see preview
                             </div>
                           )}
@@ -3193,12 +3534,12 @@ export default function AdminPage() {
               <form onSubmit={handleSubmit} className="space-y-3">
                 {/* Grouped Question Toggle */}
                 {!editingId && (
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                     <div>
-                      <label className="text-sm font-medium text-gray-700">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         Grouped Question (Passage-based)
                       </label>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         Create two questions that share a common passage
                       </p>
                     </div>
@@ -3206,7 +3547,7 @@ export default function AdminPage() {
                       type="button"
                       onClick={() => setIsGroupedQuestion(!isGroupedQuestion)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        isGroupedQuestion ? "bg-black" : "bg-gray-300"
+                        isGroupedQuestion ? "bg-black dark:bg-gray-100" : "bg-gray-300 dark:bg-gray-600"
                       }`}
                     >
                       <span
@@ -3220,12 +3561,12 @@ export default function AdminPage() {
 
                 {/* Passage Container (for grouped questions) */}
                 {isGroupedQuestion && (
-                  <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl space-y-3">
-                    <h3 className="text-sm font-bold text-blue-900">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-200 dark:border-blue-800 rounded-xl space-y-3">
+                    <h3 className="text-sm font-bold text-blue-900 dark:text-blue-300">
                       Shared Passage
                     </h3>
                     <div>
-                      <label className="block text-xs font-medium text-blue-800 mb-1">
+                      <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">
                         Passage Text
                       </label>
                       <textarea
@@ -3233,11 +3574,11 @@ export default function AdminPage() {
                         onChange={(e) => setPassageText(e.target.value)}
                         placeholder="Enter the shared passage or summary text..."
                         rows={4}
-                        className="w-full px-3 py-2 text-sm border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-blue-800 mb-1">
+                      <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">
                         Passage Image (Optional)
                       </label>
                       <input
@@ -3311,11 +3652,11 @@ export default function AdminPage() {
                           <div
                             className={`w-full h-20 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors ${
                               draggedOver === "passage"
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-blue-300 bg-white hover:bg-blue-50"
+                                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
+                                : "border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                             }`}
                           >
-                            <span className="text-xs text-blue-600">
+                            <span className="text-xs text-blue-600 dark:text-blue-400">
                               Click or drag image
                             </span>
                           </div>
@@ -3333,8 +3674,8 @@ export default function AdminPage() {
                       onClick={() => setActiveQuestionTab(1)}
                       className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all ${
                         activeQuestionTab === 1
-                          ? "bg-black text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-black text-white dark:bg-gray-100 dark:text-black"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                       }`}
                     >
                       Question 1
@@ -3344,8 +3685,8 @@ export default function AdminPage() {
                       onClick={() => setActiveQuestionTab(2)}
                       className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all ${
                         activeQuestionTab === 2
-                          ? "bg-black text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-black text-white dark:bg-gray-100 dark:text-black"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                       }`}
                     >
                       Question 2
@@ -3356,7 +3697,7 @@ export default function AdminPage() {
                 {/* Question Fields (uses currentForm which switches between Q1/Q2 based on tab) */}
                 {/* Question Name */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     {isGroupedQuestion
                       ? `Question ${activeQuestionTab} Name (Optional)`
                       : "Question Name (Optional)"}
@@ -3368,19 +3709,130 @@ export default function AdminPage() {
                       currentForm.setField("questionName", e.target.value)
                     }
                     placeholder="e.g., Linear Equations - Problem 1"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     Helps you identify this question in the list
                   </p>
                 </div>
 
-                {/* Question Text */}
+                {/* Question Text (Above Image) */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Question Text{" "}
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Question Text <span className="text-gray-500 dark:text-gray-400">(above image)</span>
+                  </label>
+                  <textarea
+                    value={currentForm.state.aboveImageText || ''}
+                    onChange={(e) =>
+                      currentForm.setField("aboveImageText", e.target.value)
+                    }
+                    placeholder="Text displayed above the question image (optional)..."
+                    rows={2}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+
+                {/* Question Image */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Question Image{" "}
                     <span className="text-gray-500">
                       (text or image required)
+                    </span>
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      handleImageSelect(
+                        e,
+                        (file) => currentForm.setField("questionImage", file),
+                        (preview) =>
+                          currentForm.setField(
+                            "questionImagePreview",
+                            preview
+                          )
+                      )
+                    }
+                    className="hidden"
+                    id="question-image"
+                  />
+                  <label
+                    htmlFor="question-image"
+                    className="cursor-pointer block"
+                    onDragOver={(e) => handleDragOver(e, "question")}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) =>
+                      handleDrop(
+                        e,
+                        (file) => currentForm.setField("questionImage", file),
+                        (preview) =>
+                          currentForm.setField(
+                            "questionImagePreview",
+                            preview
+                          )
+                      )
+                    }
+                  >
+                    {currentForm.state.questionImagePreview ? (
+                      <div
+                        className={`relative group w-full h-24 rounded border-2 overflow-hidden transition-all ${
+                          draggedOver === "question"
+                            ? "border-blue-500 ring-2 ring-blue-200"
+                            : "border-gray-300 dark:border-gray-600"
+                        }`}
+                      >
+                        <img
+                          src={currentForm.state.questionImagePreview}
+                          alt="Question"
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            currentForm.setField("questionImage", null);
+                            currentForm.setField("questionImagePreview", null);
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                          title="Remove image"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                        {draggedOver === "question" && (
+                          <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                            <span className="text-xs font-bold text-blue-700">
+                              Drop to replace
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div
+                        className={`w-full h-24 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
+                          draggedOver === "question"
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-300 dark:border-gray-600 hover:border-blue-500"
+                        }`}
+                      >
+                        <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+                          Drop image
+                        </span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">or click</span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+
+                {/* Question Text (Below Image) */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Question Text{" "}
+                    <span className="text-gray-500 dark:text-gray-400">
+                      (below image)
                     </span>
                   </label>
                   <textarea
@@ -3390,97 +3842,18 @@ export default function AdminPage() {
                     }
                     placeholder="Enter question text. Use LaTeX for math: \\frac{x}{2}, x^{2}, \\sqrt{x}"
                     rows={3}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 font-mono"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono"
                   />
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     Use LaTeX for math equations. Examples: $\frac{`{x}`}
                     {`{2}`}$, $x^{`{2}`}$, $\sqrt{`{x}`}$
                   </p>
                 </div>
 
-                {/* Compact Image Uploads */}
-                <div className="grid grid-cols-3 gap-2">
+                {/* Reference & Explanation Image Uploads */}
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Question Image{" "}
-                      <span className="text-gray-500">
-                        (text or image required)
-                      </span>
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) =>
-                        handleImageSelect(
-                          e,
-                          (file) => currentForm.setField("questionImage", file),
-                          (preview) =>
-                            currentForm.setField(
-                              "questionImagePreview",
-                              preview
-                            )
-                        )
-                      }
-                      className="hidden"
-                      id="question-image"
-                    />
-                    <label
-                      htmlFor="question-image"
-                      className="cursor-pointer block"
-                      onDragOver={(e) => handleDragOver(e, "question")}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) =>
-                        handleDrop(
-                          e,
-                          (file) => currentForm.setField("questionImage", file),
-                          (preview) =>
-                            currentForm.setField(
-                              "questionImagePreview",
-                              preview
-                            )
-                        )
-                      }
-                    >
-                      {currentForm.state.questionImagePreview ? (
-                        <div
-                          className={`relative w-full h-24 rounded border-2 overflow-hidden transition-all ${
-                            draggedOver === "question"
-                              ? "border-blue-500 ring-2 ring-blue-200"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          <img
-                            src={currentForm.state.questionImagePreview}
-                            alt="Question"
-                            className="w-full h-full object-cover"
-                          />
-                          {draggedOver === "question" && (
-                            <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
-                              <span className="text-xs font-bold text-blue-700">
-                                Drop to replace
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div
-                          className={`w-full h-24 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
-                            draggedOver === "question"
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-gray-300 hover:border-blue-500"
-                          }`}
-                        >
-                          <span className="text-xs font-medium">
-                            Drop image
-                          </span>
-                          <span className="text-xs">or click</span>
-                        </div>
-                      )}
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Reference (Optional)
                     </label>
                     <input
@@ -3521,10 +3894,10 @@ export default function AdminPage() {
                     >
                       {currentForm.state.referenceImagePreview ? (
                         <div
-                          className={`relative w-full h-24 rounded border-2 overflow-hidden transition-all ${
+                          className={`relative group w-full h-24 rounded border-2 overflow-hidden transition-all ${
                             draggedOver === "reference"
                               ? "border-blue-500 ring-2 ring-blue-200"
-                              : "border-gray-300"
+                              : "border-gray-300 dark:border-gray-600"
                           }`}
                         >
                           <img
@@ -3532,6 +3905,21 @@ export default function AdminPage() {
                             alt="Reference"
                             className="w-full h-full object-cover"
                           />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              currentForm.setField("referenceImage", null);
+                              currentForm.setField("referenceImagePreview", null);
+                            }}
+                            className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                            title="Remove image"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                           {draggedOver === "reference" && (
                             <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
                               <span className="text-xs font-bold text-blue-700">
@@ -3545,20 +3933,20 @@ export default function AdminPage() {
                           className={`w-full h-24 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
                             draggedOver === "reference"
                               ? "border-blue-500 bg-blue-50"
-                              : "border-gray-300 hover:border-blue-500"
+                              : "border-gray-300 dark:border-gray-600 hover:border-blue-500"
                           }`}
                         >
-                          <span className="text-xs font-medium">
+                          <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
                             Drop image
                           </span>
-                          <span className="text-xs">or click</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">or click</span>
                         </div>
                       )}
                     </label>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Explanation (Optional)
                     </label>
                     <input
@@ -3599,10 +3987,10 @@ export default function AdminPage() {
                     >
                       {currentForm.state.explanationImagePreview ? (
                         <div
-                          className={`relative w-full h-24 rounded border-2 overflow-hidden transition-all ${
+                          className={`relative group w-full h-24 rounded border-2 overflow-hidden transition-all ${
                             draggedOver === "explanation"
                               ? "border-blue-500 ring-2 ring-blue-200"
-                              : "border-gray-300"
+                              : "border-gray-300 dark:border-gray-600"
                           }`}
                         >
                           <img
@@ -3610,6 +3998,21 @@ export default function AdminPage() {
                             alt="Explanation"
                             className="w-full h-full object-cover"
                           />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              currentForm.setField("explanationImage", null);
+                              currentForm.setField("explanationImagePreview", null);
+                            }}
+                            className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                            title="Remove image"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                           {draggedOver === "explanation" && (
                             <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
                               <span className="text-xs font-bold text-blue-700">
@@ -3623,30 +4026,52 @@ export default function AdminPage() {
                           className={`w-full h-24 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
                             draggedOver === "explanation"
                               ? "border-blue-500 bg-blue-50"
-                              : "border-gray-300 hover:border-blue-500"
+                              : "border-gray-300 dark:border-gray-600 hover:border-blue-500"
                           }`}
                         >
-                          <span className="text-xs font-medium">
+                          <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
                             Drop image
                           </span>
-                          <span className="text-xs">or click</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">or click</span>
                         </div>
                       )}
                     </label>
                   </div>
                 </div>
 
+                {/* Question Type */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Question Type
+                  </label>
+                  <select
+                    value={currentForm.state.questionType || 'multiple-choice'}
+                    onChange={(e) =>
+                      currentForm.setField("questionType", e.target.value as "multiple-choice" | "drag-order")
+                    }
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="multiple-choice">Multiple Choice</option>
+                    <option value="drag-order">Drag & Order</option>
+                  </select>
+                  {currentForm.state.questionType === 'drag-order' && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      Enter items in the CORRECT order. They will be shuffled for students.
+                    </p>
+                  )}
+                </div>
+
                 {/* Answers with optional images */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-medium text-gray-700">
-                      Answers <span className="text-red-500">*</span>{" "}
-                      <span className="text-gray-500 font-normal">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {currentForm.state.questionType === 'drag-order' ? 'Items (in correct order)' : 'Answers'} <span className="text-red-500">*</span>{" "}
+                      <span className="text-gray-500 dark:text-gray-400 font-normal">
                         (text or image or both required)
                       </span>
                     </label>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">Layout:</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Layout:</span>
                       <button
                         type="button"
                         onClick={() =>
@@ -3655,7 +4080,7 @@ export default function AdminPage() {
                         className={`px-2 py-1 text-xs rounded transition-all ${
                           currentForm.state.answerLayout === "list"
                             ? "bg-blue-600 text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                         }`}
                       >
                         List (1×4)
@@ -3668,7 +4093,7 @@ export default function AdminPage() {
                         className={`px-2 py-1 text-xs rounded transition-all ${
                           currentForm.state.answerLayout === "grid"
                             ? "bg-blue-600 text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                         }`}
                       >
                         Grid (2×2)
@@ -3679,28 +4104,30 @@ export default function AdminPage() {
                     {currentForm.state.answers.map((answer, index) => (
                       <div
                         key={index}
-                        className="border border-gray-200 rounded-lg p-3"
+                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
                       >
                         <div className="flex items-start gap-2 mb-2">
-                          <input
-                            type="radio"
-                            name="correct-answer"
-                            checked={
-                              currentForm.state.correctAnswer === index + 1
-                            }
-                            onChange={() =>
-                              currentForm.setField("correctAnswer", index + 1)
-                            }
-                            className="h-4 w-4 mt-1"
-                          />
+                          {currentForm.state.questionType !== 'drag-order' && (
+                            <input
+                              type="radio"
+                              name="correct-answer"
+                              checked={
+                                currentForm.state.correctAnswer === index + 1
+                              }
+                              onChange={() =>
+                                currentForm.setField("correctAnswer", index + 1)
+                              }
+                              className="h-4 w-4 mt-1"
+                            />
+                          )}
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-bold text-gray-700">
-                                ({index + 1})
+                              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                {currentForm.state.questionType === 'drag-order' ? `Item ${index + 1}` : `(${index + 1})`}
                               </span>
-                              {currentForm.state.correctAnswer ===
+                              {currentForm.state.questionType !== 'drag-order' && currentForm.state.correctAnswer ===
                                 index + 1 && (
-                                <span className="text-green-600 text-xs font-bold">
+                                <span className="text-green-600 dark:text-green-400 text-xs font-bold">
                                   ✓ Correct
                                 </span>
                               )}
@@ -3712,7 +4139,7 @@ export default function AdminPage() {
                                 currentForm.setAnswer(index, e.target.value)
                               }
                               placeholder={`Answer text (optional if image provided)`}
-                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                             />
                           </div>
                         </div>
@@ -3755,7 +4182,7 @@ export default function AdminPage() {
                                 className={`relative w-full max-w-xs h-24 rounded border-2 overflow-hidden transition-all ${
                                   answerDraggedOver === index
                                     ? "border-blue-500 ring-2 ring-blue-200"
-                                    : "border-gray-300"
+                                    : "border-gray-300 dark:border-gray-600"
                                 }`}
                               >
                                 <img
@@ -3810,10 +4237,10 @@ export default function AdminPage() {
                               onDrop={(e) => handleAnswerImageDrop(e, index)}
                             >
                               <div
-                                className={`w-full max-w-xs h-20 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
+                                className={`w-full max-w-xs h-20 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 transition-colors ${
                                   answerDraggedOver === index
-                                    ? "border-blue-500 bg-blue-50"
-                                    : "border-gray-300 hover:border-blue-500"
+                                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
+                                    : "border-gray-300 dark:border-gray-600 hover:border-blue-500"
                                 }`}
                               >
                                 <svg
@@ -3844,7 +4271,7 @@ export default function AdminPage() {
 
                 {/* Compact Explanation */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Explanation <span className="text-red-500">*</span>
                   </label>
                   <textarea
@@ -3854,13 +4281,13 @@ export default function AdminPage() {
                     }
                     placeholder="Explain the correct answer"
                     rows={3}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
                 </div>
 
                 {/* Skills */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Skills <span className="text-red-500">*</span>
                   </label>
                   <TagInput
@@ -3871,14 +4298,14 @@ export default function AdminPage() {
                     }
                     placeholder="Type to search or add new skills (e.g., Linear Equations, Quadratic Functions)"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Skills tested by this question
                   </p>
                 </div>
 
                 {/* Tags */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Tags
                   </label>
                   <TagInput
@@ -3889,14 +4316,14 @@ export default function AdminPage() {
                     }
                     placeholder="Type to search or add new tags (e.g., Algebra, Functions)"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Broader categorization tags for filtering
                   </p>
                 </div>
 
                 {/* Difficulty */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Difficulty
                   </label>
                   <select
@@ -3904,25 +4331,25 @@ export default function AdminPage() {
                     onChange={(e) =>
                       currentForm.setField("difficulty", e.target.value)
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   >
                     <option value="">None</option>
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Question difficulty level (optional)
                   </p>
                 </div>
 
                 {/* Assign to Tests */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Assign to Tests
                   </label>
                   {tests.length === 0 ? (
-                    <p className="text-xs text-gray-500 italic">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 italic">
                       No tests available. Create a test first.
                     </p>
                   ) : (
@@ -3933,14 +4360,14 @@ export default function AdminPage() {
                       placeholder="Select tests..."
                     />
                   )}
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Select which tests this question should appear in
                   </p>
                 </div>
 
                 {/* Points */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Points <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -3953,9 +4380,9 @@ export default function AdminPage() {
                       )
                     }
                     placeholder="1"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     Points awarded for this question (default: 1)
                   </p>
                 </div>
@@ -3965,8 +4392,8 @@ export default function AdminPage() {
                   <div
                     className={`p-4 rounded-xl text-sm font-bold border-2 ${
                       notification.type === "success"
-                        ? "bg-green-50 text-green-800 border-green-200"
-                        : "bg-red-50 text-red-800 border-red-200"
+                        ? "bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800"
+                        : "bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800"
                     }`}
                   >
                     {notification.message}
@@ -3978,7 +4405,7 @@ export default function AdminPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-black text-white px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-800 active:scale-95 disabled:opacity-50 transition-all shadow-md"
+                    className="w-full bg-black text-white dark:bg-gray-100 dark:text-black px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 disabled:opacity-50 transition-all shadow-md"
                   >
                     {isSubmitting
                       ? "SAVING..."
@@ -4015,13 +4442,56 @@ export default function AdminPage() {
           editingSubject={editingSubject}
         />
 
+        {/* Section Modal */}
+        <SectionModal
+          isOpen={showSectionModal}
+          onClose={() => { setShowSectionModal(false); setEditingSection(null); }}
+          onSave={async (data) => {
+            let referenceImageUrl = data.referenceImageUrl || '';
+
+            // If a file was provided, upload it first
+            if (data.referenceImageFile) {
+              const uploadedUrl = await uploadImage(
+                'reference-images',
+                data.referenceImageFile,
+                'sections/' + Date.now() + '-' + data.referenceImageFile.name
+              );
+              if (uploadedUrl) {
+                referenceImageUrl = uploadedUrl;
+              }
+            }
+
+            if (editingSection) {
+              await updateTestSection(editingSection.id, {
+                name: data.name,
+                description: data.description || null,
+                reference_image_url: referenceImageUrl || null,
+              });
+            } else if (expandedTestId) {
+              await createTestSection({
+                test_id: expandedTestId,
+                name: data.name,
+                description: data.description || undefined,
+                reference_image_url: referenceImageUrl || undefined,
+                display_order: testSections.length,
+              });
+            }
+            setShowSectionModal(false);
+            setEditingSection(null);
+            if (expandedTestId) {
+              loadSectionsForTest(expandedTestId);
+            }
+          }}
+          section={editingSection}
+        />
+
         {/* CSV Upload Modal */}
         {showCsvModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
               {/* Modal Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <h2 className="text-lg font-bold text-gray-900">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   Bulk Upload Questions
                 </h2>
                 <button
@@ -4032,7 +4502,7 @@ export default function AdminPage() {
                     setCsvError(null);
                     setCsvSelectedTestIds([]);
                   }}
-                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all"
                 >
                   <svg
                     className="w-5 h-5"
@@ -4054,16 +4524,16 @@ export default function AdminPage() {
               <div className="p-4 overflow-y-auto max-h-[calc(90vh-140px)]">
                 {/* File Upload */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     CSV File
                   </label>
                   <input
                     type="file"
                     accept=".csv"
                     onChange={handleCsvFileSelect}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Format: question_text, choice_1-4, correct_answer, Points,
                     difficulty_level, Main Skill, [tags...]
                   </p>
@@ -4071,11 +4541,11 @@ export default function AdminPage() {
 
                 {/* Assign to Tests */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Assign to Tests
                   </label>
                   {tests.length === 0 ? (
-                    <p className="text-sm text-gray-500 italic">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">
                       No tests available
                     </p>
                   ) : (
@@ -4090,7 +4560,7 @@ export default function AdminPage() {
 
                 {/* Error Message */}
                 {csvError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400">
                     {csvError}
                   </div>
                 )}
@@ -4098,13 +4568,13 @@ export default function AdminPage() {
                 {/* Preview */}
                 {csvPreview.length > 0 && (
                   <div className="mb-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Preview ({csvPreview.length} questions)
                     </h3>
-                    <div className="border border-gray-200 rounded-lg overflow-auto max-h-80">
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-auto max-h-80">
                       <div style={{ minWidth: "1400px" }}>
                         {/* Header Row */}
-                        <div className="flex bg-gray-50 sticky top-0 border-b border-gray-200 text-xs font-bold text-gray-700">
+                        <div className="flex bg-gray-50 dark:bg-gray-900 sticky top-0 border-b border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300">
                           <div
                             className="px-3 py-2"
                             style={{ width: "40px", flexShrink: 0 }}
@@ -4176,72 +4646,72 @@ export default function AdminPage() {
                         {csvPreview.map((q, i) => (
                           <div
                             key={i}
-                            className={`flex text-xs border-b border-gray-100 ${
-                              i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                            className={`flex text-xs border-b border-gray-100 dark:border-gray-700 ${
+                              i % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-900"
                             }`}
                           >
                             <div
-                              className="px-3 py-2 text-gray-500"
+                              className="px-3 py-2 text-gray-500 dark:text-gray-400"
                               style={{ width: "40px", flexShrink: 0 }}
                             >
                               {i + 1}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-900"
+                              className="px-3 py-2 text-gray-900 dark:text-gray-100"
                               style={{ width: "250px", flexShrink: 0 }}
                             >
                               {q.question_text}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600"
+                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
                               style={{ width: "150px", flexShrink: 0 }}
                             >
                               {q.answers[0] || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600"
+                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
                               style={{ width: "150px", flexShrink: 0 }}
                             >
                               {q.answers[1] || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600"
+                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
                               style={{ width: "150px", flexShrink: 0 }}
                             >
                               {q.answers[2] || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600"
+                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
                               style={{ width: "150px", flexShrink: 0 }}
                             >
                               {q.answers[3] || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 font-medium"
+                              className="px-3 py-2 text-gray-600 dark:text-gray-400 font-medium"
                               style={{ width: "60px", flexShrink: 0 }}
                             >
                               {q.correct_answer}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600"
+                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
                               style={{ width: "40px", flexShrink: 0 }}
                             >
                               {q.points}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 capitalize"
+                              className="px-3 py-2 text-gray-600 dark:text-gray-400 capitalize"
                               style={{ width: "80px", flexShrink: 0 }}
                             >
                               {q.difficulty || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600"
+                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
                               style={{ width: "120px", flexShrink: 0 }}
                             >
                               {q.skills[0] || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600"
+                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
                               style={{ width: "200px", flexShrink: 0 }}
                             >
                               {q.tags.length > 0 ? q.tags.join(", ") : "-"}
@@ -4255,7 +4725,7 @@ export default function AdminPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                 <button
                   onClick={() => {
                     setShowCsvModal(false);
@@ -4264,14 +4734,14 @@ export default function AdminPage() {
                     setCsvError(null);
                     setCsvSelectedTestIds([]);
                   }}
-                  className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all"
+                  className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCsvUpload}
                   disabled={csvPreview.length === 0 || isUploadingCsv}
-                  className="px-4 py-2 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="px-4 py-2 text-sm font-bold bg-black text-white dark:bg-gray-100 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isUploadingCsv
                     ? "Uploading..."
@@ -4285,40 +4755,40 @@ export default function AdminPage() {
         {/* Link Questions Modal */}
         {showLinkModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
               {/* Modal Header */}
-              <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-purple-50">
-                <div className="p-2 bg-purple-100 rounded-full">
+              <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-700 bg-purple-50 dark:bg-purple-900/30">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-full">
                   <svg
-                    className="w-5 h-5 text-purple-600"
+                    className="w-5 h-5 text-purple-600 dark:text-purple-400"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
                     <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
                   </svg>
                 </div>
-                <h2 className="text-lg font-bold text-gray-900">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   Group Questions
                 </h2>
               </div>
 
               {/* Modal Body */}
               <div className="p-4">
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Add a shared passage for these questions. The passage will be
                   displayed above both questions when students take the quiz.
                 </p>
 
                 {/* Selected Questions Preview */}
-                <div className="mb-4 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                  <p className="text-xs font-bold text-gray-700 mb-2">
+                <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
                     Selected Questions:
                   </p>
                   <div className="space-y-1">
                     {selectedForGrouping.map((id, idx) => {
                       const q = questions.find((q) => q.id === id);
                       return (
-                        <p key={id} className="text-sm text-gray-900 truncate">
+                        <p key={id} className="text-sm text-gray-900 dark:text-gray-100 truncate">
                           {idx + 1}.{" "}
                           {q?.name ||
                             q?.question_text?.slice(0, 50) ||
@@ -4331,13 +4801,13 @@ export default function AdminPage() {
 
                 {/* Passage Text */}
                 <div className="mb-4">
-                  <label className="block text-sm font-bold text-gray-900 mb-1">
+                  <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">
                     Passage Text
                   </label>
                   <textarea
                     value={linkPassageText}
                     onChange={(e) => setLinkPassageText(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                     rows={4}
                     placeholder="Enter the shared passage text... (supports LaTeX: $x^2$)"
                   />
@@ -4345,7 +4815,7 @@ export default function AdminPage() {
 
                 {/* Passage Image */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-900 mb-1">
+                  <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">
                     Passage Image (Optional)
                   </label>
                   <input
@@ -4386,13 +4856,13 @@ export default function AdminPage() {
                         className={`relative w-full h-32 rounded-lg border-2 overflow-hidden transition-all ${
                           draggedOver === "linkPassage"
                             ? "border-purple-500 ring-2 ring-purple-200"
-                            : "border-gray-300"
+                            : "border-gray-300 dark:border-gray-600"
                         }`}
                       >
                         <img
                           src={linkPassageImagePreview}
                           alt="Passage preview"
-                          className="w-full h-full object-contain bg-gray-50"
+                          className="w-full h-full object-contain bg-gray-50 dark:bg-gray-700"
                         />
                         {draggedOver === "linkPassage" && (
                           <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
@@ -4416,10 +4886,10 @@ export default function AdminPage() {
                       </div>
                     ) : (
                       <div
-                        className={`w-full h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-gray-400 transition-colors ${
+                        className={`w-full h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 transition-colors ${
                           draggedOver === "linkPassage"
-                            ? "border-purple-500 bg-purple-50"
-                            : "border-gray-300 hover:border-purple-500"
+                            ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30"
+                            : "border-gray-300 dark:border-gray-600 hover:border-purple-500"
                         }`}
                       >
                         <svg
@@ -4446,11 +4916,11 @@ export default function AdminPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                 <button
                   onClick={cancelLinkQuestions}
                   disabled={isLinking}
-                  className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -4471,10 +4941,10 @@ export default function AdminPage() {
         {/* Delete Test Confirmation Modal */}
         {deleteTestModal.show && deleteTestModal.test && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
               {/* Modal Header */}
-              <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-red-50">
-                <div className="p-2 bg-red-100 rounded-full">
+              <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/30">
+                <div className="p-2 bg-red-100 dark:bg-red-900/50 rounded-full">
                   <svg
                     className="w-5 h-5 text-red-600"
                     fill="none"
@@ -4489,12 +4959,12 @@ export default function AdminPage() {
                     />
                   </svg>
                 </div>
-                <h2 className="text-lg font-bold text-gray-900">Delete Test</h2>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Delete Test</h2>
               </div>
 
               {/* Modal Body */}
               <div className="p-4">
-                <p className="text-gray-700 mb-4">
+                <p className="text-gray-700 dark:text-gray-300 mb-4">
                   Are you sure you want to delete{" "}
                   <span className="font-bold">
                     &quot;{deleteTestModal.test.name}&quot;
@@ -4504,7 +4974,7 @@ export default function AdminPage() {
 
                 {deleteTestModal.test.questionCount &&
                 deleteTestModal.test.questionCount > 0 ? (
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4">
+                  <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 mb-4">
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
@@ -4515,10 +4985,10 @@ export default function AdminPage() {
                             deleteQuestions: e.target.checked,
                           }))
                         }
-                        className="mt-1 w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                        className="mt-1 w-4 h-4 text-red-600 border-gray-300 dark:border-gray-600 rounded focus:ring-red-500 dark:bg-gray-700"
                       />
                       <div>
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           Also delete {deleteTestModal.test.questionCount}{" "}
                           question
                           {deleteTestModal.test.questionCount !== 1
@@ -4526,7 +4996,7 @@ export default function AdminPage() {
                             : ""}{" "}
                           assigned to this test
                         </span>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           This will permanently remove the questions from the
                           question bank
                         </p>
@@ -4534,16 +5004,16 @@ export default function AdminPage() {
                     </label>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     This test has no questions assigned to it.
                   </p>
                 )}
 
                 {deleteTestModal.deleteQuestions && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                  <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4">
                     <div className="flex items-start gap-2">
                       <svg
-                        className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5"
+                        className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -4555,7 +5025,7 @@ export default function AdminPage() {
                           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                         />
                       </svg>
-                      <p className="text-sm text-red-700">
+                      <p className="text-sm text-red-700 dark:text-red-400">
                         <span className="font-bold">Warning:</span> This action
                         cannot be undone. All selected questions will be
                         permanently deleted.
@@ -4566,7 +5036,7 @@ export default function AdminPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                 <button
                   onClick={() =>
                     setDeleteTestModal({
@@ -4577,7 +5047,7 @@ export default function AdminPage() {
                     })
                   }
                   disabled={deleteTestModal.isDeleting}
-                  className="px-4 py-2 text-sm font-bold text-gray-700 border-2 border-gray-300 rounded-xl hover:border-black hover:bg-gray-50 active:scale-95 disabled:opacity-50 transition-all"
+                  className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 disabled:opacity-50 transition-all"
                 >
                   Cancel
                 </button>

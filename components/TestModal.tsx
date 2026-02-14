@@ -182,20 +182,20 @@ export default function TestModal({
       {/* Modal */}
       <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
         <div
-          className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+          className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
-            <h2 className="text-lg font-bold text-gray-900">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               {editingTest ? "Edit Test" : "Create New Test"}
             </h2>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all"
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all"
             >
               <svg
-                className="w-5 h-5 text-gray-500"
+                className="w-5 h-5 text-gray-500 dark:text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -214,7 +214,7 @@ export default function TestModal({
           <div className="p-4 space-y-4 overflow-y-auto flex-1">
             {/* Test Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Test Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -222,19 +222,19 @@ export default function TestModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., January 2024 Regents"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
               />
             </div>
 
             {/* Subject */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Subject <span className="text-red-500">*</span>
               </label>
               <select
                 value={subjectId}
                 onChange={(e) => setSubjectId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
               >
                 <option value="">Select a subject...</option>
                 {subjects.map((subject) => (
@@ -247,7 +247,7 @@ export default function TestModal({
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Description
               </label>
               <textarea
@@ -255,7 +255,7 @@ export default function TestModal({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Optional description for this test"
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
               />
             </div>
 
@@ -266,15 +266,15 @@ export default function TestModal({
                 id="isActive"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300"
+                className="w-4 h-4 rounded border-gray-300 dark:border-gray-600"
               />
-              <label htmlFor="isActive" className="text-sm text-gray-700">
+              <label htmlFor="isActive" className="text-sm text-gray-700 dark:text-gray-300">
                 Active (visible to students)
               </label>
             </div>
 
             {/* Scaled Score Table */}
-            <div className="border-t pt-4">
+            <div className="border-t dark:border-gray-700 pt-4">
               <div className="flex items-center gap-2 mb-3">
                 <input
                   type="checkbox"
@@ -286,11 +286,11 @@ export default function TestModal({
                       handleLoadDefaultScoreTable();
                     }
                   }}
-                  className="w-4 h-4 rounded border-gray-300"
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600"
                 />
                 <label
                   htmlFor="useCustomScoreTable"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
                   Use custom scaled score table
                 </label>
@@ -301,27 +301,27 @@ export default function TestModal({
                   {/* Controls */}
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
-                      <label className="text-sm text-gray-600">Max raw score:</label>
+                      <label className="text-sm text-gray-600 dark:text-gray-400">Max raw score:</label>
                       <input
                         type="number"
                         value={maxRawScore}
                         onChange={(e) => handleMaxRawScoreChange(parseInt(e.target.value) || 0)}
                         min={1}
                         max={200}
-                        className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                        className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={handleLoadDefaultScoreTable}
-                      className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all"
+                      className="px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-all"
                     >
                       Load Default Table
                     </button>
                     <button
                       type="button"
                       onClick={handleGenerateEmptyTable}
-                      className="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
+                      className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-all"
                     >
                       Generate Empty Table
                     </button>
@@ -329,13 +329,13 @@ export default function TestModal({
 
                   {/* Score Table */}
                   {scoreTableRows.length > 0 && (
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                       {/* Header */}
-                      <div className="grid grid-cols-2 bg-gray-50 border-b border-gray-200">
-                        <div className="px-3 py-2 text-left font-medium text-gray-700 text-sm">
+                      <div className="grid grid-cols-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                        <div className="px-3 py-2 text-left font-medium text-gray-700 dark:text-gray-300 text-sm">
                           Raw Score
                         </div>
-                        <div className="px-3 py-2 text-left font-medium text-gray-700 text-sm">
+                        <div className="px-3 py-2 text-left font-medium text-gray-700 dark:text-gray-300 text-sm">
                           Scaled Score
                         </div>
                       </div>
@@ -344,9 +344,9 @@ export default function TestModal({
                         {scoreTableRows.map((row, index) => (
                           <div
                             key={row.raw}
-                            className={`grid grid-cols-2 border-b border-gray-100 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+                            className={`grid grid-cols-2 border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-900"}`}
                           >
-                            <div className="px-3 py-1.5 text-gray-900 font-medium text-sm">
+                            <div className="px-3 py-1.5 text-gray-900 dark:text-gray-100 font-medium text-sm">
                               {row.raw}
                             </div>
                             <div className="px-3 py-1.5">
@@ -361,7 +361,7 @@ export default function TestModal({
                                 }
                                 min={0}
                                 max={100}
-                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
                               />
                             </div>
                           </div>
@@ -370,7 +370,7 @@ export default function TestModal({
                     </div>
                   )}
 
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Maps raw scores to scaled scores (0-100). If not set, the default Regents conversion table will be used.
                   </p>
                 </div>
@@ -379,24 +379,24 @@ export default function TestModal({
 
             {/* Error Message */}
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">
                 {error}
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 flex-shrink-0">
+          <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-all"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-4 py-2 text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 disabled:opacity-50 rounded-lg transition-all"
+              className="px-4 py-2 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 disabled:opacity-50 rounded-lg transition-all"
             >
               {isSaving ? "Saving..." : editingTest ? "Update Test" : "Create Test"}
             </button>

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Question, Test, Subject, Passage } from './types';
+import { Question, Test, TestSection, Subject, Passage } from './types';
 
 // Supabase client configuration
 // Make sure to set these environment variables in .env.local
@@ -49,12 +49,14 @@ export interface DatabaseQuestion {
   id: string;
   name: string | null;
   question_text: string | null;
+  above_image_text: string | null; // Text displayed above the question image
   question_image_url: string | null;
   reference_image_url: string | null;
-  answers: string[]; // Array of 4 answer choices
-  answer_image_urls?: (string | null)[]; // Optional array of 4 image URLs for answers
+  answers: string[]; // Array of answer choices
+  answer_image_urls?: (string | null)[]; // Optional array of image URLs for answers
   answer_layout?: 'grid' | 'list'; // 'grid' = 2x2, 'list' = 1x4 (default)
-  correct_answer: number;
+  question_type: string; // 'multiple-choice' or 'drag-order'
+  correct_answer: number; // 1-4 (ignored for drag-order)
   explanation_text: string;
   explanation_image_url: string | null;
   skills: string[]; // Skills tested (renamed from topics)
@@ -63,6 +65,18 @@ export interface DatabaseQuestion {
   points: number;
   passage_id: string | null; // Reference to shared passage
   display_order?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Type definition for database test section
+export interface DatabaseTestSection {
+  id: string;
+  test_id: string;
+  name: string;
+  description: string | null;
+  reference_image_url: string | null;
+  display_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -79,6 +93,22 @@ export async function fetchQuestions(): Promise<(DatabaseQuestion & { passages?:
     console.error('Error fetching questions:', error);
     return [];
   }
+
+  const fetched = data || [];
+  // Log questions with mismatched index vs display_order, plus last 5
+  const mismatched = fetched.filter((q, i) => q.display_order !== i + 1);
+  const lastFive = fetched.slice(-5);
+  console.log('[ORDER-DEBUG] fetchQuestions returned', JSON.stringify({
+    total: fetched.length,
+    nullDisplayOrders: fetched.filter(q => q.display_order == null).map(q => q.id.slice(0, 8)),
+    mismatchedCount: mismatched.length,
+    last5: lastFive.map((q, i) => ({
+      index: fetched.length - 5 + i,
+      id: q.id.slice(0, 8),
+      name: q.name?.slice(0, 30),
+      display_order: q.display_order,
+    })),
+  }));
 
   return data || [];
 }
@@ -139,6 +169,12 @@ export async function bulkCreateQuestions(questions: Omit<DatabaseQuestion, 'id'
 
 // Update an existing question
 export async function updateQuestion(id: string, updates: Partial<DatabaseQuestion>) {
+  console.log('[ORDER-DEBUG] updateQuestion called', JSON.stringify({
+    id: id.slice(0, 8),
+    display_order_in_update: updates.display_order,
+    has_display_order: 'display_order' in updates,
+  }));
+
   const { data, error } = await supabase
     .from('questions')
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -149,6 +185,11 @@ export async function updateQuestion(id: string, updates: Partial<DatabaseQuesti
     console.error('Error updating question:', error);
     return null;
   }
+
+  console.log('[ORDER-DEBUG] updateQuestion result', JSON.stringify({
+    id: id.slice(0, 8),
+    returned_display_order: data?.[0]?.display_order,
+  }));
 
   return data?.[0] || null;
 }
@@ -200,6 +241,11 @@ export async function deleteQuestionsForTest(testId: string): Promise<{ success:
 
 // Update the display order of multiple questions
 export async function updateQuestionOrders(orders: { id: string; display_order: number }[]) {
+  console.log('[ORDER-DEBUG] updateQuestionOrders called with', orders.map(o => ({
+    id: o.id.slice(0, 8),
+    display_order: o.display_order,
+  })));
+
   const updates = orders.map(({ id, display_order }) =>
     supabase
       .from('questions')
@@ -211,10 +257,11 @@ export async function updateQuestionOrders(orders: { id: string; display_order: 
   const hasError = results.some(result => result.error);
 
   if (hasError) {
-    console.error('Error updating question orders');
+    console.error('[ORDER-DEBUG] updateQuestionOrders HAD ERRORS', results.filter(r => r.error).map(r => r.error));
     return false;
   }
 
+  console.log('[ORDER-DEBUG] updateQuestionOrders SUCCESS');
   return true;
 }
 
@@ -240,15 +287,17 @@ export async function updateTestQuestionOrders(testId: string, orders: { questio
 }
 
 // Convert DatabaseQuestion to Question format for the quiz
-export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: DatabasePassage | null }): Question {
+export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: DatabasePassage | null }, sectionInfo?: { sectionId?: string; sectionName?: string }): Question {
   return {
     id: dbQuestion.id,
     questionText: dbQuestion.question_text || undefined,
+    aboveImageText: dbQuestion.above_image_text || undefined,
     imageFilename: dbQuestion.question_image_url || undefined,
     referenceImageUrl: dbQuestion.reference_image_url || undefined,
     answers: dbQuestion.answers,
     answerImageUrls: dbQuestion.answer_image_urls?.map(url => url || undefined),
     answerLayout: dbQuestion.answer_layout || 'list',
+    questionType: (dbQuestion.question_type as 'multiple-choice' | 'drag-order') || 'multiple-choice',
     correctAnswer: dbQuestion.correct_answer,
     explanation: dbQuestion.explanation_text,
     explanationImageUrl: dbQuestion.explanation_image_url || undefined,
@@ -262,13 +311,15 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: 
       passageText: dbQuestion.passages.passage_text || undefined,
       passageImageUrl: dbQuestion.passages.passage_image_url || undefined,
     } : undefined,
+    sectionId: sectionInfo?.sectionId,
+    sectionName: sectionInfo?.sectionName,
   };
 }
 
 // Fetch questions and convert to quiz format
 export async function fetchQuestionsForQuiz(): Promise<Question[]> {
   const dbQuestions = await fetchQuestions();
-  return dbQuestions.map(convertToQuizFormat);
+  return dbQuestions.map(q => convertToQuizFormat(q));
 }
 
 // Fetch all unique skills from questions
@@ -532,12 +583,14 @@ export async function deleteTest(id: string): Promise<boolean> {
 // Test-Questions Management
 // =====================================================
 
-// Fetch questions for a specific test (with passage data)
-export async function fetchQuestionsForTest(testId: string): Promise<(DatabaseQuestion & { passages?: DatabasePassage | null })[]> {
+// Fetch questions for a specific test (with passage and section data)
+export async function fetchQuestionsForTest(testId: string): Promise<(DatabaseQuestion & { passages?: DatabasePassage | null; _sectionId?: string; _sectionName?: string })[]> {
   const { data, error } = await supabase
     .from('test_questions')
     .select(`
       display_order,
+      section_id,
+      test_sections (id, name, description, display_order, reference_image_url),
       questions (
         *,
         passages (*)
@@ -556,16 +609,34 @@ export async function fetchQuestionsForTest(testId: string): Promise<(DatabaseQu
     .map((tq: any) => ({
       ...tq.questions,
       display_order: tq.display_order,
+      _sectionId: tq.section_id || undefined,
+      _sectionName: tq.test_sections?.name || undefined,
     }))
     .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
+
+  console.log('[ORDER-DEBUG] fetchQuestionsForTest', JSON.stringify({
+    testId: testId.slice(0, 8),
+    raw_test_questions: (data || []).map((tq: any) => ({
+      qId: tq.questions?.id?.slice(0, 8),
+      test_display_order: tq.display_order,
+    })),
+    sorted_result: questions.map((q: any) => ({
+      id: q.id?.slice(0, 8),
+      name: q.name?.slice(0, 30),
+      display_order: q.display_order,
+    })),
+  }));
 
   return questions;
 }
 
-// Fetch questions for a test in quiz format
+// Fetch questions for a test in quiz format (with section info)
 export async function fetchQuestionsForTestQuiz(testId: string): Promise<Question[]> {
   const dbQuestions = await fetchQuestionsForTest(testId);
-  return dbQuestions.map(convertToQuizFormat);
+  return dbQuestions.map((q: any) => convertToQuizFormat(q, {
+    sectionId: q._sectionId,
+    sectionName: q._sectionName,
+  }));
 }
 
 // Add a question to a test
@@ -643,22 +714,55 @@ export async function setTestsForQuestion(
   questionId: string,
   testIds: string[]
 ): Promise<boolean> {
-  // First, remove all existing test assignments for this question
-  const { error: deleteError } = await supabase
+  // Fetch existing assignments so we can preserve display_order for tests that stay
+  const { data: existing, error: fetchError } = await supabase
     .from('test_questions')
-    .delete()
+    .select('test_id, display_order, section_id')
     .eq('question_id', questionId);
 
-  if (deleteError) {
-    console.error('Error removing existing test assignments:', deleteError);
+  if (fetchError) {
+    console.error('Error fetching existing test assignments:', fetchError);
     return false;
   }
 
-  // Then, add the new test assignments with proper display_order
-  if (testIds.length > 0) {
-    // Get max display_order for each test and add questions at the end
+  const existingMap = new Map(
+    (existing || []).map((row) => [row.test_id, row])
+  );
+
+  const testsToRemove = (existing || [])
+    .filter((row) => !testIds.includes(row.test_id))
+    .map((row) => row.test_id);
+
+  const testsToAdd = testIds.filter((id) => !existingMap.has(id));
+  const testsKept = testIds.filter((id) => existingMap.has(id));
+
+  console.log('[ORDER-DEBUG] setTestsForQuestion', JSON.stringify({
+    questionId: questionId.slice(0, 8),
+    requestedTestIds: testIds.map(id => id.slice(0, 8)),
+    existingRows: (existing || []).map(r => ({ testId: r.test_id.slice(0, 8), display_order: r.display_order })),
+    testsToRemove: testsToRemove.map(id => id.slice(0, 8)),
+    testsToAdd: testsToAdd.map(id => id.slice(0, 8)),
+    testsKept: testsKept.map(id => id.slice(0, 8)),
+  }));
+
+  // Remove only the tests that were un-checked
+  if (testsToRemove.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('test_questions')
+      .delete()
+      .eq('question_id', questionId)
+      .in('test_id', testsToRemove);
+
+    if (deleteError) {
+      console.error('Error removing test assignments:', deleteError);
+      return false;
+    }
+  }
+
+  // Insert only newly added tests at the end
+  if (testsToAdd.length > 0) {
     const inserts = await Promise.all(
-      testIds.map(async (testId) => {
+      testsToAdd.map(async (testId) => {
         const { data } = await supabase
           .from('test_questions')
           .select('display_order')
@@ -933,7 +1037,7 @@ export async function fetchQuestionsForSubject(subjectId: string): Promise<Quest
     return [];
   }
 
-  return (questions || []).map(convertToQuizFormat);
+  return (questions || []).map(q => convertToQuizFormat(q));
 }
 
 // Get subject ID for a question (via test association)
@@ -1163,6 +1267,204 @@ export async function unlinkQuestionsFromPassage(
 
   if (error) {
     console.error('Error unlinking questions from passage:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// =====================================================
+// Test Sections Management
+// =====================================================
+
+// Convert DatabaseTestSection to TestSection format
+export function convertToSectionFormat(dbSection: DatabaseTestSection & { question_count?: number }): TestSection {
+  return {
+    id: dbSection.id,
+    testId: dbSection.test_id,
+    name: dbSection.name,
+    description: dbSection.description || undefined,
+    referenceImageUrl: dbSection.reference_image_url || undefined,
+    displayOrder: dbSection.display_order,
+    questionCount: dbSection.question_count,
+  };
+}
+
+// Fetch all sections for a test
+export async function fetchSectionsForTest(testId: string): Promise<DatabaseTestSection[]> {
+  const { data, error } = await supabase
+    .from('test_sections')
+    .select('*')
+    .eq('test_id', testId)
+    .order('display_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching sections for test:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+// Fetch sections with question counts
+export async function fetchSectionsWithCounts(testId: string): Promise<TestSection[]> {
+  const sections = await fetchSectionsForTest(testId);
+
+  const sectionsWithCounts = await Promise.all(
+    sections.map(async (section) => {
+      const { count } = await supabase
+        .from('test_questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('test_id', testId)
+        .eq('section_id', section.id);
+
+      return convertToSectionFormat({
+        ...section,
+        question_count: count || 0,
+      });
+    })
+  );
+
+  return sectionsWithCounts;
+}
+
+// Create a new test section
+export async function createTestSection(section: {
+  test_id: string;
+  name: string;
+  description?: string;
+  reference_image_url?: string;
+  display_order?: number;
+}): Promise<DatabaseTestSection | null> {
+  // If no display order provided, get the max and add 1
+  let order = section.display_order;
+  if (order === undefined) {
+    const { data } = await supabase
+      .from('test_sections')
+      .select('display_order')
+      .eq('test_id', section.test_id)
+      .order('display_order', { ascending: false })
+      .limit(1);
+
+    order = (data?.[0]?.display_order || 0) + 1;
+  }
+
+  const { data, error } = await supabase
+    .from('test_sections')
+    .insert([{
+      test_id: section.test_id,
+      name: section.name,
+      description: section.description || null,
+      reference_image_url: section.reference_image_url || null,
+      display_order: order,
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating test section:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Update a test section
+export async function updateTestSection(
+  id: string,
+  updates: Partial<{
+    name: string;
+    description: string | null;
+    reference_image_url: string | null;
+    display_order: number;
+  }>
+): Promise<DatabaseTestSection | null> {
+  const { data, error } = await supabase
+    .from('test_sections')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating test section:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Delete a test section
+export async function deleteTestSection(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('test_sections')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting test section:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Assign a question to a section within a test
+export async function assignQuestionToSection(
+  testId: string,
+  questionId: string,
+  sectionId: string | null
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('test_questions')
+    .update({ section_id: sectionId })
+    .eq('test_id', testId)
+    .eq('question_id', questionId);
+
+  if (error) {
+    console.error('Error assigning question to section:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Bulk assign questions to a section by their IDs
+export async function bulkAssignQuestionsToSection(
+  testId: string,
+  questionIds: string[],
+  sectionId: string | null
+): Promise<boolean> {
+  if (questionIds.length === 0) return true;
+
+  const { error } = await supabase
+    .from('test_questions')
+    .update({ section_id: sectionId })
+    .eq('test_id', testId)
+    .in('question_id', questionIds);
+
+  if (error) {
+    console.error('Error bulk assigning questions to section:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Update section display orders
+export async function updateSectionOrders(orders: { id: string; display_order: number }[]): Promise<boolean> {
+  const updates = orders.map(({ id, display_order }) =>
+    supabase
+      .from('test_sections')
+      .update({ display_order, updated_at: new Date().toISOString() })
+      .eq('id', id)
+  );
+
+  const results = await Promise.all(updates);
+  const hasError = results.some(result => result.error);
+
+  if (hasError) {
+    console.error('Error updating section orders');
     return false;
   }
 
