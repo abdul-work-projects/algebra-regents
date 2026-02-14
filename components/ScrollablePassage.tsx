@@ -298,12 +298,12 @@ export default function ScrollablePassage({
       {/* Scrollable text container */}
       <div
         ref={containerRef}
-        className="overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 px-4 py-3 pr-6 scrollbar-hide"
+        className="overflow-y-auto border border-gray-200 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-900 px-4 py-3 pr-6 scrollbar-hide"
         style={{ maxHeight, scrollbarWidth: 'none' }}
         onMouseUp={handleTextSelection}
         onTouchEnd={handleTextSelection}
       >
-        <div className="text-gray-900 dark:text-gray-100" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem', whiteSpace: 'pre-wrap' }}>
+        <div className="text-gray-900 dark:text-neutral-100" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem', whiteSpace: 'pre-wrap' }}>
           {segments.map((segment, idx) => {
             if (segment.type === 'math') {
               return (
@@ -332,7 +332,7 @@ export default function ScrollablePassage({
       {isScrollable && (
         <div className="absolute right-0 top-0 bottom-0 w-2 pointer-events-none">
           {/* Track */}
-          <div className="absolute inset-0 bg-gray-100 dark:bg-gray-700/50 rounded-full mx-px" />
+          <div className="absolute inset-0 bg-gray-100 dark:bg-neutral-800/50 rounded-full mx-px" />
 
           {/* Highlight position markers */}
           {highlightMarkers.map((marker) => (
@@ -351,7 +351,7 @@ export default function ScrollablePassage({
 
           {/* Scroll thumb */}
           <div
-            className="absolute w-1.5 left-0.5 bg-gray-300 dark:bg-gray-500 rounded-full transition-[top] duration-100"
+            className="absolute w-1.5 left-0.5 bg-gray-300 dark:bg-neutral-600 rounded-full transition-[top] duration-100"
             style={{
               height: `${Math.max(10, (containerHeight / contentHeight) * 100)}%`,
               top: `${scrollProgress * (100 - Math.max(10, (containerHeight / contentHeight) * 100))}%`,
@@ -377,7 +377,7 @@ export default function ScrollablePassage({
         <>
           <div className="fixed inset-0 z-[200]" onClick={closePopup} />
           <div
-            className="fixed z-[201] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl p-2 min-w-[180px]"
+            className="fixed z-[201] bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-600 rounded-lg shadow-xl p-2 min-w-[180px]"
             style={{
               left: `${popupPosition.x}px`,
               top: `${popupPosition.y + 8}px`,
@@ -387,7 +387,7 @@ export default function ScrollablePassage({
           >
             {/* Viewing existing note */}
             {viewingNote && !showNoteInput && (
-              <div className="px-2 py-1.5 mb-1.5 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded text-sm text-gray-800 dark:text-gray-200">
+              <div className="px-2 py-1.5 mb-1.5 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded text-sm text-gray-800 dark:text-neutral-200">
                 {viewingNote}
               </div>
             )}
@@ -413,7 +413,7 @@ export default function ScrollablePassage({
                     const existing = highlights.find(h => h.id === selectedHighlightId);
                     setNoteText(existing?.note || '');
                   }}
-                  className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  className="p-1.5 text-gray-600 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded transition-colors"
                   title={viewingNote ? 'Edit note' : 'Add note'}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -428,7 +428,7 @@ export default function ScrollablePassage({
                     onChange={(e) => setNoteText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
                     placeholder="Add a note..."
-                    className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 min-w-0"
+                    className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 min-w-0"
                     autoFocus
                   />
                   <button

@@ -49,8 +49,8 @@ function SortableItem({ id, index, text, imageUrl, isChecked, isCorrectPosition,
     fontFamily: "'Times New Roman', Times, serif",
   };
 
-  let borderClass = 'border-gray-300 dark:border-gray-600';
-  let bgClass = 'bg-white dark:bg-gray-800';
+  let borderClass = 'border-gray-300 dark:border-neutral-600';
+  let bgClass = 'bg-white dark:bg-neutral-900';
 
   if (isChecked) {
     if (isCorrectPosition) {
@@ -83,14 +83,14 @@ function SortableItem({ id, index, text, imageUrl, isChecked, isCorrectPosition,
             ? isCorrectPosition
               ? 'bg-green-500 dark:bg-green-600 text-white'
               : 'bg-rose-500 dark:bg-rose-600 text-white'
-            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+            : 'bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300'
         }`}>
           {index + 1}
         </span>
         <div className="text-center min-w-0">
           {text && <MathText text={text} className="text-sm" />}
           {imageUrl && (
-            <img src={imageUrl} alt={`Option ${index + 1}`} className="max-w-[80px] h-auto rounded border border-gray-300 dark:border-gray-600 mt-1" />
+            <img src={imageUrl} alt={`Option ${index + 1}`} className="max-w-[80px] h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1" />
           )}
         </div>
         {isChecked && (
@@ -126,7 +126,7 @@ function SortableItem({ id, index, text, imageUrl, isChecked, isCorrectPosition,
           ? isCorrectPosition
             ? 'bg-green-500 dark:bg-green-600 text-white'
             : 'bg-rose-500 dark:bg-rose-600 text-white'
-          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+          : 'bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300'
       }`}>
         {index + 1}
       </span>
@@ -138,7 +138,7 @@ function SortableItem({ id, index, text, imageUrl, isChecked, isCorrectPosition,
           <img
             src={imageUrl}
             alt={`Option ${index + 1}`}
-            className="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 mt-1"
+            className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1"
           />
         )}
       </div>
@@ -239,7 +239,7 @@ export default function DragOrderAnswer({
   return (
     <div className="space-y-2 relative z-[60]" style={{ pointerEvents: 'auto' }}>
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+        <span className="text-sm font-medium text-gray-600 dark:text-neutral-400">
           Drag items into the correct order:
         </span>
       </div>
@@ -272,7 +272,7 @@ export default function DragOrderAnswer({
       {!isChecked && canAttempt && (
         <button
           onClick={onCheck}
-          className="mt-3 px-4 py-2 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 text-white dark:text-black text-sm font-bold rounded-lg shadow-md transition-all"
+          className="mt-3 px-4 py-2 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-sm font-bold rounded-lg shadow-md transition-all"
         >
           CHECK ORDER
         </button>

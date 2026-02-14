@@ -18,6 +18,7 @@ import ReferenceImageModal from "@/components/ReferenceImageModal";
 import MathText from "@/components/MathText";
 import BugReportModal from "@/components/BugReport/BugReportModal";
 import ThemeToggle from '@/components/ThemeToggle';
+import { useTheme } from '@/components/ThemeProvider';
 import { GraphData, DEFAULT_GRAPH_DATA } from "@/components/GraphingTool/types";
 import dynamic from "next/dynamic";
 
@@ -25,8 +26,8 @@ import dynamic from "next/dynamic";
 const GraphingTool = dynamic(() => import("@/components/GraphingTool/GraphingTool"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-64 flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-      <div className="text-gray-500 dark:text-gray-400 text-sm">Loading graph...</div>
+    <div className="w-full h-64 flex items-center justify-center bg-gray-50 dark:bg-neutral-950 rounded-lg border border-gray-200 dark:border-neutral-700">
+      <div className="text-gray-500 dark:text-neutral-400 text-sm">Loading graph...</div>
     </div>
   ),
 });
@@ -34,6 +35,7 @@ const GraphingTool = dynamic(() => import("@/components/GraphingTool/GraphingToo
 function QuizPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { theme } = useTheme();
   const [session, setSession] = useState<QuizSession | null>(null);
   const [mounted, setMounted] = useState(false);
   const [hoveredAnswer, setHoveredAnswer] = useState<number | null>(null);
@@ -303,20 +305,20 @@ function QuizPageContent() {
 
   if (!mounted || !session || isLoadingQuestions) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
-        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
+        <div className="text-gray-500 dark:text-neutral-400">Loading...</div>
       </div>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-neutral-100 mb-2">
             No questions available
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <p className="text-gray-600 dark:text-neutral-400 mb-4">
             Please add questions using the admin panel.
           </p>
           <button onClick={() => router.push("/")} className="btn-primary">
@@ -745,9 +747,9 @@ function QuizPageContent() {
           canUndo={canUndo}
         />
         {/* Top Progress Bar */}
-        <div className="sticky top-0 z-[200] bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style={{ pointerEvents: 'auto' }}>
+        <div className="sticky top-0 z-[200] bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-700" style={{ pointerEvents: 'auto' }}>
           {!isPracticeMode && (
-            <div className="relative h-2 bg-gray-200 dark:bg-gray-700">
+            <div className="relative h-2 bg-gray-200 dark:bg-neutral-800">
               <div
                 className="h-2 bg-green-500 transition-all duration-300"
                 style={{ width: `${progress}%` }}
@@ -768,11 +770,11 @@ function QuizPageContent() {
                   router.push("/");
                 }
               }}
-              className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all"
+              className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all"
               title={isPracticeMode ? "Back to Question Bank" : "Exit"}
             >
               <svg
-                className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                className="w-5 h-5 text-gray-600 dark:text-neutral-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -788,11 +790,11 @@ function QuizPageContent() {
 
             {/* Test/Practice Name */}
             {isPracticeMode ? (
-              <span className="text-sm font-bold text-gray-700 dark:text-gray-300 truncate max-w-[200px] md:max-w-none">
+              <span className="text-sm font-bold text-gray-700 dark:text-neutral-300 truncate max-w-[200px] md:max-w-none">
                 {practiceSkill ? practiceSkill : 'Practice'} ({questions.length} questions)
               </span>
             ) : (
-              <span className="text-sm font-bold text-gray-700 dark:text-gray-300 truncate max-w-[200px] md:max-w-none">
+              <span className="text-sm font-bold text-gray-700 dark:text-neutral-300 truncate max-w-[200px] md:max-w-none">
                 {testName || 'Quiz'}
               </span>
             )}
@@ -800,11 +802,11 @@ function QuizPageContent() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowReferenceImage(true)}
-                className="flex flex-col items-center gap-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all rounded-lg p-1"
+                className="flex flex-col items-center gap-0.5 hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all rounded-lg p-1"
                 title="Reference Sheet"
               >
                 <svg
-                  className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                  className="w-5 h-5 text-gray-600 dark:text-neutral-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -816,7 +818,7 @@ function QuizPageContent() {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <span className="text-[9px] font-medium text-gray-600 dark:text-gray-400">Reference</span>
+                <span className="text-[9px] font-medium text-gray-600 dark:text-neutral-400">Reference</span>
               </button>
 
               <button
@@ -826,7 +828,7 @@ function QuizPageContent() {
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                     : session.graphs?.[currentQuestion.id]
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                      : 'hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-neutral-400'
                 }`}
                 title="Graphing Tool"
               >
@@ -839,11 +841,11 @@ function QuizPageContent() {
 
               <button
                 onClick={() => setShowCalculator(!showCalculator)}
-                className="flex flex-col items-center gap-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all rounded-lg p-1"
+                className="flex flex-col items-center gap-0.5 hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all rounded-lg p-1"
                 title="Calculator"
               >
                 <svg
-                  className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                  className="w-5 h-5 text-gray-600 dark:text-neutral-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -855,7 +857,7 @@ function QuizPageContent() {
                     d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                   />
                 </svg>
-                <span className="text-[9px] font-medium text-gray-600 dark:text-gray-400">Calculator</span>
+                <span className="text-[9px] font-medium text-gray-600 dark:text-neutral-400">Calculator</span>
               </button>
 
               <ThemeToggle />
@@ -887,7 +889,7 @@ function QuizPageContent() {
                 className={`px-3 py-1.5 rounded-full border-2 active:scale-95 transition-all flex items-center gap-1.5 ${
                   isMarkedForReview
                     ? "bg-yellow-50 dark:bg-yellow-900/30 border-yellow-400 dark:border-yellow-600 hover:border-yellow-500 dark:hover:border-yellow-500"
-                    : "border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                    : "border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800"
                 }`}
                 title={
                   isMarkedForReview ? "Unmark for review" : "Mark for review"
@@ -895,7 +897,7 @@ function QuizPageContent() {
               >
                 <svg
                   className={`w-4 h-4 ${
-                    isMarkedForReview ? "text-yellow-600 dark:text-yellow-400" : "text-gray-700 dark:text-gray-300"
+                    isMarkedForReview ? "text-yellow-600 dark:text-yellow-400" : "text-gray-700 dark:text-neutral-300"
                   }`}
                   fill={isMarkedForReview ? "currentColor" : "none"}
                   stroke="currentColor"
@@ -909,7 +911,7 @@ function QuizPageContent() {
                   />
                 </svg>
                 <span className={`text-xs font-medium ${
-                  isMarkedForReview ? "text-yellow-700 dark:text-yellow-400" : "text-gray-700 dark:text-gray-300"
+                  isMarkedForReview ? "text-yellow-700 dark:text-yellow-400" : "text-gray-700 dark:text-neutral-300"
                 }`}>
                   Mark for Review
                 </span>
@@ -918,11 +920,11 @@ function QuizPageContent() {
               {/* Report Bug Button */}
               <button
                 onClick={() => setShowBugReport(true)}
-                className="px-3 py-1.5 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-red-400 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 active:scale-95 transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-full border-2 border-gray-300 dark:border-neutral-600 hover:border-red-400 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 active:scale-95 transition-all flex items-center gap-1.5"
                 title="Report an issue with this question"
               >
                 <svg
-                  className="w-4 h-4 text-gray-600 dark:text-gray-400"
+                  className="w-4 h-4 text-gray-600 dark:text-neutral-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -934,7 +936,7 @@ function QuizPageContent() {
                     d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"
                   />
                 </svg>
-                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Report</span>
+                <span className="text-xs font-medium text-gray-700 dark:text-neutral-300">Report</span>
               </button>
             </div>
 
@@ -967,10 +969,14 @@ function QuizPageContent() {
                 }}
                 className={`relative p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
                   tool === 'pen'
-                    ? 'border-2 text-white'
-                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    ? 'border-2 shadow-sm'
+                    : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800'
                 }`}
-                style={tool === 'pen' ? { backgroundColor: penColor, borderColor: penColor } : {}}
+                style={tool === 'pen' ? {
+                  backgroundColor: penColor,
+                  borderColor: theme === 'dark' ? '#525252' : penColor,
+                  color: ['#000000', '#3b82f6', '#a855f7', '#ef4444'].includes(penColor) ? '#ffffff' : '#000000',
+                } : {}}
                 title="Pen"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -985,8 +991,8 @@ function QuizPageContent() {
               {showColorPicker && tool === 'pen' && (
                 <>
                   <div className="fixed inset-0 z-[110]" onClick={() => setShowColorPicker(false)} />
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-lg shadow-xl p-1.5 z-[120]">
-                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white dark:bg-gray-800 border-r-2 border-b-2 border-gray-200 dark:border-gray-600 rotate-45" />
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-600 rounded-lg shadow-xl p-1.5 z-[120]">
+                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white dark:bg-neutral-900 border-r-2 border-b-2 border-gray-200 dark:border-neutral-600 rotate-45" />
                     <div className="flex items-center gap-1.5">
                       {[
                         { name: 'Green', value: '#22c55e' },
@@ -994,7 +1000,9 @@ function QuizPageContent() {
                         { name: 'Red', value: '#ef4444' },
                         { name: 'Yellow', value: '#eab308' },
                         { name: 'Purple', value: '#a855f7' },
-                        { name: 'Black', value: '#000000' },
+                        theme === 'dark'
+                          ? { name: 'White', value: '#ffffff' }
+                          : { name: 'Black', value: '#000000' },
                       ].map((color) => (
                         <button
                           key={color.value}
@@ -1003,7 +1011,7 @@ function QuizPageContent() {
                             setShowColorPicker(false);
                           }}
                           className={`w-7 h-7 rounded-md transition-all hover:scale-110 active:scale-95 ${
-                            penColor === color.value ? 'ring-2 ring-black dark:ring-white ring-offset-1 dark:ring-offset-gray-800' : 'border-2 border-gray-300 dark:border-gray-600'
+                            penColor === color.value ? 'ring-2 ring-black dark:ring-white ring-offset-1 dark:ring-offset-neutral-800' : 'border-2 border-gray-300 dark:border-neutral-600'
                           }`}
                           style={{ backgroundColor: color.value }}
                           title={color.name}
@@ -1019,7 +1027,7 @@ function QuizPageContent() {
             <div style={{ pointerEvents: 'auto' }}>
               <button
                 onClick={handleClear}
-                className="p-1.5 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-rose-500 dark:hover:border-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 active:scale-95 transition-all"
+                className="p-1.5 rounded-lg border-2 border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-300 hover:border-rose-500 dark:hover:border-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 active:scale-95 transition-all"
                 title="Clear all"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -1035,7 +1043,7 @@ function QuizPageContent() {
                 className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
                   tool === 'eraser'
                     ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
-                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                    : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800'
                 }`}
                 title="Eraser"
               >
@@ -1056,7 +1064,7 @@ function QuizPageContent() {
                         className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
                           penSize === size
                             ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
-                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                            : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800'
                         }`}
                       >
                         {size === 2 ? 'S' : 'L'}
@@ -1072,7 +1080,7 @@ function QuizPageContent() {
                         className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
                           eraserSize === size
                             ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
-                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                            : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800'
                         }`}
                       >
                         {size === 15 ? 'S' : 'L'}
@@ -1089,7 +1097,7 @@ function QuizPageContent() {
               <button
                 onClick={handleUndo}
                 disabled={!canUndo}
-                className="p-1.5 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                className="p-1.5 rounded-lg border-2 border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                 title="Undo"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -1105,7 +1113,7 @@ function QuizPageContent() {
               {/* Passage Image (drawable — stays under canvas) */}
               {currentQuestion.passage?.passageImageUrl && (
                 <div className="mb-4">
-                  <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Passage</div>
+                  <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">Passage</div>
                   <img
                     src={currentQuestion.passage.passageImageUrl}
                     alt="Passage"
@@ -1118,7 +1126,7 @@ function QuizPageContent() {
               {currentQuestion.passage?.passageText && (
                 <div className="mb-4 relative" style={{ zIndex: 60, pointerEvents: 'auto' }}>
                   {!currentQuestion.passage.passageImageUrl && (
-                    <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Passage</div>
+                    <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">Passage</div>
                   )}
                   <ScrollablePassage
                     passage={currentQuestion.passage}
@@ -1132,7 +1140,7 @@ function QuizPageContent() {
 
               {/* Embedded Graphing Tool for grouped questions - below passage */}
               {showGraphingTool && (
-                <div className="mb-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
+                <div className="mb-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl overflow-hidden bg-white dark:bg-neutral-900 max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
                   <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-700">
                     <span className="text-xs font-bold text-blue-900 dark:text-blue-300">Graph</span>
                     <div className="flex items-center gap-2">
@@ -1188,14 +1196,14 @@ function QuizPageContent() {
               {/* Two questions side by side */}
               <div className="grid grid-cols-2 gap-0 mb-6">
                 {/* Question 1 */}
-                <div className="pr-4 border-r-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col">
-                  <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">Q{questions.findIndex(q => q.id === question1.id) + 1}</div>
+                <div className="pr-4 border-r-2 border-dashed border-gray-300 dark:border-neutral-600 flex flex-col">
+                  <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 mb-2">Q{questions.findIndex(q => q.id === question1.id) + 1}</div>
                   {/* Q1 Question Card */}
                   {(question1.imageFilename || question1.questionText || question1.aboveImageText) && (
                     <div className="mb-3">
                       {question1.aboveImageText && (
                         <div className="mb-2" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
-                          <MathText text={question1.aboveImageText} className="leading-relaxed dark:text-gray-200" />
+                          <MathText text={question1.aboveImageText} className="leading-relaxed dark:text-neutral-200" />
                         </div>
                       )}
                       {question1.imageFilename && (
@@ -1205,7 +1213,7 @@ function QuizPageContent() {
                       )}
                       {question1.questionText && (
                         <div className={question1.imageFilename ? "mt-2" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
-                          <MathText text={question1.questionText} className="leading-relaxed dark:text-gray-200" />
+                          <MathText text={question1.questionText} className="leading-relaxed dark:text-neutral-200" />
                         </div>
                       )}
                     </div>
@@ -1229,7 +1237,7 @@ function QuizPageContent() {
                       } else if (isSelected) {
                         btnClass += " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
                       } else {
-                        btnClass += " bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700";
+                        btnClass += " bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800";
                       }
 
                       return (
@@ -1240,7 +1248,7 @@ function QuizPageContent() {
                               <div className="flex-1 min-w-0">
                                 {answer && <MathText text={answer} className="text-left" />}
                                 {question1.answerImageUrls?.[index] && (
-                                  <img src={question1.answerImageUrls[index]} alt={`Answer ${answerNum}`} className="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 mt-1" />
+                                  <img src={question1.answerImageUrls[index]} alt={`Answer ${answerNum}`} className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1" />
                                 )}
                               </div>
                             </div>
@@ -1248,7 +1256,7 @@ function QuizPageContent() {
                           {isSelected && !isChecked && q1CanAttempt && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCheckAnswerForQuestion(question1, answerNum); }}
-                              className="absolute right-2 top-2 px-2 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
+                              className="absolute right-2 top-2 px-2 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
                             >
                               CHECK
                             </button>
@@ -1261,13 +1269,13 @@ function QuizPageContent() {
 
                 {/* Question 2 */}
                 <div className="pl-4 flex flex-col">
-                  <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">Q{questions.findIndex(q => q.id === question2.id) + 1}</div>
+                  <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 mb-2">Q{questions.findIndex(q => q.id === question2.id) + 1}</div>
                   {/* Q2 Question Card */}
                   {(question2.imageFilename || question2.questionText || question2.aboveImageText) && (
                     <div className="mb-3">
                       {question2.aboveImageText && (
                         <div className="mb-2" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
-                          <MathText text={question2.aboveImageText} className="leading-relaxed dark:text-gray-200" />
+                          <MathText text={question2.aboveImageText} className="leading-relaxed dark:text-neutral-200" />
                         </div>
                       )}
                       {question2.imageFilename && (
@@ -1277,7 +1285,7 @@ function QuizPageContent() {
                       )}
                       {question2.questionText && (
                         <div className={question2.imageFilename ? "mt-2" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
-                          <MathText text={question2.questionText} className="leading-relaxed dark:text-gray-200" />
+                          <MathText text={question2.questionText} className="leading-relaxed dark:text-neutral-200" />
                         </div>
                       )}
                     </div>
@@ -1301,7 +1309,7 @@ function QuizPageContent() {
                       } else if (isSelected) {
                         btnClass += " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
                       } else {
-                        btnClass += " bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700";
+                        btnClass += " bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800";
                       }
 
                       return (
@@ -1312,7 +1320,7 @@ function QuizPageContent() {
                               <div className="flex-1 min-w-0">
                                 {answer && <MathText text={answer} className="text-left" />}
                                 {question2.answerImageUrls?.[index] && (
-                                  <img src={question2.answerImageUrls[index]} alt={`Answer ${answerNum}`} className="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 mt-1" />
+                                  <img src={question2.answerImageUrls[index]} alt={`Answer ${answerNum}`} className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1" />
                                 )}
                               </div>
                             </div>
@@ -1320,7 +1328,7 @@ function QuizPageContent() {
                           {isSelected && !isChecked && q2CanAttempt && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCheckAnswerForQuestion(question2, answerNum); }}
-                              className="absolute right-2 top-2 px-2 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
+                              className="absolute right-2 top-2 px-2 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
                             >
                               CHECK
                             </button>
@@ -1338,7 +1346,7 @@ function QuizPageContent() {
               {/* Passage Image (drawable — stays under canvas) */}
               {currentQuestion.passage?.passageImageUrl && (
                 <div className="mb-4">
-                  <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Passage</div>
+                  <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">Passage</div>
                   <img
                     src={currentQuestion.passage.passageImageUrl}
                     alt="Passage"
@@ -1351,7 +1359,7 @@ function QuizPageContent() {
               {currentQuestion.passage?.passageText && (
                 <div className="mb-4 relative" style={{ zIndex: 60, pointerEvents: 'auto' }}>
                   {!currentQuestion.passage.passageImageUrl && (
-                    <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Passage</div>
+                    <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">Passage</div>
                   )}
                   <ScrollablePassage
                     passage={currentQuestion.passage}
@@ -1370,7 +1378,7 @@ function QuizPageContent() {
                     <div className="mb-2" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
                       <MathText
                         text={currentQuestion.aboveImageText}
-                        className="leading-relaxed dark:text-gray-200"
+                        className="leading-relaxed dark:text-neutral-200"
                       />
                     </div>
                   )}
@@ -1387,7 +1395,7 @@ function QuizPageContent() {
                     <div className={currentQuestion.imageFilename ? "mt-4" : ""} style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
                       <MathText
                         text={currentQuestion.questionText}
-                        className="leading-relaxed dark:text-gray-200"
+                        className="leading-relaxed dark:text-neutral-200"
                       />
                     </div>
                   )}
@@ -1396,7 +1404,7 @@ function QuizPageContent() {
 
               {/* Embedded Graphing Tool */}
               {showGraphingTool && (
-                <div className="mb-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
+                <div className="mb-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl overflow-hidden bg-white dark:bg-neutral-900 max-w-md mx-auto relative" style={{ zIndex: 100, pointerEvents: 'auto', transform: 'translateZ(0)' }}>
                   {/* Graph Header */}
                   <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-700">
                     <span className="text-xs font-bold text-blue-900 dark:text-blue-300">Graph</span>
@@ -1456,31 +1464,31 @@ function QuizPageContent() {
                   {/* View toggles — hidden after check */}
                   {!dragOrderChecked && (
                     <div className="flex items-center gap-2 mb-3 relative z-[60]">
-                      <div className="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden text-xs font-medium">
+                      <div className="inline-flex rounded-lg border border-gray-300 dark:border-neutral-600 overflow-hidden text-xs font-medium">
                         <button
                           onClick={() => { setDragOrderView('list'); localStorage.setItem('drag-order-view', 'list'); }}
-                          className={`px-3 py-1.5 transition-colors ${dragOrderView === 'list' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                          className={`px-3 py-1.5 transition-colors ${dragOrderView === 'list' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-neutral-900 text-gray-600 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'}`}
                         >
                           List
                         </button>
                         <button
                           onClick={() => { setDragOrderView('slots'); localStorage.setItem('drag-order-view', 'slots'); }}
-                          className={`px-3 py-1.5 transition-colors ${dragOrderView === 'slots' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                          className={`px-3 py-1.5 transition-colors ${dragOrderView === 'slots' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-neutral-900 text-gray-600 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'}`}
                         >
                           Slots
                         </button>
                       </div>
-                      <div className="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden text-xs font-medium">
+                      <div className="inline-flex rounded-lg border border-gray-300 dark:border-neutral-600 overflow-hidden text-xs font-medium">
                         <button
                           onClick={() => { setDragOrderOrientation('vertical'); localStorage.setItem('drag-order-orientation', 'vertical'); }}
-                          className={`px-2 py-1.5 transition-colors ${dragOrderOrientation === 'vertical' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                          className={`px-2 py-1.5 transition-colors ${dragOrderOrientation === 'vertical' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-neutral-900 text-gray-600 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'}`}
                           title="Vertical layout"
                         >
                           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="12" height="3" rx="0.5"/><rect x="2" y="6" width="12" height="3" rx="0.5"/><rect x="2" y="11" width="12" height="3" rx="0.5"/></svg>
                         </button>
                         <button
                           onClick={() => { setDragOrderOrientation('horizontal'); localStorage.setItem('drag-order-orientation', 'horizontal'); }}
-                          className={`px-2 py-1.5 transition-colors ${dragOrderOrientation === 'horizontal' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                          className={`px-2 py-1.5 transition-colors ${dragOrderOrientation === 'horizontal' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-neutral-900 text-gray-600 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'}`}
                           title="Horizontal layout"
                         >
                           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="3" height="12" rx="0.5"/><rect x="6" y="2" width="3" height="12" rx="0.5"/><rect x="11" y="2" width="3" height="12" rx="0.5"/></svg>
@@ -1539,7 +1547,7 @@ function QuizPageContent() {
                       buttonClass += " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
                     } else {
                       buttonClass +=
-                        " bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700";
+                        " bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800";
                     }
 
                     const answerImage = currentQuestion.answerImageUrls?.[index];
@@ -1569,7 +1577,7 @@ function QuizPageContent() {
                                 <img
                                   src={answerImage}
                                   alt={`Answer ${answerNum}`}
-                                  className="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 mt-2"
+                                  className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-2"
                                 />
                               )}
                             </div>
@@ -1582,7 +1590,7 @@ function QuizPageContent() {
                               e.stopPropagation();
                               handleCheckAnswer(answerNum);
                             }}
-                            className="absolute right-3 top-3 px-3 py-1.5 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
+                            className="absolute right-3 top-3 px-3 py-1.5 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
                           >
                             CHECK
                           </button>
@@ -1597,18 +1605,18 @@ function QuizPageContent() {
 
             {/* Calculator on Mobile - inline below answers */}
             {showCalculator && (
-              <div className="md:hidden w-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden mb-6 relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
-                <div className="flex items-center justify-between p-4 border-b-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                  <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+              <div className="md:hidden w-full bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl overflow-hidden mb-6 relative" style={{ zIndex: 100, transform: 'translateZ(0)' }}>
+                <div className="flex items-center justify-between p-4 border-b-2 border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-950">
+                  <h3 className="text-base font-bold text-gray-900 dark:text-neutral-100">
                     TI-84 Calculator
                   </h3>
                   <button
                     onClick={() => setShowCalculator(false)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all"
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all"
                     aria-label="Close calculator"
                   >
                     <svg
-                      className="w-5 h-5 text-gray-700 dark:text-gray-300"
+                      className="w-5 h-5 text-gray-700 dark:text-neutral-300"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -1622,7 +1630,7 @@ function QuizPageContent() {
                     </svg>
                   </button>
                 </div>
-                <div className="w-full h-[650px] bg-gray-50 dark:bg-gray-900 overflow-hidden">
+                <div className="w-full h-[650px] bg-gray-50 dark:bg-neutral-950 overflow-hidden">
                   <iframe
                     src="https://ti84.pages.dev/#popup"
                     className="border-0 w-full h-full"
@@ -1645,22 +1653,22 @@ function QuizPageContent() {
           />
 
           {/* Panel */}
-          <div className="fixed bottom-20 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 md:p-6 z-[120] md:max-w-2xl md:w-full border-2 border-gray-200 dark:border-gray-700 max-h-[70vh] md:max-h-[600px] flex flex-col">
+          <div className="fixed bottom-20 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl p-4 md:p-6 z-[120] md:max-w-2xl md:w-full border-2 border-gray-200 dark:border-neutral-700 max-h-[70vh] md:max-h-[600px] flex flex-col">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
                   All Questions
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-sm text-gray-500 dark:text-neutral-400 mt-1">
                   {answeredCount} of {questions.length} completed
                 </p>
               </div>
               <button
                 onClick={() => setShowAllQuestions(false)}
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
               >
                 <svg
-                  className="w-6 h-6 text-gray-500 dark:text-gray-400"
+                  className="w-6 h-6 text-gray-500 dark:text-neutral-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1710,7 +1718,7 @@ function QuizPageContent() {
                   ? practiceMarkedQuestions.has(q.id)
                   : session.markedForReview[q.id] || false;
 
-                let bgClass = "bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300";
+                let bgClass = "bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300";
                 if (isCurrent || isPartOfCurrentGroup) {
                   bgClass = "bg-slate-700 dark:bg-slate-600 border-slate-700 dark:border-slate-600 text-white";
                 } else if (shouldShowResult) {
@@ -1720,7 +1728,7 @@ function QuizPageContent() {
                     bgClass = "bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-700 dark:text-rose-400";
                   }
                 } else if (isAnswered) {
-                  bgClass = "bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400";
+                  bgClass = "bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-neutral-400";
                 }
 
                 // For grouped questions, navigate to the first question in the pair
@@ -1729,7 +1737,7 @@ function QuizPageContent() {
                 return (
                   <React.Fragment key={q.id}>
                     {showSectionLabel && (
-                      <div className="w-full text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide pt-2 pb-0.5 first:pt-0">
+                      <div className="w-full text-[10px] font-semibold text-gray-400 dark:text-neutral-500 uppercase tracking-wide pt-2 pb-0.5 first:pt-0">
                         {qSection!.name}
                       </div>
                     )}
@@ -1781,9 +1789,9 @@ function QuizPageContent() {
             </div>
 
             {/* Legend at bottom */}
-            <div className="flex items-center justify-center gap-3 md:gap-6 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0 flex-wrap">
+            <div className="flex items-center justify-center gap-3 md:gap-6 mt-4 pt-4 border-t border-gray-200 dark:border-neutral-700 text-xs text-gray-600 dark:text-neutral-400 flex-shrink-0 flex-wrap">
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"></div>
+                <div className="w-6 h-6 rounded border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900"></div>
                 <span>Unanswered</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -1805,7 +1813,7 @@ function QuizPageContent() {
 
       {/* Fixed Bottom Section - Duolingo Style */}
       <div
-        className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t-2 border-gray-200 dark:border-gray-700 z-[100] transition-all duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 border-t-2 border-gray-200 dark:border-neutral-700 z-[100] transition-all duration-300 ${
           showCalculator ? "md:right-[420px]" : "md:right-0"
         }`}
         style={{ pointerEvents: 'auto' }}
@@ -1817,7 +1825,7 @@ function QuizPageContent() {
               {/* Question Counter */}
               <button
                 onClick={() => setShowAllQuestions(true)}
-                className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-gray-700 text-xs md:text-sm font-bold text-gray-700 dark:text-gray-300 active:scale-95 transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border-2 border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 active:scale-95 transition-all flex items-center gap-1.5"
               >
                 <span>
                   {session.currentQuestionIndex + 1}/{questions.length}
@@ -1842,18 +1850,18 @@ function QuizPageContent() {
                 <button
                   onClick={handlePrevious}
                   disabled={session.currentQuestionIndex === 0}
-                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                 >
-                  <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-gray-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
                 <button
                   onClick={handleNext}
                   disabled={session.currentQuestionIndex === questions.length - 1}
-                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                 >
-                  <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-gray-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
@@ -1864,7 +1872,7 @@ function QuizPageContent() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowExplanation(true)}
-                className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 rounded-lg md:rounded-xl transition-all"
+                className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border-2 border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-lg md:rounded-xl transition-all"
               >
                 EXPLANATION
               </button>
@@ -1872,14 +1880,14 @@ function QuizPageContent() {
                 isPracticeMode ? (
                   <button
                     onClick={() => router.push('/?tab=question-bank')}
-                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
+                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
                   >
                     DONE
                   </button>
                 ) : (
                   <button
                     onClick={handleNext}
-                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
+                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
                   >
                     FINISH
                   </button>
@@ -1887,7 +1895,7 @@ function QuizPageContent() {
               ) : (
                 <button
                   onClick={handleNext}
-                  className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all flex items-center gap-1"
+                  className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all flex items-center gap-1"
                 >
                   NEXT
                   <svg
@@ -1964,12 +1972,12 @@ function QuizPageContent() {
 
       {/* Calculator Panel - Desktop only (right sidebar) */}
       <div
-        className={`hidden md:block fixed top-0 right-0 w-[420px] h-screen bg-white dark:bg-gray-800 border-l-2 border-gray-200 dark:border-gray-700 shadow-2xl z-[100] transition-transform duration-300 ${
+        className={`hidden md:block fixed top-0 right-0 w-[420px] h-screen bg-white dark:bg-neutral-900 border-l-2 border-gray-200 dark:border-neutral-700 shadow-2xl z-[100] transition-transform duration-300 ${
           showCalculator ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Calculator iframe */}
-        <div className="w-full h-full bg-gray-50 dark:bg-gray-900 overflow-auto">
+        <div className="w-full h-full bg-gray-50 dark:bg-neutral-950 overflow-auto">
           <iframe
             src="https://ti84.pages.dev/#popup"
             className="border-0 w-full h-full"
@@ -1986,8 +1994,8 @@ function QuizPageContent() {
 export default function QuizPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
-        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
+        <div className="text-gray-500 dark:text-neutral-400">Loading...</div>
       </div>
     }>
       <QuizPageContent />

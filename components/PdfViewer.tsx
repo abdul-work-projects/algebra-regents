@@ -37,28 +37,28 @@ export default function PdfViewer({ url }: PdfViewerProps) {
     <div ref={measuredRef}>
       {/* Zoom controls */}
       <div className="sticky top-0 z-10 flex items-center justify-center gap-2 mb-3">
-        <div className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg px-3 py-1.5 shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="inline-flex items-center gap-2 bg-white dark:bg-neutral-900 rounded-lg px-3 py-1.5 shadow-sm border border-gray-200 dark:border-neutral-700">
         <button
           onClick={() => setScale(s => Math.max(0.5, s - 0.15))}
-          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-neutral-400"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
           </svg>
         </button>
-        <span className="text-xs font-medium text-gray-600 dark:text-gray-400 min-w-[3rem] text-center">
+        <span className="text-xs font-medium text-gray-600 dark:text-neutral-400 min-w-[3rem] text-center">
           {Math.round(scale * 100)}%
         </span>
         <button
           onClick={() => setScale(s => Math.min(2, s + 0.15))}
-          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-neutral-400"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
         </button>
         {numPages > 0 && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+          <span className="text-xs text-gray-500 dark:text-neutral-400 ml-2">
             {numPages} page{numPages !== 1 ? 's' : ''}
           </span>
         )}
@@ -74,7 +74,7 @@ export default function PdfViewer({ url }: PdfViewerProps) {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading PDF...</span>
+            <span className="ml-2 text-sm text-gray-500 dark:text-neutral-400">Loading PDF...</span>
           </div>
         }
         error={

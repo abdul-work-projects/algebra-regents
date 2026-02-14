@@ -77,7 +77,7 @@ export default function TagInput({ selectedTags, availableTags, onChange, placeh
 
   return (
     <div className="relative">
-      <div className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus-within:ring-1 focus-within:ring-blue-500 min-h-[34px] flex flex-wrap gap-1 items-center dark:bg-gray-700">
+      <div className="w-full px-2 py-1 border border-gray-300 dark:border-neutral-600 rounded focus-within:ring-1 focus-within:ring-blue-500 min-h-[34px] flex flex-wrap gap-1 items-center dark:bg-neutral-800">
         {selectedTags.map((tag, index) => (
           <span
             key={index}
@@ -104,18 +104,18 @@ export default function TagInput({ selectedTags, availableTags, onChange, placeh
           onFocus={() => inputValue.trim() && setShowSuggestions(true)}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
           placeholder={selectedTags.length === 0 ? placeholder : ""}
-          className="flex-1 min-w-[120px] outline-none text-sm dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+          className="flex-1 min-w-[120px] outline-none text-sm dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-400"
         />
       </div>
 
       {showSuggestions && filteredSuggestions.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-40 overflow-y-auto">
+        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-600 rounded-md shadow-lg max-h-40 overflow-y-auto">
           {filteredSuggestions.map((suggestion, index) => (
             <button
               key={index}
               type="button"
               onClick={() => addTag(suggestion)}
-              className={`w-full text-left px-3 py-2 text-sm dark:text-gray-100 hover:bg-blue-50 dark:hover:bg-blue-900/30 ${
+              className={`w-full text-left px-3 py-2 text-sm dark:text-neutral-100 hover:bg-blue-50 dark:hover:bg-blue-900/30 ${
                 index === focusedIndex ? "bg-blue-50 dark:bg-blue-900/30" : ""
               }`}
             >
@@ -125,7 +125,7 @@ export default function TagInput({ selectedTags, availableTags, onChange, placeh
         </div>
       )}
 
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+      <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
         Type and press Enter or comma to add. Use existing tags or create new ones.
       </p>
     </div>

@@ -50,7 +50,7 @@ function DraggableChip({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={`px-3 py-2 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 select-none transition-all ${
+      className={`px-3 py-2 rounded-full border-2 border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 select-none transition-all ${
         isDragging ? 'opacity-0' : ''
       } ${disabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
       style={{ fontFamily: "'Times New Roman', Times, serif", touchAction: 'none' }}
@@ -77,12 +77,12 @@ function DroppableSlot({
 }) {
   const { isOver, setNodeRef: setDropRef } = useDroppable({ id });
 
-  let borderClass = 'border-gray-300 dark:border-gray-600 border-dashed';
-  let bgClass = 'bg-gray-50 dark:bg-gray-800/50';
+  let borderClass = 'border-gray-300 dark:border-neutral-600 border-dashed';
+  let bgClass = 'bg-gray-50 dark:bg-neutral-900/50';
 
   if (item) {
-    borderClass = 'border-gray-400 dark:border-gray-500 border-solid';
-    bgClass = 'bg-white dark:bg-gray-800';
+    borderClass = 'border-gray-400 dark:border-neutral-500 border-solid';
+    bgClass = 'bg-white dark:bg-neutral-900';
   }
 
   if (isOver && !isChecked) {
@@ -111,7 +111,7 @@ function DroppableSlot({
           ? isCorrect
             ? 'bg-green-500 dark:bg-green-600 text-white'
             : 'bg-rose-500 dark:bg-rose-600 text-white'
-          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+          : 'bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300'
       }`}>
         {index + 1}
       </span>
@@ -136,7 +136,7 @@ function DroppableSlot({
           )}
         </div>
       ) : (
-        <span className="text-gray-400 dark:text-gray-500 text-lg font-medium">{index + 1}</span>
+        <span className="text-gray-400 dark:text-neutral-500 text-lg font-medium">{index + 1}</span>
       )}
     </div>
   );
@@ -157,7 +157,7 @@ function BucketDropZone({
       className={`flex flex-wrap gap-2 min-h-[56px] p-3 rounded-xl border-2 transition-all ${
         isOver && !disabled
           ? 'border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'
+          : 'border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-900/50'
       }`}
     >
       {children}
@@ -305,7 +305,7 @@ export default function BucketOrderAnswer({
   return (
     <div className="space-y-4 relative z-[60]" style={{ pointerEvents: 'auto' }}>
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+        <span className="text-sm font-medium text-gray-600 dark:text-neutral-400">
           Drag items into the correct slots:
         </span>
       </div>
@@ -335,7 +335,7 @@ export default function BucketOrderAnswer({
         {!isChecked && (
           <BucketDropZone disabled={isChecked}>
             {bucket.length === 0 ? (
-              <span className="text-sm text-gray-400 dark:text-gray-500 py-1">
+              <span className="text-sm text-gray-400 dark:text-neutral-500 py-1">
                 {allSlotsFilled ? 'All items placed!' : 'Drop items here to remove from slots'}
               </span>
             ) : (
@@ -371,8 +371,8 @@ export default function BucketOrderAnswer({
           disabled={!allSlotsFilled}
           className={`mt-1 px-4 py-2 text-sm font-bold rounded-lg shadow-md transition-all ${
             allSlotsFilled
-              ? 'bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 text-white dark:text-black'
-              : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+              ? 'bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black'
+              : 'bg-gray-300 dark:bg-neutral-800 text-gray-500 dark:text-neutral-400 cursor-not-allowed'
           }`}
         >
           CHECK ORDER

@@ -1949,33 +1949,33 @@ export default function AdminPage() {
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
-        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
+        <div className="text-gray-500 dark:text-neutral-400">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 py-4">
+    <div className="min-h-screen bg-white dark:bg-neutral-950 py-4">
       <div className="max-w-7xl mx-auto px-4">
         {/* Compact Header */}
-        <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-4 mb-4">
+        <div className="bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl shadow-sm p-4 mb-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Admin Panel</h1>
-              {user && <p className="text-sm text-gray-600 dark:text-gray-400">{user.email}</p>}
+              <h1 className="text-xl font-bold text-gray-900 dark:text-neutral-100">Admin Panel</h1>
+              {user && <p className="text-sm text-gray-600 dark:text-neutral-400">{user.email}</p>}
             </div>
             <div className="flex items-center gap-3">
               <ThemeToggle />
               <button
                 onClick={handleLogout}
-                className="text-sm px-4 py-2 font-bold text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 rounded-xl transition-all"
+                className="text-sm px-4 py-2 font-bold text-gray-700 dark:text-neutral-300 border-2 border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-xl transition-all"
               >
                 LOGOUT
               </button>
               <button
                 onClick={() => router.push("/")}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all"
+                className="p-2 text-gray-600 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-xl transition-all"
               >
                 <svg
                   className="w-5 h-5"
@@ -2002,8 +2002,8 @@ export default function AdminPage() {
               }}
               className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
                 activeTab === "questions"
-                  ? "bg-black text-white dark:bg-gray-100 dark:text-black"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  ? "bg-black text-white dark:bg-neutral-200 dark:text-black"
+                  : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
               }`}
             >
               Questions
@@ -2015,8 +2015,8 @@ export default function AdminPage() {
               }}
               className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
                 activeTab === "tests"
-                  ? "bg-black text-white dark:bg-gray-100 dark:text-black"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  ? "bg-black text-white dark:bg-neutral-200 dark:text-black"
+                  : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
               }`}
             >
               Tests ({tests.length})
@@ -2028,8 +2028,8 @@ export default function AdminPage() {
               }}
               className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
                 activeTab === "subjects"
-                  ? "bg-black text-white dark:bg-gray-100 dark:text-black"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  ? "bg-black text-white dark:bg-neutral-200 dark:text-black"
+                  : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
               }`}
             >
               Subjects ({subjects.length})
@@ -2041,8 +2041,8 @@ export default function AdminPage() {
               }}
               className={`px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
                 activeTab === "bugs"
-                  ? "bg-black text-white dark:bg-gray-100 dark:text-black"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  ? "bg-black text-white dark:bg-neutral-200 dark:text-black"
+                  : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
               }`}
             >
               Bug Reports
@@ -2063,12 +2063,12 @@ export default function AdminPage() {
 
         {/* Tests Tab Content */}
         {activeTab === "tests" && (
-          <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
+          <div className="bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Manage Tests</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Manage Tests</h2>
               <button
                 onClick={handleCreateTest}
-                className="px-4 py-2 text-sm font-bold bg-black text-white dark:bg-gray-100 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 transition-all"
+                className="px-4 py-2 text-sm font-bold bg-black text-white dark:bg-neutral-200 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-neutral-300 active:scale-95 transition-all"
               >
                 + NEW TEST
               </button>
@@ -2080,7 +2080,7 @@ export default function AdminPage() {
                 <select
                   value={filterSubjectId}
                   onChange={(e) => setFilterSubjectId(e.target.value)}
-                  className="px-3 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium focus:border-black dark:focus:border-gray-400 focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  className="px-3 py-2 border-2 border-gray-200 dark:border-neutral-700 rounded-lg text-sm font-medium focus:border-black dark:focus:border-neutral-400 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                 >
                   <option value="all">All Subjects</option>
                   {subjects.map((subject) => (
@@ -2093,11 +2093,11 @@ export default function AdminPage() {
             )}
 
             {isLoadingTests ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-500 dark:text-neutral-400">
                 Loading tests...
               </div>
             ) : tests.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-500 dark:text-neutral-400">
                 No tests yet. Create your first test to get started.
               </div>
             ) : (
@@ -2111,26 +2111,26 @@ export default function AdminPage() {
                   .map((test) => (
                     <div
                       key={test.id}
-                      className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:border-gray-300 dark:hover:border-gray-600 transition-all"
+                      className="border-2 border-gray-200 dark:border-neutral-700 rounded-xl p-4 hover:border-gray-300 dark:hover:border-neutral-600 transition-all"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">
+                            <h3 className="font-bold text-gray-900 dark:text-neutral-100 truncate">
                               {test.name}
                             </h3>
                             {!test.isActive && (
-                              <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
+                              <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 rounded">
                                 Inactive
                               </span>
                             )}
                           </div>
                           {test.description && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate mb-2">
+                            <p className="text-sm text-gray-600 dark:text-neutral-400 truncate mb-2">
                               {test.description}
                             </p>
                           )}
-                          <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 flex-wrap">
+                          <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-neutral-400 flex-wrap">
                             {test.subjectName && (
                               <span className="px-2 py-0.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded">
                                 {test.subjectName}
@@ -2175,7 +2175,7 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2 ml-4">
                           <button
                             onClick={() => handleEditTest(test)}
-                            className="p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg active:scale-95 transition-all"
+                            className="p-2 text-gray-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg active:scale-95 transition-all"
                             title="Edit test"
                           >
                             <svg
@@ -2216,7 +2216,7 @@ export default function AdminPage() {
                             className={`p-2 rounded-lg active:scale-95 transition-all ${
                               expandedTestId === test.id
                                 ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
-                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                : "text-gray-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800"
                             }`}
                             title="Manage sections"
                           >
@@ -2239,9 +2239,9 @@ export default function AdminPage() {
 
                       {/* Section Management (expanded) */}
                       {expandedTestId === test.id && (
-                        <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <div className="mt-4 border-t border-gray-200 dark:border-neutral-700 pt-4">
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300">Sections</h4>
+                            <h4 className="text-sm font-bold text-gray-700 dark:text-neutral-300">Sections</h4>
                             <button
                               onClick={() => { setEditingSection(null); setShowSectionModal(true); }}
                               className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -2277,21 +2277,21 @@ export default function AdminPage() {
                             });
 
                             return testSections.length === 0 ? (
-                              <p className="text-xs text-gray-500 dark:text-gray-400 italic">No sections. Questions will appear without section dividers.</p>
+                              <p className="text-xs text-gray-500 dark:text-neutral-400 italic">No sections. Questions will appear without section dividers.</p>
                             ) : (
                               <div className="space-y-2">
                                 {totalQs > 0 && (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">{totalQs} questions in this test. Assign sequential ranges below.</p>
+                                  <p className="text-xs text-gray-500 dark:text-neutral-400">{totalQs} questions in this test. Assign sequential ranges below.</p>
                                 )}
                                 {testSections.map((section) => {
                                   const range = sectionRanges[section.id];
                                   return (
-                                    <div key={section.id} className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                    <div key={section.id} className="p-2.5 bg-gray-50 dark:bg-neutral-800/50 rounded-lg">
                                       <div className="flex items-center justify-between mb-1.5">
                                         <div className="flex items-center gap-2">
-                                          <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{section.name}</span>
+                                          <span className="text-sm font-medium text-gray-800 dark:text-neutral-200">{section.name}</span>
                                           {section.questionCount !== undefined && section.questionCount > 0 && (
-                                            <span className="text-[10px] text-gray-400 dark:text-gray-500">({section.questionCount} assigned)</span>
+                                            <span className="text-[10px] text-gray-400 dark:text-neutral-500">({section.questionCount} assigned)</span>
                                           )}
                                         </div>
                                         <div className="flex items-center gap-1">
@@ -2357,7 +2357,7 @@ export default function AdminPage() {
                                             btn.textContent = 'Assign';
                                           }}
                                         >
-                                          <span className="text-xs text-gray-600 dark:text-gray-400">Q</span>
+                                          <span className="text-xs text-gray-600 dark:text-neutral-400">Q</span>
                                           <input
                                             name="from"
                                             type="number"
@@ -2365,9 +2365,9 @@ export default function AdminPage() {
                                             max={totalQs}
                                             defaultValue={range?.from || ''}
                                             placeholder="1"
-                                            className="w-14 px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-center"
+                                            className="w-14 px-1.5 py-1 text-xs border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 text-gray-800 dark:text-neutral-200 text-center"
                                           />
-                                          <span className="text-xs text-gray-600 dark:text-gray-400">to</span>
+                                          <span className="text-xs text-gray-600 dark:text-neutral-400">to</span>
                                           <input
                                             name="to"
                                             type="number"
@@ -2375,7 +2375,7 @@ export default function AdminPage() {
                                             max={totalQs}
                                             defaultValue={range?.to || ''}
                                             placeholder={String(totalQs)}
-                                            className="w-14 px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-center"
+                                            className="w-14 px-1.5 py-1 text-xs border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 text-gray-800 dark:text-neutral-200 text-center"
                                           />
                                           <button
                                             type="submit"
@@ -2402,25 +2402,25 @@ export default function AdminPage() {
 
         {/* Subjects Tab Content */}
         {activeTab === "subjects" && (
-          <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
+          <div className="bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
                 Manage Subjects
               </h2>
               <button
                 onClick={handleCreateSubject}
-                className="px-4 py-2 text-sm font-bold bg-black text-white dark:bg-gray-100 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 transition-all"
+                className="px-4 py-2 text-sm font-bold bg-black text-white dark:bg-neutral-200 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-neutral-300 active:scale-95 transition-all"
               >
                 + NEW SUBJECT
               </button>
             </div>
 
             {isLoadingSubjects ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-500 dark:text-neutral-400">
                 Loading subjects...
               </div>
             ) : subjects.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-500 dark:text-neutral-400">
                 No subjects yet. Create your first subject to get started.
               </div>
             ) : (
@@ -2428,26 +2428,26 @@ export default function AdminPage() {
                 {subjects.map((subject) => (
                   <div
                     key={subject.id}
-                    className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:border-gray-300 dark:hover:border-gray-600 transition-all"
+                    className="border-2 border-gray-200 dark:border-neutral-700 rounded-xl p-4 hover:border-gray-300 dark:hover:border-neutral-600 transition-all"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">
+                          <h3 className="font-bold text-gray-900 dark:text-neutral-100 truncate">
                             {subject.name}
                           </h3>
                           {!subject.isActive && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 rounded">
                               Inactive
                             </span>
                           )}
                         </div>
                         {subject.description && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate mb-2">
+                          <p className="text-sm text-gray-600 dark:text-neutral-400 truncate mb-2">
                             {subject.description}
                           </p>
                         )}
-                        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-neutral-400">
                           <span className="flex items-center gap-1">
                             <svg
                               className="w-4 h-4"
@@ -2464,7 +2464,7 @@ export default function AdminPage() {
                             </svg>
                             {subject.testCount || 0} tests
                           </span>
-                          <span className="text-gray-400 dark:text-gray-500">
+                          <span className="text-gray-400 dark:text-neutral-500">
                             Order: {subject.displayOrder}
                           </span>
                         </div>
@@ -2472,7 +2472,7 @@ export default function AdminPage() {
                       <div className="flex items-center gap-2 ml-4">
                         <button
                           onClick={() => handleEditSubject(subject)}
-                          className="p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg active:scale-95 transition-all"
+                          className="p-2 text-gray-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg active:scale-95 transition-all"
                           title="Edit subject"
                         >
                           <svg
@@ -2519,10 +2519,10 @@ export default function AdminPage() {
 
         {/* Bug Reports Tab Content */}
         {activeTab === "bugs" && (
-          <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
+          <div className="bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Bug Reports</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Bug Reports</h2>
+              <p className="text-sm text-gray-500 dark:text-neutral-400">
                 {bugCounts.open + bugCounts.reviewed + bugCounts.resolved} total
                 reports
               </p>
@@ -2534,8 +2534,8 @@ export default function AdminPage() {
                 onClick={() => setBugStatusFilter("all")}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                   bugStatusFilter === "all"
-                    ? "bg-black text-white dark:bg-gray-100 dark:text-black"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    ? "bg-black text-white dark:bg-neutral-200 dark:text-black"
+                    : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
                 }`}
               >
                 All ({bugCounts.open + bugCounts.reviewed + bugCounts.resolved})
@@ -2574,11 +2574,11 @@ export default function AdminPage() {
 
             {/* Bug Reports List */}
             {isLoadingBugs ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-500 dark:text-neutral-400">
                 Loading reports...
               </div>
             ) : bugReports.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-500 dark:text-neutral-400">
                 {bugStatusFilter === "all"
                   ? "No bug reports yet."
                   : `No ${bugStatusFilter} reports.`}
@@ -2592,11 +2592,11 @@ export default function AdminPage() {
                   return (
                     <div
                       key={report.id}
-                      className="border-2 border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"
+                      className="border-2 border-gray-200 dark:border-neutral-700 rounded-xl overflow-hidden"
                     >
                       {/* Report Header */}
                       <div
-                        className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
                         onClick={() =>
                           setExpandedBugId(isExpanded ? null : report.id)
                         }
@@ -2619,7 +2619,7 @@ export default function AdminPage() {
 
                               {/* Question Number */}
                               {report.question_number && (
-                                <span className="px-2 py-0.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
+                                <span className="px-2 py-0.5 text-xs font-bold bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 rounded">
                                   Q#{report.question_number}
                                 </span>
                               )}
@@ -2656,19 +2656,19 @@ export default function AdminPage() {
                             </div>
 
                             {/* Description Preview */}
-                            <p className="text-sm text-gray-900 dark:text-gray-100 line-clamp-2">
+                            <p className="text-sm text-gray-900 dark:text-neutral-100 line-clamp-2">
                               {report.description}
                             </p>
 
                             {/* Date */}
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
                               {formatDate(report.created_at)}
                             </p>
                           </div>
 
                           {/* Expand Icon */}
                           <svg
-                            className={`w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform flex-shrink-0 ${
+                            className={`w-5 h-5 text-gray-400 dark:text-neutral-500 transition-transform flex-shrink-0 ${
                               isExpanded ? "rotate-180" : ""
                             }`}
                             fill="none"
@@ -2687,13 +2687,13 @@ export default function AdminPage() {
 
                       {/* Expanded Content */}
                       {isExpanded && (
-                        <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
+                        <div className="border-t border-gray-200 dark:border-neutral-700 p-4 bg-gray-50 dark:bg-neutral-950">
                           {/* Full Description */}
                           <div className="mb-4">
-                            <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                            <h4 className="text-xs font-bold text-gray-700 dark:text-neutral-300 mb-1">
                               Description
                             </h4>
-                            <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                            <p className="text-sm text-gray-900 dark:text-neutral-100 whitespace-pre-wrap">
                               {report.description}
                             </p>
                           </div>
@@ -2701,7 +2701,7 @@ export default function AdminPage() {
                           {/* Screenshot */}
                           {report.screenshot_url && (
                             <div className="mb-4">
-                              <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
+                              <h4 className="text-xs font-bold text-gray-700 dark:text-neutral-300 mb-2">
                                 Screenshot
                               </h4>
                               <a
@@ -2712,7 +2712,7 @@ export default function AdminPage() {
                                 <img
                                   src={report.screenshot_url}
                                   alt="Bug screenshot"
-                                  className="max-w-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:opacity-90 transition-opacity"
+                                  className="max-w-sm rounded-lg border border-gray-300 dark:border-neutral-600 hover:opacity-90 transition-opacity"
                                 />
                               </a>
                             </div>
@@ -2721,10 +2721,10 @@ export default function AdminPage() {
                           {/* Question Preview */}
                           {question && (
                             <div className="mb-4">
-                              <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
+                              <h4 className="text-xs font-bold text-gray-700 dark:text-neutral-300 mb-2">
                                 Question Preview
                               </h4>
-                              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                              <div className="bg-white dark:bg-neutral-900 rounded-lg border border-gray-200 dark:border-neutral-700 p-3">
                                 {/* Question Info Header */}
                                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                                   {report.question_number && (
@@ -2754,11 +2754,11 @@ export default function AdminPage() {
                                   />
                                 )}
                                 {question.question_text && (
-                                  <div className="text-sm text-gray-800 dark:text-gray-200 mb-2">
+                                  <div className="text-sm text-gray-800 dark:text-neutral-200 mb-2">
                                     <MathText text={question.question_text} />
                                   </div>
                                 )}
-                                <div className="text-xs text-green-700 dark:text-green-400 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                <div className="text-xs text-green-700 dark:text-green-400 mt-2 pt-2 border-t border-gray-100 dark:border-neutral-700">
                                   <span className="font-semibold">
                                     Correct Answer:
                                   </span>{" "}
@@ -2835,9 +2835,9 @@ export default function AdminPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Left: Questions List */}
             <div className="lg:col-span-1">
-              <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-32px)] flex flex-col">
+              <div className="bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl shadow-sm p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-32px)] flex flex-col">
                 <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  <h2 className="text-base font-bold text-gray-900 dark:text-neutral-100">
                     Questions (
                     {
                       questions.filter((q) => {
@@ -2869,7 +2869,7 @@ export default function AdminPage() {
                         </span>
                         <button
                           onClick={() => setSelectedForGrouping([])}
-                          className="text-xs px-2 py-2 font-bold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                          className="text-xs px-2 py-2 font-bold text-gray-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200"
                           title="Clear selection"
                         >
                           Clear
@@ -2887,7 +2887,7 @@ export default function AdminPage() {
                     )}
                     <button
                       onClick={() => setShowCsvModal(true)}
-                      className="text-xs px-3 py-2 font-bold border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 transition-all"
+                      className="text-xs px-3 py-2 font-bold border-2 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 rounded-xl hover:border-black dark:hover:border-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 transition-all"
                       title="Bulk upload questions from CSV"
                     >
                       Upload CSV
@@ -2895,7 +2895,7 @@ export default function AdminPage() {
                     {editingId && (
                       <button
                         onClick={resetForm}
-                        className="text-xs px-3 py-2 font-bold bg-black text-white dark:bg-gray-100 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 transition-all"
+                        className="text-xs px-3 py-2 font-bold bg-black text-white dark:bg-neutral-200 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-neutral-300 active:scale-95 transition-all"
                         title="Clear form and add new question"
                       >
                         + NEW
@@ -2926,12 +2926,12 @@ export default function AdminPage() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search questions..."
-                      className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                     />
                     {searchQuery && (
                       <button
                         onClick={() => setSearchQuery("")}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-full"
                       >
                         <svg
                           className="w-4 h-4 text-gray-400"
@@ -2963,7 +2963,7 @@ export default function AdminPage() {
                         newTestId !== "all" ? [newTestId] : []
                       );
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                   >
                     <option value="all">All Questions</option>
                     {tests.map((test) => (
@@ -2975,11 +2975,11 @@ export default function AdminPage() {
                 </div>
 
                 {isLoadingQuestions ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
+                  <div className="text-center py-8 text-gray-500 dark:text-neutral-400 text-sm">
                     Loading...
                   </div>
                 ) : questions.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
+                  <div className="text-center py-8 text-gray-500 dark:text-neutral-400 text-sm">
                     No questions yet
                   </div>
                 ) : (
@@ -3079,16 +3079,16 @@ export default function AdminPage() {
                           onDragEnd={
                             !isGrouped ? handleQuestionDragEnd : undefined
                           }
-                          className={`border-2 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all ${
+                          className={`border-2 p-3 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all ${
                             !isGrouped
                               ? "cursor-grab active:cursor-grabbing rounded-xl"
                               : ""
                           } ${
                             editingId === question.id
-                              ? "border-black dark:border-gray-400 bg-gray-50 dark:bg-gray-700"
+                              ? "border-black dark:border-neutral-400 bg-gray-50 dark:bg-neutral-800"
                               : selectedForGrouping.includes(question.id)
                               ? "border-purple-400 bg-purple-50 dark:bg-purple-900/30"
-                              : "border-gray-200 dark:border-gray-700"
+                              : "border-gray-200 dark:border-neutral-700"
                           } ${
                             draggedQuestionId === question.id
                               ? "opacity-40 bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700"
@@ -3119,7 +3119,7 @@ export default function AdminPage() {
                                   onChange={() =>
                                     toggleQuestionSelection(question.id)
                                   }
-                                  className="w-4 h-4 text-purple-600 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 cursor-pointer dark:bg-gray-700"
+                                  className="w-4 h-4 text-purple-600 border-gray-300 dark:border-neutral-600 rounded focus:ring-purple-500 cursor-pointer dark:bg-neutral-800"
                                   title="Select to group with another question"
                                   onClick={(e) => e.stopPropagation()}
                                 />
@@ -3127,7 +3127,7 @@ export default function AdminPage() {
                             )}
                             {/* Drag Handle - only for non-grouped */}
                             {!isGrouped && (
-                              <div className="flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 pt-1">
+                              <div className="flex-shrink-0 text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 pt-1">
                                 <svg
                                   className="w-4 h-4"
                                   fill="currentColor"
@@ -3142,7 +3142,7 @@ export default function AdminPage() {
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                    <p className="text-xs font-semibold text-gray-900 dark:text-neutral-100 truncate">
                                       {question.name || `Q${index + 1}`}
                                     </p>
                                     {isGrouped && (
@@ -3168,11 +3168,11 @@ export default function AdminPage() {
                                     )}
                                   </div>
                                   {question.name && (
-                                    <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                                    <p className="text-[10px] text-gray-400 dark:text-neutral-500">
                                       Q{index + 1}
                                     </p>
                                   )}
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                  <p className="text-xs text-gray-600 dark:text-neutral-400 truncate">
                                     {(question.skills || []).join(", ")}
                                   </p>
                                   {/* Test badges - hidden when filtering by a specific test */}
@@ -3196,7 +3196,7 @@ export default function AdminPage() {
                                         })}
                                       {questionTestMap[question.id].length >
                                         2 && (
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        <span className="text-xs text-gray-500 dark:text-neutral-400">
                                           +
                                           {questionTestMap[question.id].length -
                                             2}
@@ -3219,7 +3219,7 @@ export default function AdminPage() {
                                     onClick={() =>
                                       loadQuestionForEdit(question)
                                     }
-                                    className="p-1.5 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg active:scale-95 transition-all"
+                                    className="p-1.5 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg active:scale-95 transition-all"
                                     title={
                                       isGrouped
                                         ? "Edit grouped questions"
@@ -3262,7 +3262,7 @@ export default function AdminPage() {
                                 </div>
                               </div>
                               {question.question_text && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">
+                                <div className="text-xs text-gray-500 dark:text-neutral-400 line-clamp-2 mt-0.5">
                                   <MathText text={question.question_text} />
                                 </div>
                               )}
@@ -3342,9 +3342,9 @@ export default function AdminPage() {
             </div>
 
             {/* Right: Form */}
-            <div className="lg:col-span-2 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
+            <div className="lg:col-span-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
                   {editingId ? "Edit Question" : "Add New Question"}
                 </h2>
                 <div className="relative">
@@ -3354,7 +3354,7 @@ export default function AdminPage() {
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
                       showPreview
                         ? "bg-blue-600 text-white"
-                        : "bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500"
+                        : "bg-gray-200 dark:bg-neutral-700 text-gray-600 dark:text-neutral-300 hover:bg-gray-300 dark:hover:bg-neutral-600"
                     }`}
                   >
                     i
@@ -3362,9 +3362,9 @@ export default function AdminPage() {
 
                   {/* Preview Tooltip */}
                   {showPreview && (
-                    <div className="absolute right-0 top-full mt-2 w-96 max-h-[70vh] overflow-y-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50">
+                    <div className="absolute right-0 top-full mt-2 w-96 max-h-[70vh] overflow-y-auto bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-neutral-700 z-50">
                       {/* Tooltip Arrow */}
-                      <div className="absolute -top-2 right-3 w-4 h-4 bg-white dark:bg-gray-800 border-l border-t border-gray-200 dark:border-gray-700 transform rotate-45"></div>
+                      <div className="absolute -top-2 right-3 w-4 h-4 bg-white dark:bg-neutral-900 border-l border-t border-gray-200 dark:border-neutral-700 transform rotate-45"></div>
 
                       <div className="p-4 space-y-3">
                         {/* Question Preview */}
@@ -3430,7 +3430,7 @@ export default function AdminPage() {
                                   " bg-green-50 dark:bg-green-900/30 border-green-500 text-green-900 dark:text-green-400";
                               } else {
                                 buttonClass +=
-                                  " bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300";
+                                  " bg-white dark:bg-neutral-800 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300";
                               }
 
                               const answerImage =
@@ -3471,7 +3471,7 @@ export default function AdminPage() {
                                           <img
                                             src={answerImage}
                                             alt={`Answer ${answerNum}`}
-                                            className="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 mt-2"
+                                            className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-2"
                                           />
                                         )}
                                       </div>
@@ -3487,7 +3487,7 @@ export default function AdminPage() {
                         {!currentForm.state.questionText &&
                           !currentForm.state.questionImagePreview &&
                           !currentForm.state.answers.some((a) => a.trim()) && (
-                            <div className="text-center text-gray-400 dark:text-gray-500 py-8 text-sm">
+                            <div className="text-center text-gray-400 dark:text-neutral-500 py-8 text-sm">
                               Start typing to see preview
                             </div>
                           )}
@@ -3500,12 +3500,12 @@ export default function AdminPage() {
               <form onSubmit={handleSubmit} className="space-y-3">
                 {/* Grouped Question Toggle */}
                 {!editingId && (
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-neutral-950 rounded-lg border border-gray-200 dark:border-neutral-700">
                     <div>
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <label className="text-sm font-medium text-gray-700 dark:text-neutral-300">
                         Grouped Question (Passage-based)
                       </label>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-gray-500 dark:text-neutral-400">
                         Create two questions that share a common passage
                       </p>
                     </div>
@@ -3513,7 +3513,7 @@ export default function AdminPage() {
                       type="button"
                       onClick={() => setIsGroupedQuestion(!isGroupedQuestion)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        isGroupedQuestion ? "bg-black dark:bg-gray-100" : "bg-gray-300 dark:bg-gray-600"
+                        isGroupedQuestion ? "bg-black dark:bg-neutral-200" : "bg-gray-300 dark:bg-neutral-700"
                       }`}
                     >
                       <span
@@ -3540,7 +3540,7 @@ export default function AdminPage() {
                         onChange={(e) => setPassageText(e.target.value)}
                         placeholder="Enter the shared passage or summary text..."
                         rows={4}
-                        className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                       />
                     </div>
                     <div>
@@ -3619,7 +3619,7 @@ export default function AdminPage() {
                             className={`w-full h-20 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors ${
                               draggedOver === "passage"
                                 ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
-                                : "border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                                : "border-blue-300 dark:border-blue-700 bg-white dark:bg-neutral-800 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                             }`}
                           >
                             <span className="text-xs text-blue-600 dark:text-blue-400">
@@ -3640,8 +3640,8 @@ export default function AdminPage() {
                       onClick={() => setActiveQuestionTab(1)}
                       className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all ${
                         activeQuestionTab === 1
-                          ? "bg-black text-white dark:bg-gray-100 dark:text-black"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          ? "bg-black text-white dark:bg-neutral-200 dark:text-black"
+                          : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
                       }`}
                     >
                       Question 1
@@ -3651,8 +3651,8 @@ export default function AdminPage() {
                       onClick={() => setActiveQuestionTab(2)}
                       className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all ${
                         activeQuestionTab === 2
-                          ? "bg-black text-white dark:bg-gray-100 dark:text-black"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          ? "bg-black text-white dark:bg-neutral-200 dark:text-black"
+                          : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
                       }`}
                     >
                       Question 2
@@ -3663,7 +3663,7 @@ export default function AdminPage() {
                 {/* Question Fields (uses currentForm which switches between Q1/Q2 based on tab) */}
                 {/* Question Name */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                     {isGroupedQuestion
                       ? `Question ${activeQuestionTab} Name (Optional)`
                       : "Question Name (Optional)"}
@@ -3675,17 +3675,17 @@ export default function AdminPage() {
                       currentForm.setField("questionName", e.target.value)
                     }
                     placeholder="e.g., Linear Equations - Problem 1"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
                     Helps you identify this question in the list
                   </p>
                 </div>
 
                 {/* Question Text (Above Image) */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Question Text <span className="text-gray-500 dark:text-gray-400">(above image)</span>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
+                    Question Text <span className="text-gray-500 dark:text-neutral-400">(above image)</span>
                   </label>
                   <textarea
                     value={currentForm.state.aboveImageText || ''}
@@ -3694,13 +3694,13 @@ export default function AdminPage() {
                     }
                     placeholder="Text displayed above the question image (optional)..."
                     rows={2}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                   />
                 </div>
 
                 {/* Question Image */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                     Question Image{" "}
                     <span className="text-gray-500">
                       (text or image required)
@@ -3745,7 +3745,7 @@ export default function AdminPage() {
                         className={`relative group w-full h-24 rounded border-2 overflow-hidden transition-all ${
                           draggedOver === "question"
                             ? "border-blue-500 ring-2 ring-blue-200"
-                            : "border-gray-300 dark:border-gray-600"
+                            : "border-gray-300 dark:border-neutral-600"
                         }`}
                       >
                         <img
@@ -3781,13 +3781,13 @@ export default function AdminPage() {
                         className={`w-full h-24 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
                           draggedOver === "question"
                             ? "border-blue-500 bg-blue-50"
-                            : "border-gray-300 dark:border-gray-600 hover:border-blue-500"
+                            : "border-gray-300 dark:border-neutral-600 hover:border-blue-500"
                         }`}
                       >
-                        <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+                        <span className="text-xs font-medium text-gray-400 dark:text-neutral-500">
                           Drop image
                         </span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500">or click</span>
+                        <span className="text-xs text-gray-400 dark:text-neutral-500">or click</span>
                       </div>
                     )}
                   </label>
@@ -3795,9 +3795,9 @@ export default function AdminPage() {
 
                 {/* Question Text (Below Image) */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                     Question Text{" "}
-                    <span className="text-gray-500 dark:text-gray-400">
+                    <span className="text-gray-500 dark:text-neutral-400">
                       (below image)
                     </span>
                   </label>
@@ -3808,9 +3808,9 @@ export default function AdminPage() {
                     }
                     placeholder="Enter question text. Use LaTeX for math: \\frac{x}{2}, x^{2}, \\sqrt{x}"
                     rows={3}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
                     Use LaTeX for math equations. Examples: $\frac{`{x}`}
                     {`{2}`}$, $x^{`{2}`}$, $\sqrt{`{x}`}$
                   </p>
@@ -3819,7 +3819,7 @@ export default function AdminPage() {
                 {/* Reference & Explanation Image Uploads */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                       Reference (Optional)
                     </label>
                     <input
@@ -3863,7 +3863,7 @@ export default function AdminPage() {
                           className={`relative group w-full h-24 rounded border-2 overflow-hidden transition-all ${
                             draggedOver === "reference"
                               ? "border-blue-500 ring-2 ring-blue-200"
-                              : "border-gray-300 dark:border-gray-600"
+                              : "border-gray-300 dark:border-neutral-600"
                           }`}
                         >
                           <img
@@ -3899,20 +3899,20 @@ export default function AdminPage() {
                           className={`w-full h-24 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
                             draggedOver === "reference"
                               ? "border-blue-500 bg-blue-50"
-                              : "border-gray-300 dark:border-gray-600 hover:border-blue-500"
+                              : "border-gray-300 dark:border-neutral-600 hover:border-blue-500"
                           }`}
                         >
-                          <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+                          <span className="text-xs font-medium text-gray-400 dark:text-neutral-500">
                             Drop image
                           </span>
-                          <span className="text-xs text-gray-400 dark:text-gray-500">or click</span>
+                          <span className="text-xs text-gray-400 dark:text-neutral-500">or click</span>
                         </div>
                       )}
                     </label>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                       Explanation (Optional)
                     </label>
                     <input
@@ -3956,7 +3956,7 @@ export default function AdminPage() {
                           className={`relative group w-full h-24 rounded border-2 overflow-hidden transition-all ${
                             draggedOver === "explanation"
                               ? "border-blue-500 ring-2 ring-blue-200"
-                              : "border-gray-300 dark:border-gray-600"
+                              : "border-gray-300 dark:border-neutral-600"
                           }`}
                         >
                           <img
@@ -3992,13 +3992,13 @@ export default function AdminPage() {
                           className={`w-full h-24 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 transition-colors ${
                             draggedOver === "explanation"
                               ? "border-blue-500 bg-blue-50"
-                              : "border-gray-300 dark:border-gray-600 hover:border-blue-500"
+                              : "border-gray-300 dark:border-neutral-600 hover:border-blue-500"
                           }`}
                         >
-                          <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+                          <span className="text-xs font-medium text-gray-400 dark:text-neutral-500">
                             Drop image
                           </span>
-                          <span className="text-xs text-gray-400 dark:text-gray-500">or click</span>
+                          <span className="text-xs text-gray-400 dark:text-neutral-500">or click</span>
                         </div>
                       )}
                     </label>
@@ -4007,7 +4007,7 @@ export default function AdminPage() {
 
                 {/* Question Type */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                     Question Type
                   </label>
                   <select
@@ -4015,7 +4015,7 @@ export default function AdminPage() {
                     onChange={(e) =>
                       currentForm.setField("questionType", e.target.value as "multiple-choice" | "drag-order")
                     }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                   >
                     <option value="multiple-choice">Multiple Choice</option>
                     <option value="drag-order">Drag & Order</option>
@@ -4030,14 +4030,14 @@ export default function AdminPage() {
                 {/* Answers with optional images */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300">
                       {currentForm.state.questionType === 'drag-order' ? 'Items (in correct order)' : 'Answers'} <span className="text-red-500">*</span>{" "}
-                      <span className="text-gray-500 dark:text-gray-400 font-normal">
+                      <span className="text-gray-500 dark:text-neutral-400 font-normal">
                         (text or image or both required)
                       </span>
                     </label>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Layout:</span>
+                      <span className="text-xs text-gray-500 dark:text-neutral-400">Layout:</span>
                       <button
                         type="button"
                         onClick={() =>
@@ -4046,7 +4046,7 @@ export default function AdminPage() {
                         className={`px-2 py-1 text-xs rounded transition-all ${
                           currentForm.state.answerLayout === "list"
                             ? "bg-blue-600 text-white"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            : "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
                         }`}
                       >
                         List (1×4)
@@ -4059,7 +4059,7 @@ export default function AdminPage() {
                         className={`px-2 py-1 text-xs rounded transition-all ${
                           currentForm.state.answerLayout === "grid"
                             ? "bg-blue-600 text-white"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            : "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
                         }`}
                       >
                         Grid (2×2)
@@ -4070,7 +4070,7 @@ export default function AdminPage() {
                     {currentForm.state.answers.map((answer, index) => (
                       <div
                         key={index}
-                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+                        className="border border-gray-200 dark:border-neutral-700 rounded-lg p-3"
                       >
                         <div className="flex items-start gap-2 mb-2">
                           {currentForm.state.questionType !== 'drag-order' && (
@@ -4088,7 +4088,7 @@ export default function AdminPage() {
                           )}
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                              <span className="text-xs font-bold text-gray-700 dark:text-neutral-300">
                                 {currentForm.state.questionType === 'drag-order' ? `Item ${index + 1}` : `(${index + 1})`}
                               </span>
                               {currentForm.state.questionType !== 'drag-order' && currentForm.state.correctAnswer ===
@@ -4105,7 +4105,7 @@ export default function AdminPage() {
                                 currentForm.setAnswer(index, e.target.value)
                               }
                               placeholder={`Answer text (optional if image provided)`}
-                              className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                              className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                             />
                           </div>
                         </div>
@@ -4148,7 +4148,7 @@ export default function AdminPage() {
                                 className={`relative w-full max-w-xs h-24 rounded border-2 overflow-hidden transition-all ${
                                   answerDraggedOver === index
                                     ? "border-blue-500 ring-2 ring-blue-200"
-                                    : "border-gray-300 dark:border-gray-600"
+                                    : "border-gray-300 dark:border-neutral-600"
                                 }`}
                               >
                                 <img
@@ -4203,10 +4203,10 @@ export default function AdminPage() {
                               onDrop={(e) => handleAnswerImageDrop(e, index)}
                             >
                               <div
-                                className={`w-full max-w-xs h-20 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 transition-colors ${
+                                className={`w-full max-w-xs h-20 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-400 dark:text-neutral-500 transition-colors ${
                                   answerDraggedOver === index
                                     ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
-                                    : "border-gray-300 dark:border-gray-600 hover:border-blue-500"
+                                    : "border-gray-300 dark:border-neutral-600 hover:border-blue-500"
                                 }`}
                               >
                                 <svg
@@ -4237,7 +4237,7 @@ export default function AdminPage() {
 
                 {/* Compact Explanation */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                     Explanation <span className="text-red-500">*</span>
                   </label>
                   <textarea
@@ -4247,13 +4247,13 @@ export default function AdminPage() {
                     }
                     placeholder="Explain the correct answer"
                     rows={3}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                   />
                 </div>
 
                 {/* Skills */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                     Skills <span className="text-red-500">*</span>
                   </label>
                   <TagInput
@@ -4264,14 +4264,14 @@ export default function AdminPage() {
                     }
                     placeholder="Type to search or add new skills (e.g., Linear Equations, Quadratic Functions)"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
                     Skills tested by this question
                   </p>
                 </div>
 
                 {/* Tags */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                     Tags
                   </label>
                   <TagInput
@@ -4282,14 +4282,14 @@ export default function AdminPage() {
                     }
                     placeholder="Type to search or add new tags (e.g., Algebra, Functions)"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
                     Broader categorization tags for filtering
                   </p>
                 </div>
 
                 {/* Difficulty */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                     Difficulty
                   </label>
                   <select
@@ -4297,25 +4297,25 @@ export default function AdminPage() {
                     onChange={(e) =>
                       currentForm.setField("difficulty", e.target.value)
                     }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                   >
                     <option value="">None</option>
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
                   </select>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
                     Question difficulty level (optional)
                   </p>
                 </div>
 
                 {/* Assign to Tests */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                     Assign to Tests
                   </label>
                   {tests.length === 0 ? (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                    <p className="text-xs text-gray-500 dark:text-neutral-400 italic">
                       No tests available. Create a test first.
                     </p>
                   ) : (
@@ -4326,14 +4326,14 @@ export default function AdminPage() {
                       placeholder="Select tests..."
                     />
                   )}
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
                     Select which tests this question should appear in
                   </p>
                 </div>
 
                 {/* Points */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
                     Points <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -4346,9 +4346,9 @@ export default function AdminPage() {
                       )
                     }
                     placeholder="1"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
                     Points awarded for this question (default: 1)
                   </p>
                 </div>
@@ -4371,7 +4371,7 @@ export default function AdminPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-black text-white dark:bg-gray-100 dark:text-black px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 disabled:opacity-50 transition-all shadow-md"
+                    className="w-full bg-black text-white dark:bg-neutral-200 dark:text-black px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-800 dark:hover:bg-neutral-300 active:scale-95 disabled:opacity-50 transition-all shadow-md"
                   >
                     {isSubmitting
                       ? "SAVING..."
@@ -4454,10 +4454,10 @@ export default function AdminPage() {
         {/* CSV Upload Modal */}
         {showCsvModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
               {/* Modal Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-neutral-700">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
                   Bulk Upload Questions
                 </h2>
                 <button
@@ -4468,7 +4468,7 @@ export default function AdminPage() {
                     setCsvError(null);
                     setCsvSelectedTestIds([]);
                   }}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all"
+                  className="p-2 text-gray-600 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-xl transition-all"
                 >
                   <svg
                     className="w-5 h-5"
@@ -4490,16 +4490,16 @@ export default function AdminPage() {
               <div className="p-4 overflow-y-auto max-h-[calc(90vh-140px)]">
                 {/* File Upload */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2">
                     CSV File
                   </label>
                   <input
                     type="file"
                     accept=".csv"
                     onChange={handleCsvFileSelect}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
                     Format: question_text, choice_1-4, correct_answer, Points,
                     difficulty_level, Main Skill, [tags...]
                   </p>
@@ -4507,11 +4507,11 @@ export default function AdminPage() {
 
                 {/* Assign to Tests */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2">
                     Assign to Tests
                   </label>
                   {tests.length === 0 ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                    <p className="text-sm text-gray-500 dark:text-neutral-400 italic">
                       No tests available
                     </p>
                   ) : (
@@ -4534,13 +4534,13 @@ export default function AdminPage() {
                 {/* Preview */}
                 {csvPreview.length > 0 && (
                   <div className="mb-4">
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2">
                       Preview ({csvPreview.length} questions)
                     </h3>
-                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-auto max-h-80">
+                    <div className="border border-gray-200 dark:border-neutral-700 rounded-lg overflow-auto max-h-80">
                       <div style={{ minWidth: "1400px" }}>
                         {/* Header Row */}
-                        <div className="flex bg-gray-50 dark:bg-gray-900 sticky top-0 border-b border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300">
+                        <div className="flex bg-gray-50 dark:bg-neutral-950 sticky top-0 border-b border-gray-200 dark:border-neutral-700 text-xs font-bold text-gray-700 dark:text-neutral-300">
                           <div
                             className="px-3 py-2"
                             style={{ width: "40px", flexShrink: 0 }}
@@ -4612,72 +4612,72 @@ export default function AdminPage() {
                         {csvPreview.map((q, i) => (
                           <div
                             key={i}
-                            className={`flex text-xs border-b border-gray-100 dark:border-gray-700 ${
-                              i % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-900"
+                            className={`flex text-xs border-b border-gray-100 dark:border-neutral-700 ${
+                              i % 2 === 0 ? "bg-white dark:bg-neutral-900" : "bg-gray-50 dark:bg-neutral-950"
                             }`}
                           >
                             <div
-                              className="px-3 py-2 text-gray-500 dark:text-gray-400"
+                              className="px-3 py-2 text-gray-500 dark:text-neutral-400"
                               style={{ width: "40px", flexShrink: 0 }}
                             >
                               {i + 1}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-900 dark:text-gray-100"
+                              className="px-3 py-2 text-gray-900 dark:text-neutral-100"
                               style={{ width: "250px", flexShrink: 0 }}
                             >
                               {q.question_text}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
+                              className="px-3 py-2 text-gray-600 dark:text-neutral-400"
                               style={{ width: "150px", flexShrink: 0 }}
                             >
                               {q.answers[0] || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
+                              className="px-3 py-2 text-gray-600 dark:text-neutral-400"
                               style={{ width: "150px", flexShrink: 0 }}
                             >
                               {q.answers[1] || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
+                              className="px-3 py-2 text-gray-600 dark:text-neutral-400"
                               style={{ width: "150px", flexShrink: 0 }}
                             >
                               {q.answers[2] || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
+                              className="px-3 py-2 text-gray-600 dark:text-neutral-400"
                               style={{ width: "150px", flexShrink: 0 }}
                             >
                               {q.answers[3] || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 dark:text-gray-400 font-medium"
+                              className="px-3 py-2 text-gray-600 dark:text-neutral-400 font-medium"
                               style={{ width: "60px", flexShrink: 0 }}
                             >
                               {q.correct_answer}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
+                              className="px-3 py-2 text-gray-600 dark:text-neutral-400"
                               style={{ width: "40px", flexShrink: 0 }}
                             >
                               {q.points}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 dark:text-gray-400 capitalize"
+                              className="px-3 py-2 text-gray-600 dark:text-neutral-400 capitalize"
                               style={{ width: "80px", flexShrink: 0 }}
                             >
                               {q.difficulty || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
+                              className="px-3 py-2 text-gray-600 dark:text-neutral-400"
                               style={{ width: "120px", flexShrink: 0 }}
                             >
                               {q.skills[0] || "-"}
                             </div>
                             <div
-                              className="px-3 py-2 text-gray-600 dark:text-gray-400"
+                              className="px-3 py-2 text-gray-600 dark:text-neutral-400"
                               style={{ width: "200px", flexShrink: 0 }}
                             >
                               {q.tags.length > 0 ? q.tags.join(", ") : "-"}
@@ -4691,7 +4691,7 @@ export default function AdminPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-950">
                 <button
                   onClick={() => {
                     setShowCsvModal(false);
@@ -4700,14 +4700,14 @@ export default function AdminPage() {
                     setCsvError(null);
                     setCsvSelectedTestIds([]);
                   }}
-                  className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 transition-all"
+                  className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-neutral-300 border-2 border-gray-300 dark:border-neutral-600 rounded-xl hover:border-black dark:hover:border-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCsvUpload}
                   disabled={csvPreview.length === 0 || isUploadingCsv}
-                  className="px-4 py-2 text-sm font-bold bg-black text-white dark:bg-gray-100 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="px-4 py-2 text-sm font-bold bg-black text-white dark:bg-neutral-200 dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-neutral-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isUploadingCsv
                     ? "Uploading..."
@@ -4721,9 +4721,9 @@ export default function AdminPage() {
         {/* Link Questions Modal */}
         {showLinkModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
               {/* Modal Header */}
-              <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-700 bg-purple-50 dark:bg-purple-900/30">
+              <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-neutral-700 bg-purple-50 dark:bg-purple-900/30">
                 <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-full">
                   <svg
                     className="w-5 h-5 text-purple-600 dark:text-purple-400"
@@ -4733,28 +4733,28 @@ export default function AdminPage() {
                     <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
                   </svg>
                 </div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
                   Group Questions
                 </h2>
               </div>
 
               {/* Modal Body */}
               <div className="p-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-sm text-gray-600 dark:text-neutral-400 mb-4">
                   Add a shared passage for these questions. The passage will be
                   displayed above both questions when students take the quiz.
                 </p>
 
                 {/* Selected Questions Preview */}
-                <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
-                  <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
+                <div className="mb-4 p-3 bg-gray-50 dark:bg-neutral-950 rounded-xl border border-gray-200 dark:border-neutral-700">
+                  <p className="text-xs font-bold text-gray-700 dark:text-neutral-300 mb-2">
                     Selected Questions:
                   </p>
                   <div className="space-y-1">
                     {selectedForGrouping.map((id, idx) => {
                       const q = questions.find((q) => q.id === id);
                       return (
-                        <p key={id} className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                        <p key={id} className="text-sm text-gray-900 dark:text-neutral-100 truncate">
                           {idx + 1}.{" "}
                           {q?.name ||
                             q?.question_text?.slice(0, 50) ||
@@ -4767,13 +4767,13 @@ export default function AdminPage() {
 
                 {/* Passage Text */}
                 <div className="mb-4">
-                  <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">
+                  <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
                     Passage Text
                   </label>
                   <textarea
                     value={linkPassageText}
                     onChange={(e) => setLinkPassageText(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                     rows={4}
                     placeholder="Enter the shared passage text... (supports LaTeX: $x^2$)"
                   />
@@ -4781,7 +4781,7 @@ export default function AdminPage() {
 
                 {/* Passage Image */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">
+                  <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
                     Passage Image (Optional)
                   </label>
                   <input
@@ -4822,13 +4822,13 @@ export default function AdminPage() {
                         className={`relative w-full h-32 rounded-lg border-2 overflow-hidden transition-all ${
                           draggedOver === "linkPassage"
                             ? "border-purple-500 ring-2 ring-purple-200"
-                            : "border-gray-300 dark:border-gray-600"
+                            : "border-gray-300 dark:border-neutral-600"
                         }`}
                       >
                         <img
                           src={linkPassageImagePreview}
                           alt="Passage preview"
-                          className="w-full h-full object-contain bg-gray-50 dark:bg-gray-700"
+                          className="w-full h-full object-contain bg-gray-50 dark:bg-neutral-800"
                         />
                         {draggedOver === "linkPassage" && (
                           <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
@@ -4852,10 +4852,10 @@ export default function AdminPage() {
                       </div>
                     ) : (
                       <div
-                        className={`w-full h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 transition-colors ${
+                        className={`w-full h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-gray-400 dark:text-neutral-500 transition-colors ${
                           draggedOver === "linkPassage"
                             ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30"
-                            : "border-gray-300 dark:border-gray-600 hover:border-purple-500"
+                            : "border-gray-300 dark:border-neutral-600 hover:border-purple-500"
                         }`}
                       >
                         <svg
@@ -4882,11 +4882,11 @@ export default function AdminPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-950">
                 <button
                   onClick={cancelLinkQuestions}
                   disabled={isLinking}
-                  className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 transition-all disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-neutral-300 border-2 border-gray-300 dark:border-neutral-600 rounded-xl hover:border-black dark:hover:border-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -4907,9 +4907,9 @@ export default function AdminPage() {
         {/* Delete Test Confirmation Modal */}
         {deleteTestModal.show && deleteTestModal.test && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
               {/* Modal Header */}
-              <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/30">
+              <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-neutral-700 bg-red-50 dark:bg-red-900/30">
                 <div className="p-2 bg-red-100 dark:bg-red-900/50 rounded-full">
                   <svg
                     className="w-5 h-5 text-red-600"
@@ -4925,12 +4925,12 @@ export default function AdminPage() {
                     />
                   </svg>
                 </div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Delete Test</h2>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Delete Test</h2>
               </div>
 
               {/* Modal Body */}
               <div className="p-4">
-                <p className="text-gray-700 dark:text-gray-300 mb-4">
+                <p className="text-gray-700 dark:text-neutral-300 mb-4">
                   Are you sure you want to delete{" "}
                   <span className="font-bold">
                     &quot;{deleteTestModal.test.name}&quot;
@@ -4940,7 +4940,7 @@ export default function AdminPage() {
 
                 {deleteTestModal.test.questionCount &&
                 deleteTestModal.test.questionCount > 0 ? (
-                  <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 mb-4">
+                  <div className="bg-gray-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-700 rounded-xl p-3 mb-4">
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
@@ -4951,10 +4951,10 @@ export default function AdminPage() {
                             deleteQuestions: e.target.checked,
                           }))
                         }
-                        className="mt-1 w-4 h-4 text-red-600 border-gray-300 dark:border-gray-600 rounded focus:ring-red-500 dark:bg-gray-700"
+                        className="mt-1 w-4 h-4 text-red-600 border-gray-300 dark:border-neutral-600 rounded focus:ring-red-500 dark:bg-neutral-800"
                       />
                       <div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <span className="text-sm font-medium text-gray-900 dark:text-neutral-100">
                           Also delete {deleteTestModal.test.questionCount}{" "}
                           question
                           {deleteTestModal.test.questionCount !== 1
@@ -4962,7 +4962,7 @@ export default function AdminPage() {
                             : ""}{" "}
                           assigned to this test
                         </span>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
                           This will permanently remove the questions from the
                           question bank
                         </p>
@@ -4970,7 +4970,7 @@ export default function AdminPage() {
                     </label>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  <p className="text-sm text-gray-500 dark:text-neutral-400 mb-4">
                     This test has no questions assigned to it.
                   </p>
                 )}
@@ -5002,7 +5002,7 @@ export default function AdminPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-950">
                 <button
                   onClick={() =>
                     setDeleteTestModal({
@@ -5013,7 +5013,7 @@ export default function AdminPage() {
                     })
                   }
                   disabled={deleteTestModal.isDeleting}
-                  className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-black dark:hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 disabled:opacity-50 transition-all"
+                  className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-neutral-300 border-2 border-gray-300 dark:border-neutral-600 rounded-xl hover:border-black dark:hover:border-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 disabled:opacity-50 transition-all"
                 >
                   Cancel
                 </button>

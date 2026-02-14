@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTheme } from '@/components/ThemeProvider';
 
 /**
  * DrawingCanvas Component
@@ -31,6 +32,8 @@ export default function DrawingCanvas({
   initialDrawing,
   onDrawingChange,
 }: DrawingCanvasProps) {
+  const { theme } = useTheme();
+
   // Canvas refs: Two separate layers for background image and user drawings
   const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -314,7 +317,9 @@ export default function DrawingCanvas({
     { name: 'Red', value: '#ef4444' },
     { name: 'Yellow', value: '#eab308' },
     { name: 'Purple', value: '#a855f7' },
-    { name: 'Black', value: '#000000' },
+    theme === 'dark'
+      ? { name: 'White', value: '#ffffff' }
+      : { name: 'Black', value: '#000000' },
   ];
 
   return (
@@ -342,10 +347,14 @@ export default function DrawingCanvas({
             }}
             className={`relative p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
               tool === 'pen'
-                ? 'border-2 text-white'
-                : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                ? 'border-2 shadow-sm'
+                : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800'
             }`}
-            style={tool === 'pen' ? { backgroundColor: penColor, borderColor: penColor } : {}}
+            style={tool === 'pen' ? {
+              backgroundColor: penColor,
+              borderColor: theme === 'dark' ? '#525252' : penColor,
+              color: ['#000000', '#3b82f6', '#a855f7', '#ef4444'].includes(penColor) ? '#ffffff' : '#000000',
+            } : {}}
             title="Pen (click again to change color)"
           >
             <svg
@@ -364,7 +373,7 @@ export default function DrawingCanvas({
 
             {/* Small triangle indicator when pen is selected */}
             {tool === 'pen' && (
-              <div className="absolute bottom-0 right-0 w-0 h-0 border-l-4 border-l-transparent border-b-4 border-b-white" />
+              <div className="absolute bottom-0 right-0 w-0 h-0 border-l-4 border-l-transparent border-b-4 border-b-white dark:border-b-neutral-300" />
             )}
           </button>
 
@@ -377,9 +386,9 @@ export default function DrawingCanvas({
                 onClick={() => setShowColorPicker(false)}
               />
               {/* Popup Content */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white border-2 border-gray-200 rounded-lg shadow-xl p-1.5 z-20">
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-600 rounded-lg shadow-xl p-1.5 z-20">
                 {/* Arrow pointing down */}
-                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-r-2 border-b-2 border-gray-200 rotate-45" />
+                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white dark:bg-neutral-900 border-r-2 border-b-2 border-gray-200 dark:border-neutral-600 rotate-45" />
 
                 {/* Horizontal color swatches */}
                 <div className="flex items-center gap-1.5">
@@ -391,7 +400,7 @@ export default function DrawingCanvas({
                         setShowColorPicker(false);
                       }}
                       className={`w-7 h-7 rounded-md transition-all hover:scale-110 active:scale-95 ${
-                        penColor === color.value ? 'ring-2 ring-black ring-offset-1' : 'border-2 border-gray-300'
+                        penColor === color.value ? 'ring-2 ring-black dark:ring-white ring-offset-1 dark:ring-offset-neutral-900' : 'border-2 border-gray-300 dark:border-neutral-600'
                       }`}
                       style={{ backgroundColor: color.value }}
                       title={color.name}
@@ -408,8 +417,8 @@ export default function DrawingCanvas({
           onClick={() => setTool('eraser')}
           className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
             tool === 'eraser'
-              ? 'bg-black border-black text-white'
-              : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+              ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
+              : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'
           }`}
           title="Eraser"
         >
@@ -432,8 +441,8 @@ export default function DrawingCanvas({
                   onClick={() => setPenSize(size)}
                   className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
                     penSize === size
-                      ? 'bg-black border-black text-white'
-                      : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+                      ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
+                      : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'
                   }`}
                 >
                   {size === 2 ? 'S' : 'L'}
@@ -448,8 +457,8 @@ export default function DrawingCanvas({
                   onClick={() => setEraserSize(size)}
                   className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
                     eraserSize === size
-                      ? 'bg-black border-black text-white'
-                      : 'bg-white border-gray-300 text-gray-700 hover:border-black hover:bg-gray-100'
+                      ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
+                      : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'
                   }`}
                 >
                   {size === 15 ? 'S' : 'L'}
@@ -465,7 +474,7 @@ export default function DrawingCanvas({
         <button
           onClick={handleUndo}
           disabled={!canUndo}
-          className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-black hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+          className="p-1.5 rounded-lg border-2 border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
           title="Undo"
         >
           <svg
@@ -526,7 +535,7 @@ export default function DrawingCanvas({
             height: 'auto',
             display: 'block',
             cursor: tool === 'pen'
-              ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z'/%3E%3C/svg%3E") 0 20, auto`
+              ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(penColor)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z'/%3E%3C/svg%3E") 0 20, auto`
               : 'none'
           }}
         />
@@ -534,7 +543,7 @@ export default function DrawingCanvas({
         {/* Custom Eraser Cursor */}
         {tool === 'eraser' && (
           <div
-            className="pointer-events-none absolute rounded-full border-2 border-black bg-white bg-opacity-30"
+            className="pointer-events-none absolute rounded-full border-2 border-black dark:border-white bg-white dark:bg-neutral-400 bg-opacity-30 dark:bg-opacity-30"
             style={{
               left: `${cursorPosition.x}px`,
               top: `${cursorPosition.y}px`,
