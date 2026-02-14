@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
+
+const PdfViewer = dynamic(() => import("./PdfViewer"), { ssr: false });
 
 /**
  * ReferenceImageModal Component
@@ -41,6 +44,7 @@ export default function ReferenceImageModal({
   // If no imageUrl provided, use default reference sheet image
   const isDefaultReference = !imageUrl;
   const contentUrl = imageUrl || "/Reference Sheet.jpg";
+  const isPdf = contentUrl.toLowerCase().endsWith('.pdf') || contentUrl.includes('.pdf?');
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
@@ -51,9 +55,9 @@ export default function ReferenceImageModal({
       />
 
       {/* Modal Content */}
-      <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {isDefaultReference ? "Reference Sheet" : "Reference"}
           </h3>
@@ -78,13 +82,17 @@ export default function ReferenceImageModal({
           </button>
         </div>
 
-        {/* Content - Image */}
-        <div className="p-4 overflow-auto max-h-[calc(90vh-4rem)]">
-          <img
-            src={contentUrl}
-            alt={isDefaultReference ? "Reference Sheet" : "Reference"}
-            className="w-full h-auto rounded"
-          />
+        {/* Content */}
+        <div className="p-4 overflow-auto flex-1 min-h-0">
+          {isPdf ? (
+            <PdfViewer url={contentUrl} />
+          ) : (
+            <img
+              src={contentUrl}
+              alt={isDefaultReference ? "Reference Sheet" : "Reference"}
+              className="w-full h-auto rounded"
+            />
+          )}
         </div>
       </div>
     </div>
