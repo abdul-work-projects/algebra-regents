@@ -3143,7 +3143,7 @@ export default function AdminPage() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <p className="text-xs font-semibold text-gray-900 dark:text-neutral-100 truncate">
-                                      {question.name || `Q${index + 1}`}
+                                      {question.name || `Q${index}`}
                                     </p>
                                     {isGrouped && (
                                       <span
@@ -3169,7 +3169,7 @@ export default function AdminPage() {
                                   </div>
                                   {question.name && (
                                     <p className="text-[10px] text-gray-400 dark:text-neutral-500">
-                                      Q{index + 1}
+                                      Q{index}
                                     </p>
                                   )}
                                   <p className="text-xs text-gray-600 dark:text-neutral-400 truncate">
@@ -3187,7 +3187,7 @@ export default function AdminPage() {
                                           return test ? (
                                             <span
                                               key={testId}
-                                              className="inline-block px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-xs font-medium truncate max-w-[120px]"
+                                              className="inline-block px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-xs font-medium truncate max-w-[200px]"
                                               title={test.name}
                                             >
                                               {test.name}
@@ -3411,6 +3411,8 @@ export default function AdminPage() {
                             className={`${
                               currentForm.state.answerLayout === "grid"
                                 ? "grid grid-cols-2 gap-2"
+                                : currentForm.state.answerLayout === "row"
+                                ? "grid grid-cols-4 gap-2"
                                 : "space-y-2"
                             }`}
                           >
@@ -4063,6 +4065,19 @@ export default function AdminPage() {
                         }`}
                       >
                         Grid (2×2)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          currentForm.setField("answerLayout", "row")
+                        }
+                        className={`px-2 py-1 text-xs rounded transition-all ${
+                          currentForm.state.answerLayout === "row"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
+                        }`}
+                      >
+                        Row (4×1)
                       </button>
                     </div>
                   </div>

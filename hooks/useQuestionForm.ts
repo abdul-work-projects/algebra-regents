@@ -13,7 +13,7 @@ export interface QuestionFormState {
   answers: string[];
   answerImages: (File | null)[];
   answerImagePreviews: (string | null)[];
-  answerLayout: "grid" | "list";
+  answerLayout: "grid" | "list" | "row";
   questionType: "multiple-choice" | "drag-order";
   correctAnswer: number;
   explanationText: string;
@@ -91,7 +91,7 @@ export function useQuestionForm() {
     explanation_image_url?: string | null;
     answers: string[];
     answer_image_urls?: (string | null)[];
-    answer_layout?: "grid" | "list";
+    answer_layout?: "grid" | "list" | "row";
     question_type?: string | null;
     correct_answer: number;
     explanation_text: string;

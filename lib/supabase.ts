@@ -54,7 +54,7 @@ export interface DatabaseQuestion {
   reference_image_url: string | null;
   answers: string[]; // Array of answer choices
   answer_image_urls?: (string | null)[]; // Optional array of image URLs for answers
-  answer_layout?: 'grid' | 'list'; // 'grid' = 2x2, 'list' = 1x4 (default)
+  answer_layout?: 'grid' | 'list' | 'row'; // 'grid' = 2x2, 'list' = 1x4 (default), 'row' = 4x1
   question_type: string; // 'multiple-choice' or 'drag-order'
   correct_answer: number; // 1-4 (ignored for drag-order)
   explanation_text: string;

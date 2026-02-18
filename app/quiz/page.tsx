@@ -2032,6 +2032,8 @@ function QuizPageContent() {
                   className={`mb-6 relative ${
                     currentQuestion.answerLayout === "grid"
                       ? "grid grid-cols-2 gap-2"
+                      : currentQuestion.answerLayout === "row"
+                      ? "grid grid-cols-4 gap-2"
                       : "space-y-2"
                   }`}
                   style={{

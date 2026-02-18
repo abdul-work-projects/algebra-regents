@@ -477,6 +477,8 @@ export default function ResultsPage() {
                               <div className={`mt-3 ${
                                 question.answerLayout === 'grid'
                                   ? 'grid grid-cols-2 gap-2'
+                                  : question.answerLayout === 'row'
+                                  ? 'grid grid-cols-4 gap-2'
                                   : 'space-y-2'
                               }`}>
                                 {question.answers.map((answer, answerIndex) => {
