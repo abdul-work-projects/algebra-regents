@@ -247,6 +247,22 @@ export default function ResultsPage() {
           </div>
         </div>
 
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+          <button
+            onClick={handleRetakeQuiz}
+            className="flex-1 px-6 py-3 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-xl shadow-md transition-all"
+          >
+            RETAKE QUIZ
+          </button>
+          <button
+            onClick={handleBackHome}
+            className="flex-1 px-6 py-3 text-sm font-bold text-gray-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border-2 border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-xl transition-all"
+          >
+            BACK TO HOME
+          </button>
+        </div>
+
         {/* Skill Performance - Collapsible */}
         <div className="bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl p-4 mb-4">
           <button
@@ -616,21 +632,6 @@ export default function ResultsPage() {
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={handleRetakeQuiz}
-            className="flex-1 px-6 py-3 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-xl shadow-md transition-all"
-          >
-            RETAKE QUIZ
-          </button>
-          <button
-            onClick={handleBackHome}
-            className="flex-1 px-6 py-3 text-sm font-bold text-gray-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border-2 border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-xl transition-all"
-          >
-            BACK TO HOME
-          </button>
-        </div>
       </div>
     </div>
   );
