@@ -2323,7 +2323,7 @@ function QuizPageContent() {
                         });
                         setShowAllQuestions(false);
                       }}
-                      className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass}`}
+                      className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass} ${hasPassage && siblingQ ? (isFirstInPair ? 'rounded-r-sm !mr-0' : 'rounded-l-sm !ml-0') : ''}`}
                       title={`Question ${index + 1}${hasPassage ? " (Grouped)" : ""}${
                         isMarked ? " (Marked for review)" : ""
                       }`}
@@ -2344,6 +2344,14 @@ function QuizPageContent() {
                         </svg>
                       )}
                     </button>
+                    {/* Connector between grouped questions */}
+                    {hasPassage && isFirstInPair && (
+                      <div className="flex items-center -mx-1.5 z-10">
+                        <svg className="w-2.5 h-2.5 text-gray-400 dark:text-neutral-500" viewBox="0 0 10 10" fill="currentColor">
+                          <rect x="1" y="4" width="8" height="2" rx="1" />
+                        </svg>
+                      </div>
+                    )}
                   </React.Fragment>
                 );
               })}
@@ -2389,7 +2397,9 @@ function QuizPageContent() {
                 className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border-2 border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 active:scale-95 transition-all flex items-center gap-1.5"
               >
                 <span>
-                  {session.currentQuestionIndex + 1}/{questions.length}
+                  {isGroupedQuestion
+                    ? `${Math.min(currentQuestionIdx, siblingQuestionIdx) + 1} and ${Math.max(currentQuestionIdx, siblingQuestionIdx) + 1}`
+                    : session.currentQuestionIndex + 1}/{questions.length}
                 </span>
                 <svg
                   className="w-3 h-3 md:w-3.5 md:h-3.5"
