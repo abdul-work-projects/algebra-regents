@@ -1462,7 +1462,7 @@ function QuizPageContent() {
                           <img
                             src={question1.imageFilename}
                             alt="Question"
-                            className="w-full h-auto max-h-48 object-contain rounded-lg"
+                            className={`w-full h-auto object-contain rounded-lg ${question1.imageSize === 'small' ? 'max-h-32' : question1.imageSize === 'medium' ? 'max-h-48' : 'max-h-48'}`}
                           />
                         </div>
                       )}
@@ -1599,7 +1599,7 @@ function QuizPageContent() {
                           <img
                             src={question2.imageFilename}
                             alt="Question"
-                            className="w-full h-auto max-h-48 object-contain rounded-lg"
+                            className={`w-full h-auto object-contain rounded-lg ${question2.imageSize === 'small' ? 'max-h-32' : question2.imageSize === 'medium' ? 'max-h-48' : 'max-h-48'}`}
                           />
                         </div>
                       )}
@@ -1786,7 +1786,7 @@ function QuizPageContent() {
                       <img
                         src={currentQuestion.imageFilename}
                         alt="Question"
-                        className="w-full h-auto max-h-64 object-contain rounded-lg"
+                        className={`w-full h-auto object-contain rounded-lg ${currentQuestion.imageSize === 'small' ? 'max-h-32' : currentQuestion.imageSize === 'medium' ? 'max-h-48' : 'max-h-64'}`}
                       />
                     </div>
                   )}

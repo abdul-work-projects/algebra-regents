@@ -15,6 +15,7 @@ export interface Question {
   answers: string[];
   answerImageUrls?: (string | undefined)[]; // Optional image URLs for each answer (1-4), can be undefined to preserve indices
   answerLayout?: 'grid' | 'list' | 'row'; // 'grid' = 2x2, 'list' = 1x4 (default), 'row' = 4x1
+  imageSize?: 'small' | 'medium' | 'large'; // Display size for question image
   questionType?: 'multiple-choice' | 'drag-order'; // Default: 'multiple-choice'
   correctAnswer: number; // 1-4 (ignored for drag-order)
   explanation: string;

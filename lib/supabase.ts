@@ -55,6 +55,7 @@ export interface DatabaseQuestion {
   answers: string[]; // Array of answer choices
   answer_image_urls?: (string | null)[]; // Optional array of image URLs for answers
   answer_layout?: 'grid' | 'list' | 'row'; // 'grid' = 2x2, 'list' = 1x4 (default), 'row' = 4x1
+  image_size?: 'small' | 'medium' | 'large'; // Display size for question image
   question_type: string; // 'multiple-choice' or 'drag-order'
   correct_answer: number; // 1-4 (ignored for drag-order)
   explanation_text: string;
@@ -264,6 +265,7 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: 
     answers: dbQuestion.answers,
     answerImageUrls: dbQuestion.answer_image_urls?.map(url => url || undefined),
     answerLayout: dbQuestion.answer_layout || 'list',
+    imageSize: dbQuestion.image_size || 'large',
     questionType: (dbQuestion.question_type as 'multiple-choice' | 'drag-order') || 'multiple-choice',
     correctAnswer: dbQuestion.correct_answer,
     explanation: dbQuestion.explanation_text,

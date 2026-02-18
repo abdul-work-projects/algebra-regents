@@ -457,7 +457,7 @@ export default function ResultsPage() {
                                 <img
                                   src={question.imageFilename}
                                   alt="Question"
-                                  className="w-full h-auto max-h-64 object-contain rounded-lg mb-2"
+                                  className={`w-full h-auto object-contain rounded-lg mb-2 ${question.imageSize === 'small' ? 'max-h-32' : question.imageSize === 'medium' ? 'max-h-48' : 'max-h-64'}`}
                                 />
                               )}
                               {question.questionText && (

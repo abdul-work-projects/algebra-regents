@@ -1057,6 +1057,7 @@ export default function AdminPage() {
           answers: q1.answers,
           answer_image_urls: q1.answer_image_urls,
           answer_layout: q1.answer_layout,
+          image_size: q1.image_size,
           question_type: q1.question_type,
           correct_answer: q1.correct_answer,
           explanation_text: q1.explanation_text,
@@ -1077,6 +1078,7 @@ export default function AdminPage() {
           answers: q2.answers,
           answer_image_urls: q2.answer_image_urls,
           answer_layout: q2.answer_layout,
+          image_size: q2.image_size,
           question_type: q2.question_type,
           correct_answer: q2.correct_answer,
           explanation_text: q2.explanation_text,
@@ -1110,6 +1112,7 @@ export default function AdminPage() {
       answers: question.answers,
       answer_image_urls: question.answer_image_urls,
       answer_layout: question.answer_layout,
+      image_size: question.image_size,
       question_type: question.question_type,
       correct_answer: question.correct_answer,
       explanation_text: question.explanation_text,
@@ -1620,6 +1623,7 @@ export default function AdminPage() {
               answers: q1.answers,
               answer_image_urls: q1AnswerImageUrls,
               answer_layout: q1.answerLayout,
+              image_size: q1.imageSize,
               question_type: q1.questionType,
               correct_answer: q1.correctAnswer,
               explanation_text: q1.explanationText,
@@ -1639,6 +1643,7 @@ export default function AdminPage() {
               answers: q2.answers,
               answer_image_urls: q2AnswerImageUrls,
               answer_layout: q2.answerLayout,
+              image_size: q2.imageSize,
               question_type: q2.questionType,
               correct_answer: q2.correctAnswer,
               explanation_text: q2.explanationText,
@@ -1782,6 +1787,7 @@ export default function AdminPage() {
           answers: q1.answers,
           answer_image_urls: q1AnswerImageUrls,
           answer_layout: q1.answerLayout,
+          image_size: q1.imageSize,
           question_type: q1.questionType,
           correct_answer: q1.correctAnswer,
           explanation_text: q1.explanationText,
@@ -1803,6 +1809,7 @@ export default function AdminPage() {
           answers: q2.answers,
           answer_image_urls: q2AnswerImageUrls,
           answer_layout: q2.answerLayout,
+          image_size: q2.imageSize,
           question_type: q2.questionType,
           correct_answer: q2.correctAnswer,
           explanation_text: q2.explanationText,
@@ -1888,6 +1895,7 @@ export default function AdminPage() {
           answers: q1.answers,
           answer_image_urls: answerImageUrls,
           answer_layout: q1.answerLayout,
+          image_size: q1.imageSize,
           question_type: q1.questionType,
           correct_answer: q1.correctAnswer,
           explanation_text: q1.explanationText,
@@ -3394,7 +3402,7 @@ export default function AdminPage() {
                                 <img
                                   src={currentForm.state.questionImagePreview}
                                   alt="Question"
-                                  className="w-full h-auto max-h-64 object-contain rounded-lg"
+                                  className={`w-full h-auto object-contain rounded-lg ${currentForm.state.imageSize === 'small' ? 'max-h-32' : currentForm.state.imageSize === 'medium' ? 'max-h-48' : 'max-h-64'}`}
                                 />
                               </div>
                             )}
@@ -3811,6 +3819,50 @@ export default function AdminPage() {
                       </div>
                     )}
                   </label>
+                  {currentForm.state.questionImagePreview && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-gray-500 dark:text-neutral-400">Size:</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          currentForm.setField("imageSize", "small")
+                        }
+                        className={`px-2 py-0.5 text-xs rounded transition-all ${
+                          currentForm.state.imageSize === "small"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
+                        }`}
+                      >
+                        Small
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          currentForm.setField("imageSize", "medium")
+                        }
+                        className={`px-2 py-0.5 text-xs rounded transition-all ${
+                          currentForm.state.imageSize === "medium"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
+                        }`}
+                      >
+                        Medium
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          currentForm.setField("imageSize", "large")
+                        }
+                        className={`px-2 py-0.5 text-xs rounded transition-all ${
+                          currentForm.state.imageSize === "large"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
+                        }`}
+                      >
+                        Large
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Question Text (Below Image) */}

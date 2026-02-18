@@ -14,6 +14,7 @@ export interface QuestionFormState {
   answerImages: (File | null)[];
   answerImagePreviews: (string | null)[];
   answerLayout: "grid" | "list" | "row";
+  imageSize: "small" | "medium" | "large";
   questionType: "multiple-choice" | "drag-order";
   correctAnswer: number;
   explanationText: string;
@@ -37,6 +38,7 @@ const initialState: QuestionFormState = {
   answerImages: [null, null, null, null],
   answerImagePreviews: [null, null, null, null],
   answerLayout: "list",
+  imageSize: "large",
   questionType: "multiple-choice",
   correctAnswer: 1,
   explanationText: "",
@@ -92,6 +94,7 @@ export function useQuestionForm() {
     answers: string[];
     answer_image_urls?: (string | null)[];
     answer_layout?: "grid" | "list" | "row";
+    image_size?: "small" | "medium" | "large";
     question_type?: string | null;
     correct_answer: number;
     explanation_text: string;
@@ -114,6 +117,7 @@ export function useQuestionForm() {
       answerImages: [null, null, null, null],
       answerImagePreviews: question.answer_image_urls || [null, null, null, null],
       answerLayout: question.answer_layout || "list",
+      imageSize: question.image_size || "large",
       questionType: (question.question_type as "multiple-choice" | "drag-order") || "multiple-choice",
       correctAnswer: question.correct_answer,
       explanationText: question.explanation_text,
