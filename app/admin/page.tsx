@@ -4235,55 +4235,25 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Compact Explanation */}
+                {/* Points */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
-                    Explanation <span className="text-red-500">*</span>
+                    Points <span className="text-red-500">*</span>
                   </label>
-                  <textarea
-                    value={currentForm.state.explanationText}
+                  <input
+                    type="number"
+                    value={currentForm.state.points}
                     onChange={(e) =>
-                      currentForm.setField("explanationText", e.target.value)
+                      currentForm.setField(
+                        "points",
+                        parseInt(e.target.value) || 1
+                      )
                     }
-                    placeholder="Explain the correct answer"
-                    rows={3}
+                    placeholder="1"
                     className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                   />
-                </div>
-
-                {/* Skills */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
-                    Skills <span className="text-red-500">*</span>
-                  </label>
-                  <TagInput
-                    selectedTags={currentForm.state.selectedSkills}
-                    availableTags={availableTags}
-                    onChange={(tags) =>
-                      currentForm.setField("selectedSkills", tags)
-                    }
-                    placeholder="Type to search or add new skills (e.g., Linear Equations, Quadratic Functions)"
-                  />
-                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
-                    Skills tested by this question
-                  </p>
-                </div>
-
-                {/* Tags */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
-                    Tags
-                  </label>
-                  <TagInput
-                    selectedTags={currentForm.state.selectedTags}
-                    availableTags={availableTagNames}
-                    onChange={(tags) =>
-                      currentForm.setField("selectedTags", tags)
-                    }
-                    placeholder="Type to search or add new tags (e.g., Algebra, Functions)"
-                  />
-                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
-                    Broader categorization tags for filtering
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
+                    Points awarded for this question (default: 1)
                   </p>
                 </div>
 
@@ -4309,6 +4279,58 @@ export default function AdminPage() {
                   </p>
                 </div>
 
+                {/* Skills */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
+                    Skills <span className="text-red-500">*</span>
+                  </label>
+                  <TagInput
+                    selectedTags={currentForm.state.selectedSkills}
+                    availableTags={availableTags}
+                    onChange={(tags) =>
+                      currentForm.setField("selectedSkills", tags)
+                    }
+                    placeholder="Type to search or add new skills (e.g., Linear Equations, Quadratic Functions)"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+                    Skills tested by this question
+                  </p>
+                </div>
+
+                {/* Compact Explanation */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
+                    Explanation <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={currentForm.state.explanationText}
+                    onChange={(e) =>
+                      currentForm.setField("explanationText", e.target.value)
+                    }
+                    placeholder="Explain the correct answer"
+                    rows={3}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+                  />
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
+                    Tags
+                  </label>
+                  <TagInput
+                    selectedTags={currentForm.state.selectedTags}
+                    availableTags={availableTagNames}
+                    onChange={(tags) =>
+                      currentForm.setField("selectedTags", tags)
+                    }
+                    placeholder="Type to search or add new tags (e.g., Algebra, Functions)"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+                    Broader categorization tags for filtering
+                  </p>
+                </div>
+
                 {/* Assign to Tests */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
@@ -4328,28 +4350,6 @@ export default function AdminPage() {
                   )}
                   <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
                     Select which tests this question should appear in
-                  </p>
-                </div>
-
-                {/* Points */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
-                    Points <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={currentForm.state.points}
-                    onChange={(e) =>
-                      currentForm.setField(
-                        "points",
-                        parseInt(e.target.value) || 1
-                      )
-                    }
-                    placeholder="1"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
-                  />
-                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
-                    Points awarded for this question (default: 1)
                   </p>
                 </div>
 
