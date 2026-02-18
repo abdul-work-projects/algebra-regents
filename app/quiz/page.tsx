@@ -98,6 +98,12 @@ function QuizPageContent() {
   const practiceMode = searchParams.get("mode");
   const isPracticeMode = practiceMode === "practice";
   const [practiceSkill, setPracticeSkill] = useState<string | null>(null);
+
+  // Test-taking mode: "practice" (CHECK button) or "test" (no CHECK button)
+  const testModeParam = searchParams.get("testMode") as 'practice' | 'test' | null;
+  const testIdParam = searchParams.get("testId");
+  const isTestPracticeMode = !isPracticeMode && (session?.testMode === 'practice' || testModeParam === 'practice');
+  const showCheckButton = isPracticeMode || isTestPracticeMode;
   const [practiceMarkedQuestions, setPracticeMarkedQuestions] = useState<
     Set<string>
   >(new Set());
@@ -184,6 +190,7 @@ function QuizPageContent() {
     setPracticeMarkedQuestions(markedQuestions);
 
     const testIdFromUrl = searchParams.get("testId");
+    const testModeFromUrl = searchParams.get("testMode") as 'practice' | 'test' | null;
     const practiceModeFromUrl = searchParams.get("mode");
     const skillFilter = searchParams.get("skill");
     const subjectFilter = searchParams.get("subject");
@@ -191,6 +198,16 @@ function QuizPageContent() {
     const difficultyFilter = searchParams.get("difficulty"); // Single difficulty (legacy)
     const difficultiesFilter = searchParams.get("difficulties"); // Comma-separated difficulties (new)
     const existingSession = loadSession();
+
+    // If testId is present but no testMode and no existing session with testMode,
+    // show mode selection screen instead of loading the quiz
+    if (testIdFromUrl && !testModeFromUrl && practiceModeFromUrl !== "practice") {
+      const hasExistingTestMode = existingSession?.testId === testIdFromUrl && existingSession?.testMode;
+      if (!hasExistingTestMode) {
+        setIsLoadingQuestions(false);
+        return;
+      }
+    }
 
     async function loadQuestionsAndSession() {
       try {
@@ -311,6 +328,10 @@ function QuizPageContent() {
           if (existingSession.currentSectionIndex === undefined) {
             existingSession.currentSectionIndex = 0;
           }
+          // Add testMode from URL if session doesn't have it (backward compatibility)
+          if (!existingSession.testMode && testModeFromUrl) {
+            existingSession.testMode = testModeFromUrl;
+          }
           // Convert old format (single number) to new format (array)
           Object.keys(existingSession.checkedAnswers).forEach((key) => {
             const value = existingSession.checkedAnswers[key];
@@ -321,7 +342,7 @@ function QuizPageContent() {
           setSession(existingSession);
         } else {
           // Create new session for this test
-          const newSession = createNewSession(testId || undefined);
+          const newSession = createNewSession(testId || undefined, testModeFromUrl || undefined);
           setSession(newSession);
           saveSession(newSession);
         }
@@ -341,6 +362,55 @@ function QuizPageContent() {
       saveSession(session);
     }
   }, [session, isPracticeMode]);
+
+  // Mode selection screen: testId present but no testMode chosen yet
+  if (mounted && !isLoadingQuestions && testIdParam && !testModeParam && !isPracticeMode && !session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950 px-4">
+        <div className="max-w-lg w-full">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-neutral-100 mb-2">
+              Choose Your Mode
+            </h1>
+            <p className="text-gray-500 dark:text-neutral-400 text-sm">
+              How would you like to take this test?
+            </p>
+          </div>
+          <div className="space-y-3">
+            <button
+              onClick={() => router.replace(`/quiz?testId=${testIdParam}&testMode=practice`)}
+              className="w-full text-left p-5 rounded-xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-950/30 transition-all group"
+            >
+              <div className="flex items-center gap-3 mb-1.5">
+                <span className="text-lg font-bold text-gray-900 dark:text-neutral-100 group-hover:text-green-700 dark:group-hover:text-green-400 transition-colors">Practice Mode</span>
+                <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400">Recommended</span>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-neutral-400">
+                Check your answers as you go and get a second attempt if wrong.
+              </p>
+            </button>
+            <button
+              onClick={() => router.replace(`/quiz?testId=${testIdParam}&testMode=test`)}
+              className="w-full text-left p-5 rounded-xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all group"
+            >
+              <div className="flex items-center gap-3 mb-1.5">
+                <span className="text-lg font-bold text-gray-900 dark:text-neutral-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">Test Mode</span>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-neutral-400">
+                No checking — your first answer is final, just like the real exam.
+              </p>
+            </button>
+          </div>
+          <button
+            onClick={() => router.push("/")}
+            className="mt-6 w-full text-center text-sm text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 transition-colors"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!mounted || !session || isLoadingQuestions) {
     return (
@@ -877,8 +947,17 @@ function QuizPageContent() {
                 questions)
               </span>
             ) : (
-              <span className="text-sm font-bold text-gray-700 dark:text-neutral-300 truncate max-w-[200px] md:max-w-none">
+              <span className="text-sm font-bold text-gray-700 dark:text-neutral-300 truncate max-w-[200px] md:max-w-none flex items-center gap-2">
                 {testName || "Quiz"}
+                {session.testMode && (
+                  <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                    session.testMode === 'practice'
+                      ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400'
+                      : 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400'
+                  }`}>
+                    {session.testMode === 'practice' ? 'PRACTICE' : 'TEST'}
+                  </span>
+                )}
               </span>
             )}
 
@@ -1550,7 +1629,7 @@ function QuizPageContent() {
                               </div>
                             </div>
                           </button>
-                          {isSelected && !isChecked && q1CanAttempt && (
+                          {showCheckButton && isSelected && !isChecked && q1CanAttempt && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1687,7 +1766,7 @@ function QuizPageContent() {
                               </div>
                             </div>
                           </button>
-                          {isSelected && !isChecked && q2CanAttempt && (
+                          {showCheckButton && isSelected && !isChecked && q2CanAttempt && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2003,7 +2082,7 @@ function QuizPageContent() {
                         handleDragOrderChange(currentQuestion.id, newOrder)
                       }
                       onCheck={() => handleDragOrderCheck(currentQuestion.id)}
-                      canAttempt={!dragOrderChecked}
+                      canAttempt={showCheckButton && !dragOrderChecked}
                       orientation={dragOrderOrientation}
                     />
                   ) : (
@@ -2022,7 +2101,7 @@ function QuizPageContent() {
                         handleDragOrderChange(currentQuestion.id, newOrder)
                       }
                       onCheck={() => handleDragOrderCheck(currentQuestion.id)}
-                      canAttempt={!dragOrderChecked}
+                      canAttempt={showCheckButton && !dragOrderChecked}
                       orientation={dragOrderOrientation}
                     />
                   )}
@@ -2122,7 +2201,7 @@ function QuizPageContent() {
                           </div>
                         </button>
 
-                        {isSelected && !isChecked && canAttempt && (
+                        {showCheckButton && isSelected && !isChecked && canAttempt && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2258,11 +2337,11 @@ function QuizPageContent() {
                   (index === session.currentQuestionIndex ||
                     siblingIdx === session.currentQuestionIndex);
 
-                // In practice mode, mark based on selection; in test mode, only mark if checked
+                // In practice mode, mark based on selection; in test practice mode, after check; in test mode, no feedback
                 const isCorrectAnswer = userAnswer === q.correctAnswer;
                 const shouldShowResult = isPracticeMode
                   ? isAnswered
-                  : isChecked;
+                  : showCheckButton ? isChecked : false;
                 const isCorrect = isPracticeMode
                   ? isCorrectAnswer
                   : isChecked &&

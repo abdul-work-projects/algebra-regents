@@ -156,10 +156,11 @@ export const clearSession = (): void => {
   }
 };
 
-export const createNewSession = (testId?: string): QuizSession => {
+export const createNewSession = (testId?: string, testMode?: 'practice' | 'test'): QuizSession => {
   const now = Date.now();
   return {
     testId,
+    testMode,
     currentQuestionIndex: 0,
     currentSectionIndex: 0,
     userAnswers: {},

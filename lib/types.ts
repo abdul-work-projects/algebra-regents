@@ -96,6 +96,7 @@ export interface PassageHighlight {
 
 export interface QuizSession {
   testId?: string; // ID of the test being taken
+  testMode?: 'practice' | 'test'; // How the test is being taken
   currentQuestionIndex: number;
   currentSectionIndex: number; // Track which section user is in
   userAnswers: { [questionId: string]: number | null };
