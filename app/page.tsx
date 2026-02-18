@@ -122,10 +122,11 @@ function HomeContent() {
     window.location.href = '/quiz';
   };
 
-  const handlePracticeSkill = (skill: string) => {
+  const handlePracticeSkill = (skill: string, subjectId: string) => {
     const params = new URLSearchParams();
     params.set('mode', 'practice');
     params.set('skill', skill);
+    params.set('subject', subjectId);
     // Pass active filters
     if (selectedTags.length > 0) {
       params.set('tags', selectedTags.join(','));
@@ -607,7 +608,7 @@ function HomeContent() {
                             {skills.map((skill) => (
                               <div
                                 key={skill.name}
-                                onClick={() => handlePracticeSkill(skill.name)}
+                                onClick={() => handlePracticeSkill(skill.name, subject.id)}
                                 className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
                               >
                                 <span className="text-gray-700 dark:text-neutral-300">{skill.name}</span>

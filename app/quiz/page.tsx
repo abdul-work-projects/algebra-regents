@@ -70,7 +70,7 @@ function QuizPageContent() {
   const [practiceMarkedQuestions, setPracticeMarkedQuestions] = useState<Set<string>>(new Set());
 
   // Drawing state for fullscreen canvas
-  const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
+  const [tool, setTool] = useState<'pen' | 'eraser' | null>(null);
   const [penSize, setPenSize] = useState(2);
   const [eraserSize, setEraserSize] = useState(15);
   const [penColor, setPenColor] = useState('#22c55e');
@@ -581,10 +581,11 @@ function QuizPageContent() {
       setSession((prev) => {
         if (!prev) return prev;
         const newTimes = { ...prev.questionTimes };
-        newTimes[currentQuestion.id] = (newTimes[currentQuestion.id] || 0) + timeSpent;
-        // Also record time for sibling if grouped
+        // Split time equally between grouped questions
+        const perQuestionTime = siblingQuestion ? Math.round(timeSpent / 2) : timeSpent;
+        newTimes[currentQuestion.id] = (newTimes[currentQuestion.id] || 0) + perQuestionTime;
         if (siblingQuestion) {
-          newTimes[siblingQuestion.id] = (newTimes[siblingQuestion.id] || 0) + timeSpent;
+          newTimes[siblingQuestion.id] = (newTimes[siblingQuestion.id] || 0) + perQuestionTime;
         }
         return {
           ...prev,
@@ -598,9 +599,10 @@ function QuizPageContent() {
       setSession((prev) => {
         if (!prev) return prev;
         const newTimes = { ...prev.questionTimes };
-        newTimes[currentQuestion.id] = (newTimes[currentQuestion.id] || 0) + timeSpent;
+        const perQuestionTime = siblingQuestion ? Math.round(timeSpent / 2) : timeSpent;
+        newTimes[currentQuestion.id] = (newTimes[currentQuestion.id] || 0) + perQuestionTime;
         if (siblingQuestion) {
-          newTimes[siblingQuestion.id] = (newTimes[siblingQuestion.id] || 0) + timeSpent;
+          newTimes[siblingQuestion.id] = (newTimes[siblingQuestion.id] || 0) + perQuestionTime;
         }
         return {
           ...prev,
@@ -642,9 +644,10 @@ function QuizPageContent() {
       setSession((prev) => {
         if (!prev) return prev;
         const newTimes = { ...prev.questionTimes };
-        newTimes[currentQuestion.id] = (newTimes[currentQuestion.id] || 0) + timeSpent;
+        const perQuestionTime = siblingQuestion ? Math.round(timeSpent / 2) : timeSpent;
+        newTimes[currentQuestion.id] = (newTimes[currentQuestion.id] || 0) + perQuestionTime;
         if (siblingQuestion) {
-          newTimes[siblingQuestion.id] = (newTimes[siblingQuestion.id] || 0) + timeSpent;
+          newTimes[siblingQuestion.id] = (newTimes[siblingQuestion.id] || 0) + perQuestionTime;
         }
         return {
           ...prev,
@@ -957,12 +960,13 @@ function QuizPageContent() {
 
           {/* Drawing Toolbar - Compact Single Row */}
           <div className="flex items-center gap-2 mb-8 relative" style={{ zIndex: 100, transform: 'translateZ(0)', pointerEvents: 'none' }}>
-            {/* Pen Tool with Integrated Color Picker */}
+            {/* Pen Tool with Color Picker */}
             <div className="relative" style={{ pointerEvents: 'auto' }}>
               <button
                 onClick={() => {
                   if (tool === 'pen') {
-                    setShowColorPicker(!showColorPicker);
+                    setTool(null);
+                    setShowColorPicker(false);
                   } else {
                     setTool('pen');
                   }
@@ -982,10 +986,21 @@ function QuizPageContent() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
-                {tool === 'pen' && (
-                  <div className="absolute bottom-0 right-0 w-0 h-0 border-l-4 border-l-transparent border-b-4 border-b-white" />
-                )}
               </button>
+
+              {/* Color picker arrow - overlaid on bottom-right corner of pen button */}
+              {tool === 'pen' && (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowColorPicker(!showColorPicker);
+                  }}
+                  className="absolute bottom-0 right-0 w-3.5 h-3.5 cursor-pointer"
+                  title="Change color"
+                >
+                  <div className="absolute bottom-0 right-0 w-0 h-0 border-l-[10px] border-l-transparent border-b-[10px] border-b-white dark:border-b-neutral-300 rounded-br-md" />
+                </div>
+              )}
 
               {/* Color Picker Popup */}
               {showColorPicker && tool === 'pen' && (
@@ -1023,23 +1038,10 @@ function QuizPageContent() {
               )}
             </div>
 
-            {/* Clear Button */}
-            <div style={{ pointerEvents: 'auto' }}>
-              <button
-                onClick={handleClear}
-                className="p-1.5 rounded-lg border-2 border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-300 hover:border-rose-500 dark:hover:border-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 active:scale-95 transition-all"
-                title="Clear all"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
-                </svg>
-              </button>
-            </div>
-
             {/* Eraser Button */}
             <div style={{ pointerEvents: 'auto' }}>
               <button
-                onClick={() => setTool('eraser')}
+                onClick={() => setTool(tool === 'eraser' ? null : 'eraser')}
                 className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
                   tool === 'eraser'
                     ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
@@ -1053,42 +1055,57 @@ function QuizPageContent() {
               </button>
             </div>
 
-            {/* Size Buttons */}
-            <div className="flex items-center gap-1.5" style={{ pointerEvents: 'auto' }}>
-                {tool === 'pen' ? (
-                  <>
-                    {[2, 6].map((size) => (
-                      <button
-                        key={size}
-                        onClick={() => setPenSize(size)}
-                        className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
-                          penSize === size
-                            ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
-                            : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800'
-                        }`}
-                      >
-                        {size === 2 ? 'S' : 'L'}
-                      </button>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    {[15, 35].map((size) => (
-                      <button
-                        key={size}
-                        onClick={() => setEraserSize(size)}
-                        className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
-                          eraserSize === size
-                            ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
-                            : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800'
-                        }`}
-                      >
-                        {size === 15 ? 'S' : 'L'}
-                      </button>
-                    ))}
-                  </>
-                )}
+            {/* Clear Button */}
+            <div style={{ pointerEvents: 'auto' }}>
+              <button
+                onClick={handleClear}
+                className="p-1.5 rounded-lg border-2 border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-300 hover:border-rose-500 dark:hover:border-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 active:scale-95 transition-all"
+                title="Clear all"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
+                </svg>
+              </button>
             </div>
+
+            {/* Size Buttons - only show when a tool is active */}
+            {tool && (
+              <div className="flex items-center gap-1.5" style={{ pointerEvents: 'auto' }}>
+                  {tool === 'pen' ? (
+                    <>
+                      {[2, 6].map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setPenSize(size)}
+                          className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
+                            penSize === size
+                              ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
+                              : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800'
+                          }`}
+                        >
+                          {size === 2 ? 'S' : 'L'}
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {[15, 35].map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setEraserSize(size)}
+                          className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
+                            eraserSize === size
+                              ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
+                              : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800'
+                          }`}
+                        >
+                          {size === 15 ? 'S' : 'L'}
+                        </button>
+                      ))}
+                    </>
+                  )}
+              </div>
+            )}
 
             <div className="flex-1" />
 

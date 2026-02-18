@@ -25,7 +25,7 @@ interface DrawingCanvasProps {
   onDrawingChange: (dataUrl: string) => void; // Callback when drawing changes
 }
 
-type Tool = 'pen' | 'eraser';
+type Tool = 'pen' | 'eraser' | null;
 
 export default function DrawingCanvas({
   imageUrl,
@@ -41,7 +41,7 @@ export default function DrawingCanvas({
 
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
-  const [tool, setTool] = useState<Tool>('pen');
+  const [tool, setTool] = useState<Tool>(null);
   const [history, setHistory] = useState<string[]>([]); // Stack of canvas states for undo
   const [canUndo, setCanUndo] = useState(false);
   const [penSize, setPenSize] = useState(2);
@@ -205,6 +205,7 @@ export default function DrawingCanvas({
     e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
   ) => {
     e.preventDefault();
+    if (!tool) return;
     setIsDrawing(true);
     const { x, y } = getCoordinates(e);
     const canvas = drawingCanvasRef.current;
@@ -330,20 +331,20 @@ export default function DrawingCanvas({
         <div className="relative">
           {/* Unified Pen Button */}
           <button
-            onClick={(e) => {
+            onClick={() => {
               if (tool === 'pen') {
-                // If already pen, toggle color picker
-                setShowColorPicker(!showColorPicker);
+                // Toggle pen off
+                setTool(null);
+                setShowColorPicker(false);
               } else {
-                // If not pen, select pen tool
+                // Turn pen on
                 setTool('pen');
               }
             }}
             onContextMenu={(e) => {
               e.preventDefault();
-              if (tool === 'pen') {
-                setShowColorPicker(true);
-              }
+              if (tool !== 'pen') setTool('pen');
+              setShowColorPicker(!showColorPicker);
             }}
             className={`relative p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
               tool === 'pen'
@@ -355,7 +356,7 @@ export default function DrawingCanvas({
               borderColor: theme === 'dark' ? '#525252' : penColor,
               color: ['#000000', '#3b82f6', '#a855f7', '#ef4444'].includes(penColor) ? '#ffffff' : '#000000',
             } : {}}
-            title="Pen (click again to change color)"
+            title="Pen (right-click to change color)"
           >
             <svg
               className="w-4 h-4"
@@ -412,9 +413,24 @@ export default function DrawingCanvas({
           )}
         </div>
 
+        {/* Clear Button */}
+        <button
+          onClick={handleClear}
+          className="p-1.5 rounded-lg border-2 border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-300 hover:border-rose-500 hover:bg-rose-50 dark:hover:border-rose-400 dark:hover:bg-rose-950 active:scale-95 transition-all"
+          title="Clear all"
+        >
+          <svg
+            className="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
+          </svg>
+        </button>
+
         {/* Eraser Button */}
         <button
-          onClick={() => setTool('eraser')}
+          onClick={() => setTool(tool === 'eraser' ? null : 'eraser')}
           className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
             tool === 'eraser'
               ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
@@ -431,42 +447,44 @@ export default function DrawingCanvas({
           </svg>
         </button>
 
-        {/* Size Buttons */}
-        <div className="flex items-center gap-1">
-          {tool === 'pen' ? (
-            <>
-              {[2, 6].map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setPenSize(size)}
-                  className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
-                    penSize === size
-                      ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
-                      : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'
-                  }`}
-                >
-                  {size === 2 ? 'S' : 'L'}
-                </button>
-              ))}
-            </>
-          ) : (
-            <>
-              {[15, 35].map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setEraserSize(size)}
-                  className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
-                    eraserSize === size
-                      ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
-                      : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'
-                  }`}
-                >
-                  {size === 15 ? 'S' : 'L'}
-                </button>
-              ))}
-            </>
-          )}
-        </div>
+        {/* Size Buttons - only show when a tool is active */}
+        {tool && (
+          <div className="flex items-center gap-1">
+            {tool === 'pen' ? (
+              <>
+                {[2, 6].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setPenSize(size)}
+                    className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
+                      penSize === size
+                        ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
+                        : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'
+                    }`}
+                  >
+                    {size === 2 ? 'S' : 'L'}
+                  </button>
+                ))}
+              </>
+            ) : (
+              <>
+                {[15, 35].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setEraserSize(size)}
+                    className={`px-2 py-1 rounded-lg border-2 text-xs font-medium transition-all active:scale-95 ${
+                      eraserSize === size
+                        ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
+                        : 'bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800'
+                    }`}
+                  >
+                    {size === 15 ? 'S' : 'L'}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        )}
 
         <div className="flex-1" />
 
@@ -483,21 +501,6 @@ export default function DrawingCanvas({
             fill="currentColor"
           >
             <path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" />
-          </svg>
-        </button>
-
-        {/* Clear Button */}
-        <button
-          onClick={handleClear}
-          className="p-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:border-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
-          title="Clear all"
-        >
-          <svg
-            className="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
           </svg>
         </button>
       </div>
@@ -536,7 +539,7 @@ export default function DrawingCanvas({
             display: 'block',
             cursor: tool === 'pen'
               ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(penColor)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z'/%3E%3C/svg%3E") 0 20, auto`
-              : 'none'
+              : tool === 'eraser' ? 'none' : 'default'
           }}
         />
 
