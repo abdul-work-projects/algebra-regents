@@ -2990,15 +2990,51 @@ export default function AdminPage() {
                   >
                     {(() => {
                       // Filter and sort questions first
-                      const filteredQuestions = questions
+                      // Build test-filtered and sorted list first (before search)
+                      const testFilteredQuestions = questions
                         .filter((q) => {
-                          // Test filter
                           const matchesTest =
                             filterTestId === "all" ||
                             questionTestMap[q.id]?.includes(filterTestId);
-                          if (!matchesTest) return false;
+                          return matchesTest;
+                        })
+                        .sort((a, b) => {
+                          if (
+                            filterTestId !== "all" &&
+                            Object.keys(testQuestionOrder).length > 0
+                          ) {
+                            const orderA = testQuestionOrder[a.id] ?? Infinity;
+                            const orderB = testQuestionOrder[b.id] ?? Infinity;
+                            return orderA - orderB;
+                          }
+                          return 0;
+                        });
 
-                          // Search filter
+                      // Build original position map (1-based, accounting for grouped questions)
+                      const originalIndexMap = new Map<string, number>();
+                      let origIdx = 0;
+                      const origProcessedPassages = new Set<string>();
+                      testFilteredQuestions.forEach((q) => {
+                        if (q.passage_id) {
+                          if (!origProcessedPassages.has(q.passage_id)) {
+                            origProcessedPassages.add(q.passage_id);
+                            const grouped = testFilteredQuestions.filter(
+                              (gq) => gq.passage_id === q.passage_id
+                            );
+                            grouped.forEach((gq) => {
+                              origIdx++;
+                              originalIndexMap.set(gq.id, origIdx);
+                            });
+                          }
+                        } else {
+                          origIdx++;
+                          originalIndexMap.set(q.id, origIdx);
+                        }
+                      });
+
+                      // Now apply search filter
+                      const filteredQuestions = testFilteredQuestions
+                        .filter((q) => {
                           if (!searchQuery.trim()) return true;
                           const query = searchQuery.toLowerCase();
                           return (
@@ -3011,18 +3047,6 @@ export default function AdminPage() {
                               a?.toLowerCase().includes(query)
                             )
                           );
-                        })
-                        .sort((a, b) => {
-                          // Sort by test-specific order when a test filter is active
-                          if (
-                            filterTestId !== "all" &&
-                            Object.keys(testQuestionOrder).length > 0
-                          ) {
-                            const orderA = testQuestionOrder[a.id] ?? Infinity;
-                            const orderB = testQuestionOrder[b.id] ?? Infinity;
-                            return orderA - orderB;
-                          }
-                          return 0; // Keep original order from questions table
                         });
 
                       // Group questions by passage_id
@@ -3271,21 +3295,16 @@ export default function AdminPage() {
                         </div>
                       );
 
-                      // Track the original index for display
-                      let displayIndex = 0;
-
                       return groupedItems.map((item, groupIndex) => {
                         if (item.type === "single") {
                           const question = item.questions[0];
-                          displayIndex++;
                           return renderQuestionItem(
                             question,
-                            displayIndex,
+                            originalIndexMap.get(question.id) || 0,
                             false
                           );
                         } else {
                           // Grouped questions - render in a connected container
-                          const startIndex = displayIndex;
                           const groupQuestionIds = item.questions.map(
                             (q) => q.id
                           );
@@ -3316,7 +3335,6 @@ export default function AdminPage() {
                               <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-400 rounded-l-xl" />
                               <div className="ml-1">
                                 {item.questions.map((question, qIndex) => {
-                                  displayIndex++;
                                   const groupPosition =
                                     qIndex === 0
                                       ? "first"
@@ -3325,7 +3343,7 @@ export default function AdminPage() {
                                       : "middle";
                                   return renderQuestionItem(
                                     question,
-                                    displayIndex,
+                                    originalIndexMap.get(question.id) || 0,
                                     true,
                                     groupPosition
                                   );
