@@ -1888,7 +1888,7 @@ function QuizPageContent() {
 
               {/* More Space */}
               {!showScratchWork && (
-                <div style={{ pointerEvents: "auto" }}>
+                <div className="relative z-[60]" style={{ pointerEvents: "auto" }}>
                   <button
                     onClick={() => setShowScratchWork(true)}
                     className="flex items-center gap-1 text-xs text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 transition-colors mb-2"
