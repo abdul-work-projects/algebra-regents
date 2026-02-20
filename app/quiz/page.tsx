@@ -256,7 +256,7 @@ function QuizPageContent() {
 
           if (filteredQuestions.length === 0) {
             // No questions match filter, redirect to home
-            router.push("/");
+            router.push("/dashboard");
             return;
           }
 
@@ -402,7 +402,7 @@ function QuizPageContent() {
             </button>
           </div>
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/dashboard")}
             className="mt-6 w-full text-center text-sm text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 transition-colors"
           >
             Back to Home
@@ -430,7 +430,7 @@ function QuizPageContent() {
           <p className="text-gray-600 dark:text-neutral-400 mb-4">
             Please add questions using the admin panel.
           </p>
-          <button onClick={() => router.push("/")} className="btn-primary">
+          <button onClick={() => router.push("/dashboard")} className="btn-primary">
             Go Home
           </button>
         </div>
@@ -747,7 +747,7 @@ function QuizPageContent() {
       });
       // In practice mode, go back to question bank; in test mode, go to results
       if (isPracticeMode) {
-        router.push("/?tab=question-bank");
+        router.push("/dashboard?tab=question-bank");
       } else {
         router.push("/results");
       }
@@ -897,7 +897,7 @@ function QuizPageContent() {
         />
         {/* Top Progress Bar */}
         <div
-          className="sticky top-0 z-[200] bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-700"
+          className="sticky top-0 z-[200] bg-white dark:bg-neutral-900 border-b border-gray-100 dark:border-neutral-800"
           style={{ pointerEvents: "auto" }}
         >
           {!isPracticeMode && (
@@ -913,13 +913,13 @@ function QuizPageContent() {
             <button
               onClick={() => {
                 if (isPracticeMode) {
-                  router.push("/?tab=question-bank");
+                  router.push("/dashboard?tab=question-bank");
                 } else if (
                   window.confirm(
                     "Are you sure you want to exit? Your progress will be saved.",
                   )
                 ) {
-                  router.push("/");
+                  router.push("/dashboard");
                 }
               }}
               className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all"
@@ -2223,7 +2223,7 @@ function QuizPageContent() {
           {/* Calculator on Mobile - inline below answers */}
           {showCalculator && (
             <div
-              className="md:hidden w-full bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl overflow-hidden mb-6 relative"
+              className="md:hidden w-full bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl overflow-hidden mb-6 relative"
               style={{ zIndex: 100, transform: "translateZ(0)" }}
             >
               <div className="flex items-center justify-between p-4 border-b-2 border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-950">
@@ -2273,7 +2273,7 @@ function QuizPageContent() {
           />
 
           {/* Panel */}
-          <div className="fixed bottom-20 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl p-4 md:p-6 z-[120] md:max-w-2xl md:w-full border-2 border-gray-200 dark:border-neutral-700 max-h-[70vh] md:max-h-[600px] flex flex-col">
+          <div className="fixed bottom-20 left-4 right-4 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl p-4 md:p-6 z-[120] md:max-w-2xl md:w-full border border-gray-100 dark:border-neutral-800 max-h-[70vh] md:max-h-[600px] flex flex-col">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
@@ -2461,7 +2461,7 @@ function QuizPageContent() {
 
       {/* Fixed Bottom Section - Duolingo Style */}
       <div
-        className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 border-t-2 border-gray-200 dark:border-neutral-700 z-[100] transition-all duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 border-t border-gray-100 dark:border-neutral-800 z-[100] transition-all duration-300 ${
           showCalculator ? "md:right-[420px]" : "md:right-0"
         }`}
         style={{ pointerEvents: "auto" }}
@@ -2473,7 +2473,7 @@ function QuizPageContent() {
               {/* Question Counter */}
               <button
                 onClick={() => setShowAllQuestions(true)}
-                className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border-2 border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 active:scale-95 transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 active:scale-95 transition-all flex items-center gap-1.5"
               >
                 <span>
                   {isGroupedQuestion
@@ -2500,7 +2500,7 @@ function QuizPageContent() {
                 <button
                   onClick={handlePrevious}
                   disabled={session.currentQuestionIndex === 0}
-                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                  className="p-1.5 md:p-2 rounded-full border border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                 >
                   <svg
                     className="w-4 h-4 text-gray-600 dark:text-neutral-400"
@@ -2521,7 +2521,7 @@ function QuizPageContent() {
                   disabled={
                     session.currentQuestionIndex === questions.length - 1
                   }
-                  className="p-1.5 md:p-2 rounded-full border-2 border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                  className="p-1.5 md:p-2 rounded-full border border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                 >
                   <svg
                     className="w-4 h-4 text-gray-600 dark:text-neutral-400"
@@ -2544,7 +2544,7 @@ function QuizPageContent() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowExplanation(true)}
-                className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border-2 border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-lg md:rounded-xl transition-all"
+                className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-full transition-all"
               >
                 EXPLANATION
               </button>
@@ -2552,14 +2552,14 @@ function QuizPageContent() {
                 isPracticeMode ? (
                   <button
                     onClick={() => router.push("/?tab=question-bank")}
-                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
+                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full shadow-md transition-all"
                   >
                     DONE
                   </button>
                 ) : (
                   <button
                     onClick={handleNext}
-                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all"
+                    className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full shadow-md transition-all"
                   >
                     FINISH
                   </button>
@@ -2567,7 +2567,7 @@ function QuizPageContent() {
               ) : (
                 <button
                   onClick={handleNext}
-                  className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-lg md:rounded-xl shadow-md transition-all flex items-center gap-1"
+                  className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full shadow-md transition-all flex items-center gap-1"
                 >
                   NEXT
                   <svg

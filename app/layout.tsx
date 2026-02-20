@@ -6,8 +6,8 @@ import ThemeProvider from '@/components/ThemeProvider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Algebra I Regents Practice',
-  description: 'Online practice test for Algebra I Regents exam',
+  title: 'Regents Ready',
+  description: 'Pass Your Regents. Simple as That.',
   icons: {
     icon: '/favicon.svg',
   },

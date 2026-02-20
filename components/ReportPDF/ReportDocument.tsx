@@ -348,7 +348,7 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>{test?.name || 'Algebra I Regents'}</Text>
+          <Text style={styles.title}>{test?.name || 'Regents Ready'}</Text>
           <Text style={styles.date}>{currentDate}</Text>
         </View>
 
@@ -437,7 +437,7 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text>Algebra I Regents Practice</Text>
+          <Text>Regents Ready</Text>
           <Text>Page 1{totalPages > 1 ? ` of ${totalPages}` : ''}</Text>
         </View>
       </Page>
@@ -446,14 +446,14 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
       {additionalPages.map((pageQuestions, pageIndex) => (
         <Page key={pageIndex} size="A4" style={styles.page}>
           <View style={styles.header}>
-            <Text style={styles.title}>{test?.name || 'Algebra I Regents'} - Questions</Text>
+            <Text style={styles.title}>{test?.name || 'Regents Ready'} - Questions</Text>
             <Text style={styles.date}>{currentDate}</Text>
           </View>
 
           <TwoColumnQuestions questions={pageQuestions} />
 
           <View style={styles.footer}>
-            <Text>Algebra I Regents Practice</Text>
+            <Text>Regents Ready</Text>
             <Text>Page {pageIndex + 2} of {totalPages}</Text>
           </View>
         </Page>

@@ -146,7 +146,7 @@ export default function ExplanationSlider({
               // Grouped questions - show all explanations
               <div className="space-y-6">
                 {/* First question explanation */}
-                <div className={`rounded-xl border-2 p-4 ${
+                <div className={`rounded-2xl border p-4 ${
                   hasAnswered
                     ? isCorrect ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30' : 'border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/30'
                     : 'border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900'
@@ -187,7 +187,7 @@ export default function ExplanationSlider({
                 {additionalExplanations.map((exp, index) => (
                   <div
                     key={index}
-                    className={`rounded-xl border-2 p-4 ${
+                    className={`rounded-2xl border p-4 ${
                       exp.hasAnswered
                         ? exp.isCorrect ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30' : 'border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/30'
                         : 'border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900'
@@ -229,7 +229,7 @@ export default function ExplanationSlider({
             ) : (
               // Single question explanation
               <>
-                <div className="bg-white dark:bg-neutral-950 rounded-xl border-2 border-gray-200 dark:border-neutral-700 p-4 mb-4">
+                <div className="bg-white dark:bg-neutral-950 rounded-2xl border border-gray-200 dark:border-neutral-700 p-4 mb-4">
                   <h3 className="text-base font-bold text-gray-900 dark:text-neutral-100 mb-2">
                     Explanation
                   </h3>
@@ -240,7 +240,7 @@ export default function ExplanationSlider({
                 </div>
 
                 {explanationImageUrl && (
-                  <div className="bg-white dark:bg-neutral-950 rounded-xl border-2 border-gray-200 dark:border-neutral-700 p-3 overflow-hidden">
+                  <div className="bg-white dark:bg-neutral-950 rounded-2xl border border-gray-200 dark:border-neutral-700 p-3 overflow-hidden">
                     <img
                       src={explanationImageUrl}
                       alt="Explanation"
@@ -253,10 +253,10 @@ export default function ExplanationSlider({
           </div>
 
           {/* Footer */}
-          <div className="p-5 border-t-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900">
+          <div className="p-5 border-t border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900">
             <button
               onClick={onClose}
-              className="w-full px-5 py-3 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-[0.98] rounded-xl shadow-md transition-all"
+              className="w-full px-5 py-3 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-[0.98] rounded-full shadow-md transition-all"
             >
               CONTINUE
             </button>

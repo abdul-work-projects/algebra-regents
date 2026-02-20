@@ -791,7 +791,7 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     await signOut();
-    router.push("/");
+    router.push("/dashboard");
   };
 
   const sanitizeFilename = (filename: string): string => {
@@ -1982,7 +1982,7 @@ export default function AdminPage() {
                 LOGOUT
               </button>
               <button
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/dashboard")}
                 className="p-2 text-gray-600 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-xl transition-all"
               >
                 <svg

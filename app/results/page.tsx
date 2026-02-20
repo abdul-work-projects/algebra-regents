@@ -9,6 +9,8 @@ import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById, conver
 import { Question, QuizResult, Test } from '@/lib/types';
 import MathText from '@/components/MathText';
 import ThemeToggle from '@/components/ThemeToggle';
+import Image from 'next/image';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
 // Dynamic import for PDF generator to avoid SSR issues with @react-pdf/renderer
@@ -32,7 +34,7 @@ export default function ResultsPage() {
     async function loadResults() {
       const session = loadSession();
       if (!session) {
-        router.push('/');
+        router.push('/dashboard');
         return;
       }
 
@@ -63,7 +65,7 @@ export default function ResultsPage() {
         setResult(calculatedResult);
       } catch (error) {
         console.error('Error fetching questions:', error);
-        router.push('/');
+        router.push('/dashboard');
       }
     }
 
@@ -146,7 +148,7 @@ export default function ResultsPage() {
 
   const handleBackHome = () => {
     clearSession();
-    router.push('/');
+    router.push('/dashboard');
   };
 
   return (
@@ -154,9 +156,12 @@ export default function ResultsPage() {
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <div className="w-12"></div>
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/beaver-images/logo.png" alt="Regents Ready" width={32} height={32} className="rounded-lg" />
+            <span className="text-sm font-bold text-gray-900 dark:text-neutral-100 tracking-tight hidden sm:inline">Regents Ready</span>
+          </Link>
           <h1 className="text-lg md:text-xl font-bold text-gray-900 dark:text-neutral-100 text-center flex-1">
-            {test ? test.name : 'Algebra I Regents Practice Test'}
+            {test ? test.name : 'Regents Ready Practice Test'}
           </h1>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -251,20 +256,20 @@ export default function ResultsPage() {
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <button
             onClick={handleRetakeQuiz}
-            className="flex-1 px-6 py-3 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-xl shadow-md transition-all"
+            className="flex-1 px-6 py-3 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full shadow-md transition-all"
           >
             RETAKE QUIZ
           </button>
           <button
             onClick={handleBackHome}
-            className="flex-1 px-6 py-3 text-sm font-bold text-gray-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border-2 border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-xl transition-all"
+            className="flex-1 px-6 py-3 text-sm font-bold text-gray-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-full transition-all"
           >
             BACK TO HOME
           </button>
         </div>
 
         {/* Skill Performance - Collapsible */}
-        <div className="bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl p-4 mb-4">
+        <div className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl p-4 mb-4 shadow-sm">
           <button
             onClick={() => setShowTopics(!showTopics)}
             className="w-full flex items-center justify-between text-left"
@@ -316,7 +321,7 @@ export default function ResultsPage() {
         </div>
 
         {/* Question-by-Question Details */}
-        <div className="bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl p-4 mb-4">
+        <div className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl p-4 mb-4 shadow-sm">
           <button
             onClick={() => setShowDetails(!showDetails)}
             className="w-full flex items-center justify-between text-left"
@@ -348,7 +353,7 @@ export default function ResultsPage() {
                 <select
                   value={questionFilter}
                   onChange={(e) => setQuestionFilter(e.target.value as typeof questionFilter)}
-                  className="px-4 py-2 border-2 border-gray-300 dark:border-neutral-600 rounded-lg text-sm font-medium focus:border-black dark:focus:border-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+                  className="px-4 py-2 border border-gray-200 dark:border-neutral-700 rounded-full text-sm font-medium focus:border-black dark:focus:border-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                 >
                   <option value="all">All Questions ({result.questionResults.length})</option>
                   <option value="correct">Correct ({result.questionResults.filter(q => q.isCorrect).length})</option>
