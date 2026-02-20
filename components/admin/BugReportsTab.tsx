@@ -105,8 +105,23 @@ export default function BugReportsTab({
 
       {/* Bug Reports List */}
       {isLoading ? (
-        <div className="text-center py-12 text-gray-500 dark:text-neutral-400">
-          Loading reports...
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl p-4 shadow-sm animate-pulse">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-5 w-16 bg-gray-200 dark:bg-neutral-700 rounded-full" />
+                    <div className="h-5 w-12 bg-gray-100 dark:bg-neutral-800 rounded-full" />
+                    <div className="h-5 w-24 bg-gray-100 dark:bg-neutral-800 rounded-full" />
+                  </div>
+                  <div className="h-4 w-3/4 bg-gray-200 dark:bg-neutral-700 rounded mb-2" />
+                  <div className="h-3 w-32 bg-gray-100 dark:bg-neutral-800 rounded" />
+                </div>
+                <div className="h-5 w-5 bg-gray-100 dark:bg-neutral-800 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : bugReports.length === 0 ? (
         <div className="text-center py-12 text-gray-500 dark:text-neutral-400">
