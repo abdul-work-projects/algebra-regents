@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Subject } from "@/lib/types";
 
-// Preset colors for subjects
 const PRESET_COLORS = [
   { name: "Cyan", value: "#67E8F9" },
   { name: "Pink", value: "#F9A8D4" },
@@ -50,7 +49,6 @@ export default function SubjectModal({
       setIsActive(editingSubject.isActive);
       setDisplayOrder(editingSubject.displayOrder);
     } else {
-      // Reset form for new subject
       setName("");
       setDescription("");
       setColor("#67E8F9");
@@ -89,26 +87,24 @@ export default function SubjectModal({
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 z-[200]"
         onClick={onClose}
       />
 
-      {/* Modal */}
       <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
         <div
-          className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col"
+          className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-neutral-700 flex-shrink-0">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-neutral-800 flex-shrink-0">
             <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
               {editingSubject ? "Edit Subject" : "Create New Subject"}
             </h2>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all"
+              className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all"
             >
               <svg
                 className="w-5 h-5 text-gray-500 dark:text-neutral-400"
@@ -130,7 +126,7 @@ export default function SubjectModal({
           <div className="p-4 space-y-4 overflow-y-auto flex-1">
             {/* Subject Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1">
+              <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
                 Subject Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -138,13 +134,13 @@ export default function SubjectModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Algebra I Regents"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-400"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
               />
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1">
+              <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
                 Description
               </label>
               <textarea
@@ -152,13 +148,13 @@ export default function SubjectModal({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Optional description for this subject"
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-400"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
               />
             </div>
 
             {/* Color Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2">
+              <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-2">
                 Card Color
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
@@ -170,7 +166,7 @@ export default function SubjectModal({
                     className={`w-8 h-8 rounded-lg border-2 transition-all ${
                       color === preset.value
                         ? "border-gray-900 dark:border-white scale-110"
-                        : "border-gray-200 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-400"
+                        : "border-gray-200 dark:border-neutral-700 hover:border-gray-400 dark:hover:border-neutral-400"
                     }`}
                     style={{ backgroundColor: preset.value }}
                     title={preset.name}
@@ -189,12 +185,11 @@ export default function SubjectModal({
                   value={color}
                   onChange={(e) => setColor(e.target.value)}
                   placeholder="#67E8F9"
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-mono dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-400"
+                  className="flex-1 px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none text-sm font-mono bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                 />
               </div>
-              {/* Preview */}
               <div
-                className="mt-3 p-4 rounded-xl text-center"
+                className="mt-3 p-4 rounded-2xl text-center"
                 style={{ backgroundColor: color }}
               >
                 <span className="font-bold text-gray-900 text-lg" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.5)' }}>
@@ -205,7 +200,7 @@ export default function SubjectModal({
 
             {/* Display Order */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1">
+              <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
                 Display Order
               </label>
               <input
@@ -213,7 +208,7 @@ export default function SubjectModal({
                 value={displayOrder}
                 onChange={(e) => setDisplayOrder(parseInt(e.target.value) || 0)}
                 min={0}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
               />
               <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
                 Lower numbers appear first. Subjects with the same order are sorted alphabetically.
@@ -227,33 +222,33 @@ export default function SubjectModal({
                 id="isActive"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 dark:border-neutral-600"
+                className="w-4 h-4 rounded border-gray-200 dark:border-neutral-700"
               />
               <label htmlFor="isActive" className="text-sm text-gray-700 dark:text-neutral-300">
                 Active (visible to students)
               </label>
             </div>
 
-            {/* Error Message */}
+            {/* Error */}
             {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">
+              <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-700 dark:text-red-400">
                 {error}
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-neutral-700 flex-shrink-0">
+          <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-950 flex-shrink-0">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-all"
+              className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-neutral-300 border border-gray-200 dark:border-neutral-700 rounded-full hover:border-black dark:hover:border-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 transition-all"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-4 py-2 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 disabled:opacity-50 rounded-lg transition-all"
+              className="px-4 py-2 text-sm font-bold text-white bg-black dark:bg-white dark:text-black rounded-full hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 disabled:opacity-50 transition-all"
             >
               {isSaving ? "Saving..." : editingSubject ? "Update Subject" : "Create Subject"}
             </button>

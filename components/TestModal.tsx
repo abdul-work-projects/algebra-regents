@@ -40,14 +40,12 @@ export default function TestModal({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Convert score table object to rows array
   const objectToRows = (obj: { [key: number]: number }): ScoreTableRow[] => {
     return Object.entries(obj)
       .map(([raw, scaled]) => ({ raw: parseInt(raw), scaled }))
       .sort((a, b) => a.raw - b.raw);
   };
 
-  // Convert rows array to score table object
   const rowsToObject = (rows: ScoreTableRow[]): { [key: string]: number } => {
     const obj: { [key: string]: number } = {};
     rows.forEach((row) => {
@@ -56,7 +54,6 @@ export default function TestModal({
     return obj;
   };
 
-  // Generate empty score table rows for a given max score
   const generateEmptyRows = (max: number): ScoreTableRow[] => {
     const rows: ScoreTableRow[] = [];
     for (let i = 0; i <= max; i++) {
@@ -83,11 +80,9 @@ export default function TestModal({
         setScoreTableRows([]);
       }
     } else {
-      // Reset form for new test
       setName("");
       setDescription("");
       setIsActive(true);
-      // Default to first subject if available
       setSubjectId(subjects.length > 0 ? subjects[0].id : "");
       setUseCustomScoreTable(false);
       setScoreTableRows([]);
@@ -118,17 +113,14 @@ export default function TestModal({
   const handleMaxRawScoreChange = (newMax: number) => {
     setMaxRawScore(newMax);
     if (scoreTableRows.length > 0) {
-      // Adjust the table to the new max
       const currentMax = Math.max(...scoreTableRows.map((r) => r.raw));
       if (newMax > currentMax) {
-        // Add new rows
         const newRows = [...scoreTableRows];
         for (let i = currentMax + 1; i <= newMax; i++) {
           newRows.push({ raw: i, scaled: 0 });
         }
         setScoreTableRows(newRows);
       } else if (newMax < currentMax) {
-        // Remove rows beyond the new max
         setScoreTableRows(scoreTableRows.filter((r) => r.raw <= newMax));
       }
     }
@@ -173,26 +165,24 @@ export default function TestModal({
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 z-[200]"
         onClick={onClose}
       />
 
-      {/* Modal */}
       <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
         <div
-          className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+          className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-neutral-700 flex-shrink-0">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-neutral-800 flex-shrink-0">
             <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
               {editingTest ? "Edit Test" : "Create New Test"}
             </h2>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all"
+              className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all"
             >
               <svg
                 className="w-5 h-5 text-gray-500 dark:text-neutral-400"
@@ -210,11 +200,11 @@ export default function TestModal({
             </button>
           </div>
 
-          {/* Content - Scrollable */}
+          {/* Content */}
           <div className="p-4 space-y-4 overflow-y-auto flex-1">
             {/* Test Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1">
+              <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
                 Test Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -222,19 +212,19 @@ export default function TestModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., January 2024 Regents"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-400"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
               />
             </div>
 
             {/* Subject */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1">
+              <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
                 Subject <span className="text-red-500">*</span>
               </label>
               <select
                 value={subjectId}
                 onChange={(e) => setSubjectId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
               >
                 <option value="">Select a subject...</option>
                 {subjects.map((subject) => (
@@ -247,7 +237,7 @@ export default function TestModal({
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1">
+              <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
                 Description
               </label>
               <textarea
@@ -255,7 +245,7 @@ export default function TestModal({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Optional description for this test"
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-400"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
               />
             </div>
 
@@ -266,7 +256,7 @@ export default function TestModal({
                 id="isActive"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 dark:border-neutral-600"
+                className="w-4 h-4 rounded border-gray-200 dark:border-neutral-700"
               />
               <label htmlFor="isActive" className="text-sm text-gray-700 dark:text-neutral-300">
                 Active (visible to students)
@@ -274,7 +264,7 @@ export default function TestModal({
             </div>
 
             {/* Scaled Score Table */}
-            <div className="border-t dark:border-neutral-700 pt-4">
+            <div className="border-t border-gray-100 dark:border-neutral-800 pt-4">
               <div className="flex items-center gap-2 mb-3">
                 <input
                   type="checkbox"
@@ -286,11 +276,11 @@ export default function TestModal({
                       handleLoadDefaultScoreTable();
                     }
                   }}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-neutral-600"
+                  className="w-4 h-4 rounded border-gray-200 dark:border-neutral-700"
                 />
                 <label
                   htmlFor="useCustomScoreTable"
-                  className="text-sm font-medium text-gray-700 dark:text-neutral-300"
+                  className="text-sm font-bold text-gray-900 dark:text-neutral-100"
                 >
                   Use custom scaled score table
                 </label>
@@ -298,7 +288,6 @@ export default function TestModal({
 
               {useCustomScoreTable && (
                 <div className="space-y-3">
-                  {/* Controls */}
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
                       <label className="text-sm text-gray-600 dark:text-neutral-400">Max raw score:</label>
@@ -308,43 +297,40 @@ export default function TestModal({
                         onChange={(e) => handleMaxRawScoreChange(parseInt(e.target.value) || 0)}
                         min={1}
                         max={200}
-                        className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-neutral-800 dark:text-neutral-100"
+                        className="w-20 px-2 py-1 text-sm border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={handleLoadDefaultScoreTable}
-                      className="px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-all"
+                      className="px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-neutral-300 border border-gray-200 dark:border-neutral-700 rounded-full hover:border-black dark:hover:border-neutral-400 active:scale-95 transition-all"
                     >
                       Load Default Table
                     </button>
                     <button
                       type="button"
                       onClick={handleGenerateEmptyTable}
-                      className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-neutral-400 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition-all"
+                      className="px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-neutral-300 border border-gray-200 dark:border-neutral-700 rounded-full hover:border-black dark:hover:border-neutral-400 active:scale-95 transition-all"
                     >
                       Generate Empty Table
                     </button>
                   </div>
 
-                  {/* Score Table */}
                   {scoreTableRows.length > 0 && (
-                    <div className="border border-gray-200 dark:border-neutral-700 rounded-lg overflow-hidden">
-                      {/* Header */}
-                      <div className="grid grid-cols-2 bg-gray-50 dark:bg-neutral-950 border-b border-gray-200 dark:border-neutral-700">
-                        <div className="px-3 py-2 text-left font-medium text-gray-700 dark:text-neutral-300 text-sm">
+                    <div className="border border-gray-100 dark:border-neutral-800 rounded-2xl overflow-hidden">
+                      <div className="grid grid-cols-2 bg-gray-50 dark:bg-neutral-950 border-b border-gray-100 dark:border-neutral-800">
+                        <div className="px-3 py-2 text-left font-bold text-gray-700 dark:text-neutral-300 text-sm">
                           Raw Score
                         </div>
-                        <div className="px-3 py-2 text-left font-medium text-gray-700 dark:text-neutral-300 text-sm">
+                        <div className="px-3 py-2 text-left font-bold text-gray-700 dark:text-neutral-300 text-sm">
                           Scaled Score
                         </div>
                       </div>
-                      {/* Body */}
                       <div className="max-h-64 overflow-y-auto">
                         {scoreTableRows.map((row, index) => (
                           <div
                             key={row.raw}
-                            className={`grid grid-cols-2 border-b border-gray-100 dark:border-neutral-700 ${index % 2 === 0 ? "bg-white dark:bg-neutral-900" : "bg-gray-50 dark:bg-neutral-950"}`}
+                            className={`grid grid-cols-2 border-b border-gray-100 dark:border-neutral-800 ${index % 2 === 0 ? "bg-white dark:bg-neutral-900" : "bg-gray-50 dark:bg-neutral-950"}`}
                           >
                             <div className="px-3 py-1.5 text-gray-900 dark:text-neutral-100 font-medium text-sm">
                               {row.raw}
@@ -361,7 +347,7 @@ export default function TestModal({
                                 }
                                 min={0}
                                 max={100}
-                                className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-neutral-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100"
+                                className="w-20 px-2 py-1 text-sm border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                               />
                             </div>
                           </div>
@@ -377,26 +363,26 @@ export default function TestModal({
               )}
             </div>
 
-            {/* Error Message */}
+            {/* Error */}
             {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">
+              <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-700 dark:text-red-400">
                 {error}
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-neutral-700 flex-shrink-0">
+          <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-950 flex-shrink-0">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-all"
+              className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-neutral-300 border border-gray-200 dark:border-neutral-700 rounded-full hover:border-black dark:hover:border-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 transition-all"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-4 py-2 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 disabled:opacity-50 rounded-lg transition-all"
+              className="px-4 py-2 text-sm font-bold text-white bg-black dark:bg-white dark:text-black rounded-full hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 disabled:opacity-50 transition-all"
             >
               {isSaving ? "Saving..." : editingTest ? "Update Test" : "Create Test"}
             </button>
