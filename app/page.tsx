@@ -54,12 +54,9 @@ function HeroSection() {
         <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
           {/* Text */}
           <div className="flex-1 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full mb-6">
-              <span className="w-2 h-2 bg-blue-500 rounded-full" />
-              <span className="text-sm font-medium text-blue-700">
-                Built by teachers. Shaped by students.
-              </span>
-            </div>
+            <p className="text-sm font-medium text-gray-500 mb-6 tracking-wide">
+              Built by <span className="relative inline-block text-gray-900 font-semibold"><span className="relative z-10">teachers</span><span className="absolute bottom-0 left-0 w-full h-[40%] bg-amber-200/70 -z-0 -rotate-[0.5deg]" /></span>. Shaped by <span className="relative inline-block text-gray-900 font-semibold"><span className="relative z-10">students</span><span className="absolute bottom-0 left-0 w-full h-[40%] bg-blue-200/70 -z-0 rotate-[0.5deg]" /></span>.
+            </p>
 
             <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 leading-[1.1] tracking-tight">
               Pass Your Regents.{' '}
@@ -190,7 +187,7 @@ const features = [
     description:
       'Students can draw, underline, circle, and annotate directly on the screen — just like working on paper. Perfect for math and diagrams.',
     color: 'bg-sky-50',
-    iconColor: 'text-sky-600',
+    iconColor: 'text-violet-600',
   },
   {
     icon: (
@@ -232,14 +229,28 @@ function FeaturesSection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
+          {features.slice(0, 3).map((feature, index) => (
             <div
               key={index}
-              className={`${feature.color} rounded-2xl p-8 transition-transform hover:-translate-y-1 ${
-                index === features.length - 1 && features.length % 3 !== 0
-                  ? 'md:col-span-2 lg:col-span-1'
-                  : ''
-              }`}
+              className={`${feature.color} rounded-2xl p-8 transition-transform hover:-translate-y-1`}
+            >
+              <div
+                className={`w-12 h-12 rounded-xl bg-white flex items-center justify-center ${feature.iconColor} shadow-sm mb-5`}
+              >
+                {feature.icon}
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                {feature.title}
+              </h3>
+              <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col md:flex-row gap-6 mt-6 justify-center">
+          {features.slice(3).map((feature, index) => (
+            <div
+              key={index + 3}
+              className={`${feature.color} rounded-2xl p-8 transition-transform hover:-translate-y-1 md:w-[calc(33.333%-0.5rem)]`}
             >
               <div
                 className={`w-12 h-12 rounded-xl bg-white flex items-center justify-center ${feature.iconColor} shadow-sm mb-5`}
@@ -275,11 +286,11 @@ function HowItWorksSection() {
             <div className="relative">
               <div className="absolute -inset-6 bg-gradient-to-br from-blue-100 via-indigo-50 to-violet-50 rounded-[3rem] -z-10" />
               <Image
-                src="/beaver-images/beaver-waving.png"
-                alt="Beaver waving hello"
+                src="/beaver-images/beaver-tail-up.png"
+                alt="Beaver with tail up"
                 width={400}
                 height={400}
-                className="w-72 lg:w-96 h-auto drop-shadow-lg"
+                className="w-72 lg:w-96 h-auto rounded-3xl"
               />
             </div>
           </div>
@@ -369,8 +380,8 @@ const audiences = [
     title: 'For Teachers & Tutors',
     description:
       'Regents-aligned questions with tools students already know how to use.',
-    image: '/beaver-images/beaver-thinking.png',
-    imageAlt: 'Beaver thinking',
+    image: '/beaver-images/beaver-waving.png',
+    imageAlt: 'Beaver waving',
     bg: 'bg-amber-50',
     accent: 'text-amber-700',
   },
