@@ -672,8 +672,8 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3">
+      <div className={`flex-1 min-h-0 ${activeTab === 'questions' ? 'lg:overflow-hidden overflow-y-auto' : 'overflow-y-auto'}`}>
+      <div className={`max-w-7xl mx-auto px-3 sm:px-4 py-3 ${activeTab === 'questions' ? 'lg:h-full' : ''}`}>
         {activeTab === "tests" && (
           <TestsTab
             tests={tests}
@@ -717,7 +717,7 @@ export default function AdminPage() {
         )}
 
         {activeTab === "questions" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start lg:items-stretch lg:h-full">
             <QuestionList
               questions={questions}
               tests={tests}

@@ -491,14 +491,14 @@ export default function QuestionList({
         </div>
       </div>
 
-      <div className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm flex-1 min-h-0 overflow-hidden">
+      <div className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
         {isLoadingQuestions ? (
           <div className="text-center py-8 text-gray-500 dark:text-neutral-400 text-sm">Loading...</div>
         ) : questions.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-neutral-400 text-sm">No questions yet</div>
         ) : (
           <div
-            className="space-y-1 overflow-y-auto h-full p-3"
+            className="space-y-1 overflow-y-auto flex-1 p-3"
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleQuestionDrop}
           >
