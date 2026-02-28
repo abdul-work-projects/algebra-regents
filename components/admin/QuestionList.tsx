@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Test, TestSection } from "@/lib/types";
+import { Test, TestSection, Subject } from "@/lib/types";
 import { DatabaseQuestion, DatabasePassage } from "@/lib/supabase";
 import MathText from "@/components/MathText";
 
@@ -12,6 +12,9 @@ interface QuestionListProps {
   testQuestionOrder: { [questionId: string]: number };
   testSections: TestSection[];
   questionSectionMap: { [questionId: string]: string | undefined };
+  subjects: Subject[];
+  filterSubjectId: string;
+  onFilterSubjectIdChange: (subjectId: string) => void;
   filterTestId: string;
   onFilterTestIdChange: (testId: string) => void;
   editingId: string | null;
@@ -27,6 +30,7 @@ interface QuestionListProps {
   onTestQuestionOrderChange: (newOrder: { [questionId: string]: number }) => void;
   onDragDrop: (e: React.DragEvent) => void;
   onShowTestSettings: () => void;
+  onUngroupQuestions: (passageId: string, questionIds: string[]) => void;
 }
 
 export default function QuestionList({
@@ -36,6 +40,9 @@ export default function QuestionList({
   testQuestionOrder,
   testSections,
   questionSectionMap,
+  subjects,
+  filterSubjectId,
+  onFilterSubjectIdChange,
   filterTestId,
   onFilterTestIdChange,
   editingId,
@@ -51,6 +58,7 @@ export default function QuestionList({
   onTestQuestionOrderChange,
   onDragDrop,
   onShowTestSettings,
+  onUngroupQuestions,
 }: QuestionListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [draggedQuestionId, setDraggedQuestionId] = useState<string | null>(null);
@@ -202,9 +210,23 @@ export default function QuestionList({
     setOriginalTestOrder(null);
   };
 
+  // Get test IDs for the selected subject
+  const subjectTestIds = filterSubjectId === "all"
+    ? null
+    : new Set(tests.filter((t) => t.subjectId === filterSubjectId).map((t) => t.id));
+
+  // Filter tests shown in dropdown by subject
+  const filteredTests = filterSubjectId === "all"
+    ? tests
+    : tests.filter((t) => t.subjectId === filterSubjectId);
+
   // Filter and sort questions
   const testFilteredQuestions = questions
-    .filter((q) => filterTestId === "all" || questionTestMap[q.id]?.includes(filterTestId))
+    .filter((q) => {
+      if (filterTestId !== "all") return questionTestMap[q.id]?.includes(filterTestId);
+      if (subjectTestIds) return questionTestMap[q.id]?.some((tid) => subjectTestIds.has(tid));
+      return true;
+    })
     .sort((a, b) => {
       if (filterTestId !== "all" && Object.keys(testQuestionOrder).length > 0) {
         const orderA = testQuestionOrder[a.id] ?? Infinity;
@@ -273,7 +295,8 @@ export default function QuestionList({
     question: QuestionWithPassage,
     index: number,
     isGrouped: boolean,
-    groupPosition?: "first" | "last" | "middle"
+    groupPosition?: "first" | "last" | "middle",
+    ungroupInfo?: { passageId: string; questionIds: string[] }
   ) => (
     <div
       key={question.id}
@@ -359,6 +382,17 @@ export default function QuestionList({
               <img src={question.question_image_url} alt={`Q${index + 1}`} className="w-10 h-10 object-cover rounded flex-shrink-0" />
             )}
             <div className="flex gap-1 flex-shrink-0">
+              {ungroupInfo && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onUngroupQuestions(ungroupInfo.passageId, ungroupInfo.questionIds); }}
+                  className="p-1.5 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-full active:scale-95 transition-all"
+                  title="Ungroup questions"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                </button>
+              )}
               <button
                 onClick={() => onLoadQuestionForEdit(question)}
                 className="p-1.5 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-full active:scale-95 transition-all"
@@ -391,56 +425,9 @@ export default function QuestionList({
 
   return (
     <div className="lg:col-span-1 flex flex-col max-h-[calc(100vh-80px)]">
-      <div className="flex items-center justify-between mb-2 flex-shrink-0">
-        <h2 className="text-base font-bold text-gray-900 dark:text-neutral-100">
-          Questions ({totalFilteredCount})
-        </h2>
-        <div className="flex gap-2 flex-wrap">
-          {selectedForGrouping.length > 0 && (
-            <>
-              <span className="text-xs px-2 py-2 text-purple-700 dark:text-purple-400 font-medium">
-                {selectedForGrouping.length}/2 selected
-              </span>
-              <button
-                onClick={() => onToggleQuestionSelection("")}
-                className="text-xs px-2 py-2 font-bold text-gray-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200"
-                title="Clear selection"
-              >
-                Clear
-              </button>
-              {selectedForGrouping.length === 2 && (
-                <button
-                  onClick={onLinkQuestions}
-                  className="text-xs px-3 py-2 font-bold bg-purple-600 text-white rounded-full hover:bg-purple-700 active:scale-95 transition-all"
-                  title="Group selected questions together"
-                >
-                  Group Selected
-                </button>
-              )}
-            </>
-          )}
-          <button
-            onClick={onShowCsvModal}
-            className="text-xs px-3 py-2 font-bold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-full hover:border-black dark:hover:border-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 transition-all"
-            title="Bulk upload questions from CSV"
-          >
-            Upload CSV
-          </button>
-          {editingId && (
-            <button
-              onClick={onResetForm}
-              className="text-xs px-3 py-2 font-bold bg-black text-white dark:bg-white dark:text-black rounded-full hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 transition-all"
-              title="Clear form and add new question"
-            >
-              + NEW
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Search and Filter */}
-      <div className="mb-3 flex-shrink-0 space-y-2">
-        <div className="relative">
+      {/* Search + Actions */}
+      <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+        <div className="relative flex-1 min-w-0">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -462,33 +449,99 @@ export default function QuestionList({
             </button>
           )}
         </div>
-
-        <div className="flex items-center gap-2">
-          <select
-            value={filterTestId}
-            onChange={(e) => onFilterTestIdChange(e.target.value)}
-            className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 dark:border-neutral-700 rounded-full focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+        {selectedForGrouping.length > 0 && (
+          <>
+            <span className="text-xs px-2 py-2 text-purple-700 dark:text-purple-400 font-medium whitespace-nowrap">
+              {selectedForGrouping.length}/2
+            </span>
+            <button
+              onClick={() => onToggleQuestionSelection("")}
+              className="text-xs px-2 py-2 font-bold text-gray-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200"
+              title="Clear selection"
+            >
+              Clear
+            </button>
+            {selectedForGrouping.length === 2 && (
+              <button
+                onClick={onLinkQuestions}
+                className="text-xs px-3 py-2 font-bold bg-purple-600 text-white rounded-full hover:bg-purple-700 active:scale-95 transition-all whitespace-nowrap"
+                title="Group selected questions together"
+              >
+                Group
+              </button>
+            )}
+          </>
+        )}
+        <button
+          onClick={onShowCsvModal}
+          className="flex-shrink-0 text-xs px-3 py-2 font-bold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-full hover:border-black dark:hover:border-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 transition-all"
+          title="Bulk upload questions from CSV"
+        >
+          CSV
+        </button>
+        {editingId && (
+          <button
+            onClick={onResetForm}
+            className="flex-shrink-0 text-xs px-3 py-2 font-bold bg-black text-white dark:bg-white dark:text-black rounded-full hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 transition-all"
+            title="Clear form and add new question"
           >
-            <option value="all">All Questions</option>
-            {tests.map((test) => (
+            + NEW
+          </button>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="mb-3 flex-shrink-0 flex items-center gap-2">
+        <select
+          value={filterSubjectId}
+          onChange={(e) => onFilterSubjectIdChange(e.target.value)}
+          className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 dark:border-neutral-700 rounded-full focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+        >
+          <option value="all">All Subjects</option>
+          {subjects.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        <select
+          value={filterTestId}
+          onChange={(e) => onFilterTestIdChange(e.target.value)}
+          className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 dark:border-neutral-700 rounded-full focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+        >
+          <option value="all">All Tests</option>
+          {filterSubjectId !== "all" ? (
+            filteredTests.map((test) => (
               <option key={test.id} value={test.id}>
                 {test.name} ({test.questionCount || 0})
               </option>
-            ))}
-          </select>
-          {filterTestId !== "all" && (
-            <button
-              onClick={onShowTestSettings}
-              className="flex-shrink-0 p-2 text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full active:scale-95 transition-all"
-              title="Test settings"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
+            ))
+          ) : (
+            subjects.map((s) => {
+              const subjectTests = tests.filter((t) => t.subjectId === s.id);
+              if (subjectTests.length === 0) return null;
+              return (
+                <optgroup key={s.id} label={s.name}>
+                  {subjectTests.map((test) => (
+                    <option key={test.id} value={test.id}>
+                      {test.name} ({test.questionCount || 0})
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })
           )}
-        </div>
+        </select>
+        {filterTestId !== "all" && (
+          <button
+            onClick={onShowTestSettings}
+            className="flex-shrink-0 p-2 text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full active:scale-95 transition-all"
+            title="Test settings"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -523,7 +576,7 @@ export default function QuestionList({
                     <div className="ml-1">
                       {item.questions.map((question, qIndex) => {
                         const groupPosition = qIndex === 0 ? "first" : qIndex === item.questions.length - 1 ? "last" : "middle";
-                        return renderQuestionItem(question, originalIndexMap.get(question.id) || 0, true, groupPosition);
+                        return renderQuestionItem(question, originalIndexMap.get(question.id) || 0, true, groupPosition, qIndex === 0 ? { passageId: item.passageId!, questionIds: groupQuestionIds } : undefined);
                       })}
                     </div>
                   </div>

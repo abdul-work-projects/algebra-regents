@@ -41,6 +41,8 @@ import {
   createTestSection,
   updateTestSection,
   uploadImage as uploadImageFn,
+  unlinkQuestionsFromPassage,
+  deletePassage,
 } from "@/lib/supabase";
 import { getCurrentUser, signOut, onAuthStateChange } from "@/lib/auth";
 import {
@@ -64,6 +66,7 @@ import QuestionForm from "@/components/admin/QuestionForm";
 import CsvUploadModal from "@/components/admin/CsvUploadModal";
 import LinkQuestionsModal from "@/components/admin/LinkQuestionsModal";
 import DeleteTestModal from "@/components/admin/DeleteTestModal";
+import UngroupQuestionsModal from "@/components/admin/UngroupQuestionsModal";
 import TestSettingsModal from "@/components/admin/TestSettingsModal";
 
 type QuestionWithPassage = DatabaseQuestion & { passages?: DatabasePassage | null };
@@ -102,13 +105,16 @@ export default function AdminPage() {
   const q2Form = useQuestionForm();
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
   const [filterTestId, setFilterTestId] = useState<string>("all");
+  const [questionsFilterSubjectId, setQuestionsFilterSubjectId] = useState<string>("all");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Grouped question state
   const [isGroupedQuestion, setIsGroupedQuestion] = useState(false);
+  const [passageAboveText, setPassageAboveText] = useState("");
   const [passageText, setPassageText] = useState("");
   const [passageImage, setPassageImage] = useState<File | null>(null);
   const [passageImagePreview, setPassageImagePreview] = useState<string | null>(null);
+  const [passageImageSize, setPassageImageSize] = useState<"small" | "medium" | "large" | "extra-large">("large");
   const [activeQuestionTab, setActiveQuestionTab] = useState<1 | 2>(1);
   const [editingQ2Id, setEditingQ2Id] = useState<string | null>(null);
   const [editingPassageId, setEditingPassageId] = useState<string | null>(null);
@@ -128,6 +134,8 @@ export default function AdminPage() {
   const [showCsvModal, setShowCsvModal] = useState(false);
   const [showTestSettingsModal, setShowTestSettingsModal] = useState(false);
   const [deleteTestModal, setDeleteTestModal] = useState<{ show: boolean; test: Test | null; isDeleting: boolean }>({ show: false, test: null, isDeleting: false });
+  const [ungroupTarget, setUngroupTarget] = useState<{ passageId: string; questionIds: string[] } | null>(null);
+  const [isUngrouping, setIsUngrouping] = useState(false);
 
   // Tests tab state
   const [filterSubjectId, setFilterSubjectId] = useState<string>("all");
@@ -302,6 +310,26 @@ export default function AdminPage() {
     } finally { setDeleteTestModal({ show: false, test: null, isDeleting: false }); }
   };
 
+  const handleUngroupQuestions = (passageId: string, questionIds: string[]) => {
+    setUngroupTarget({ passageId, questionIds });
+  };
+
+  const confirmUngroupQuestions = async () => {
+    if (!ungroupTarget) return;
+    setIsUngrouping(true);
+    try {
+      const unlinked = await unlinkQuestionsFromPassage(ungroupTarget.questionIds);
+      if (!unlinked) { setNotification({ type: "error", message: "Failed to ungroup questions" }); return; }
+      await deletePassage(ungroupTarget.passageId);
+      setNotification({ type: "success", message: "Questions ungrouped successfully" });
+      if (editingId && ungroupTarget.questionIds.includes(editingId)) resetForm();
+      loadQuestions();
+    } finally {
+      setIsUngrouping(false);
+      setUngroupTarget(null);
+    }
+  };
+
   // ── Subject CRUD ──────────────────────────────────────────────────────
   const handleSaveSubject = async (subjectData: { name: string; description?: string; color: string; is_active: boolean; display_order: number }) => {
     if (editingSubject) {
@@ -333,9 +361,11 @@ export default function AdminPage() {
     q2Form.reset();
     setSelectedTestIds(filterTestId !== "all" ? [filterTestId] : []);
     setIsGroupedQuestion(false);
+    setPassageAboveText("");
     setPassageText("");
     setPassageImage(null);
     setPassageImagePreview(null);
+    setPassageImageSize("large");
     setActiveQuestionTab(1);
   };
 
@@ -391,11 +421,13 @@ export default function AdminPage() {
         setEditingQ2Id(q2.id);
         setEditingPassageId(question.passage_id);
         setIsGroupedQuestion(true);
-        setActiveQuestionTab(1);
+        setActiveQuestionTab(question.id === q2.id ? 2 : 1);
         const passage = question.passages;
+        setPassageAboveText(passage?.above_text || "");
         setPassageText(passage?.passage_text || "");
         setPassageImagePreview(passage?.passage_image_url || null);
         setPassageImage(null);
+        setPassageImageSize((passage?.image_size as "small" | "medium" | "large" | "extra-large") || "large");
         q1Form.loadFromQuestion({ name: q1.name, question_text: q1.question_text, above_image_text: q1.above_image_text, question_image_url: q1.question_image_url, reference_image_url: q1.reference_image_url, explanation_image_url: q1.explanation_image_url, answers: q1.answers, answer_image_urls: q1.answer_image_urls, answer_layout: q1.answer_layout, image_size: q1.image_size, question_type: q1.question_type, correct_answer: q1.correct_answer, explanation_text: q1.explanation_text, skills: q1.skills || [], tags: q1.tags || [], difficulty: q1.difficulty, points: q1.points });
         q2Form.loadFromQuestion({ name: q2.name, question_text: q2.question_text, above_image_text: q2.above_image_text, question_image_url: q2.question_image_url, reference_image_url: q2.reference_image_url, explanation_image_url: q2.explanation_image_url, answers: q2.answers, answer_image_urls: q2.answer_image_urls, answer_layout: q2.answer_layout, image_size: q2.image_size, question_type: q2.question_type, correct_answer: q2.correct_answer, explanation_text: q2.explanation_text, skills: q2.skills || [], tags: q2.tags || [], difficulty: q2.difficulty, points: q2.points });
         const questionTestIds = await getTestsForQuestion(q1.id);
@@ -473,7 +505,7 @@ export default function AdminPage() {
 
         const baseOrder = questions.length + 1;
         const result = await createPassageWithQuestions(
-          { passage_text: passageText.trim() || null, passage_image_url: passageImageUrl },
+          { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: passageImageUrl, image_size: passageImageSize },
           [
             { name: q1.questionName.trim() || null, question_text: q1.questionText.trim() || null, above_image_text: q1.aboveImageText.trim() || null, question_image_url: q1Images.imageUrl, reference_image_url: null, answers: q1.answers, answer_image_urls: q1Images.answerImageUrls, answer_layout: q1.answerLayout, image_size: q1.imageSize, question_type: q1.questionType, correct_answer: q1.correctAnswer, explanation_text: q1.explanationText, explanation_image_url: q1Images.explanationImageUrl, skills: q1.selectedSkills, tags: q1.selectedTags, difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, points: q1.points, display_order: baseOrder },
             { name: q2.questionName.trim() || null, question_text: q2.questionText.trim() || null, above_image_text: q2.aboveImageText.trim() || null, question_image_url: q2Images.imageUrl, reference_image_url: null, answers: q2.answers, answer_image_urls: q2Images.answerImageUrls, answer_layout: q2.answerLayout, image_size: q2.imageSize, question_type: q2.questionType, correct_answer: q2.correctAnswer, explanation_text: q2.explanationText, explanation_image_url: q2Images.explanationImageUrl, skills: q1.selectedSkills, tags: q1.selectedTags, difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, points: q2.points, display_order: baseOrder + 1 },
@@ -489,7 +521,7 @@ export default function AdminPage() {
       } else if (isGroupedQuestion && editingId && editingQ2Id && editingPassageId) {
         let pImageUrl: string | null = passageImagePreview;
         if (passageImage) pImageUrl = await uploadImage("question-images", passageImage, `passages/${Date.now()}-${sanitizeFilename(passageImage.name)}`);
-        const passageResult = await updatePassage(editingPassageId, { passage_text: passageText.trim() || null, passage_image_url: pImageUrl });
+        const passageResult = await updatePassage(editingPassageId, { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: pImageUrl, image_size: passageImageSize });
         if (!passageResult) throw new Error("Failed to update passage");
 
         const uploadAndUpdate = async (form: typeof q1, qId: string, prefix: string) => {
@@ -576,6 +608,18 @@ export default function AdminPage() {
       const orders = questions.map((q, index) => ({ id: q.id, display_order: index + 1 }));
       const success = await updateQuestionOrders(orders);
       if (!success) { setNotification({ type: "error", message: "Failed to save question order" }); loadQuestions(); }
+    }
+  };
+
+  const handleQuestionsFilterSubjectIdChange = (subjectId: string) => {
+    setQuestionsFilterSubjectId(subjectId);
+    if (filterTestId !== "all") {
+      const selectedTest = tests.find((t) => t.id === filterTestId);
+      if (selectedTest && subjectId !== "all" && selectedTest.subjectId !== subjectId) {
+        setFilterTestId("all");
+        resetForm();
+        setSelectedTestIds([]);
+      }
     }
   };
 
@@ -725,6 +769,9 @@ export default function AdminPage() {
               testQuestionOrder={testQuestionOrder}
               testSections={testSections}
               questionSectionMap={questionSectionMap}
+              subjects={subjects}
+              filterSubjectId={questionsFilterSubjectId}
+              onFilterSubjectIdChange={handleQuestionsFilterSubjectIdChange}
               filterTestId={filterTestId}
               onFilterTestIdChange={handleFilterTestIdChange}
               editingId={editingId}
@@ -740,6 +787,7 @@ export default function AdminPage() {
               onTestQuestionOrderChange={setTestQuestionOrder}
               onDragDrop={handleDragDropSave}
               onShowTestSettings={() => setShowTestSettingsModal(true)}
+              onUngroupQuestions={handleUngroupQuestions}
             />
 
             <QuestionForm
@@ -750,11 +798,15 @@ export default function AdminPage() {
               onToggleGrouped={setIsGroupedQuestion}
               activeQuestionTab={activeQuestionTab}
               onActiveQuestionTabChange={setActiveQuestionTab}
+              passageAboveText={passageAboveText}
+              onPassageAboveTextChange={setPassageAboveText}
               passageText={passageText}
               onPassageTextChange={setPassageText}
               passageImage={passageImage}
               passageImagePreview={passageImagePreview}
               onPassageImageChange={(file, preview) => { setPassageImage(file); setPassageImagePreview(preview); }}
+              passageImageSize={passageImageSize}
+              onPassageImageSizeChange={setPassageImageSize}
               selectedTestIds={selectedTestIds}
               onSelectedTestIdsChange={setSelectedTestIds}
               tests={tests}
@@ -820,6 +872,14 @@ export default function AdminPage() {
         selectedQuestions={selectedForGrouping}
         questions={questions}
         onConfirm={confirmLinkQuestions}
+      />
+
+      <UngroupQuestionsModal
+        isOpen={!!ungroupTarget}
+        questionCount={ungroupTarget?.questionIds.length || 0}
+        isUngrouping={isUngrouping}
+        onClose={() => setUngroupTarget(null)}
+        onConfirm={confirmUngroupQuestions}
       />
 
       <DeleteTestModal

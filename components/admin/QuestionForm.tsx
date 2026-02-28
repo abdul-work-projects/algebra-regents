@@ -13,11 +13,15 @@ interface QuestionFormProps {
   onToggleGrouped: (grouped: boolean) => void;
   activeQuestionTab: 1 | 2;
   onActiveQuestionTabChange: (tab: 1 | 2) => void;
+  passageAboveText: string;
+  onPassageAboveTextChange: (text: string) => void;
   passageText: string;
   onPassageTextChange: (text: string) => void;
   passageImage: File | null;
   passageImagePreview: string | null;
   onPassageImageChange: (file: File | null, preview: string | null) => void;
+  passageImageSize: "small" | "medium" | "large" | "extra-large";
+  onPassageImageSizeChange: (size: "small" | "medium" | "large" | "extra-large") => void;
   selectedTestIds: string[];
   onSelectedTestIdsChange: (ids: string[]) => void;
   tests: Test[];
@@ -36,11 +40,15 @@ export default function QuestionForm({
   onToggleGrouped,
   activeQuestionTab,
   onActiveQuestionTabChange,
+  passageAboveText,
+  onPassageAboveTextChange,
   passageText,
   onPassageTextChange,
   passageImage,
   passageImagePreview,
   onPassageImageChange,
+  passageImageSize,
+  onPassageImageSizeChange,
   selectedTestIds,
   onSelectedTestIdsChange,
   tests,
@@ -201,7 +209,7 @@ export default function QuestionForm({
                   <div className="mb-3">
                     {currentForm.state.questionImagePreview && (
                       <div className="w-full">
-                        <img src={currentForm.state.questionImagePreview} alt="Question" className={`w-full h-auto object-contain rounded-lg ${currentForm.state.imageSize === 'small' ? 'max-h-32' : currentForm.state.imageSize === 'medium' ? 'max-h-48' : 'max-h-64'}`} />
+                        <img src={currentForm.state.questionImagePreview} alt="Question" className={`w-full h-auto object-contain rounded-lg ${currentForm.state.imageSize === 'small' ? 'max-h-32' : currentForm.state.imageSize === 'medium' ? 'max-h-48' : currentForm.state.imageSize === 'extra-large' ? '' : 'max-h-80'}`} />
                       </div>
                     )}
                     {currentForm.state.questionText && (
@@ -272,12 +280,12 @@ export default function QuestionForm({
           <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-2xl space-y-3">
             <h3 className="text-sm font-bold text-blue-900 dark:text-blue-300">Shared Passage</h3>
             <div>
-              <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">Passage Text</label>
+              <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">Passage Text (above image)</label>
               <textarea
-                value={passageText}
-                onChange={(e) => onPassageTextChange(e.target.value)}
-                placeholder="Enter the shared passage or summary text..."
-                rows={4}
+                value={passageAboveText}
+                onChange={(e) => onPassageAboveTextChange(e.target.value)}
+                placeholder="Text displayed above the passage (supports LaTeX)..."
+                rows={2}
                 className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
               />
             </div>
@@ -315,6 +323,26 @@ export default function QuestionForm({
                   </div>
                 )}
               </label>
+              {passageImagePreview && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-blue-800 dark:text-blue-400">Size:</span>
+                  {(["small", "medium", "large", "extra-large"] as const).map((size) => (
+                    <button key={size} type="button" onClick={() => onPassageImageSizeChange(size)} className={`px-2 py-0.5 text-xs rounded-full transition-all ${passageImageSize === size ? "bg-blue-600 text-white" : "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50"}`}>
+                      {size === 'extra-large' ? 'Extra Large' : size.charAt(0).toUpperCase() + size.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">Passage Text (below image)</label>
+              <textarea
+                value={passageText}
+                onChange={(e) => onPassageTextChange(e.target.value)}
+                placeholder="Enter the shared passage or summary text..."
+                rows={4}
+                className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+              />
             </div>
           </div>
         )}
@@ -391,9 +419,9 @@ export default function QuestionForm({
           {currentForm.state.questionImagePreview && (
             <div className="flex items-center gap-2 mt-1">
               <span className="text-xs text-gray-500 dark:text-neutral-400">Size:</span>
-              {(["small", "medium", "large"] as const).map((size) => (
+              {(["small", "medium", "large", "extra-large"] as const).map((size) => (
                 <button key={size} type="button" onClick={() => currentForm.setField("imageSize", size)} className={`px-2 py-0.5 text-xs rounded-full transition-all ${currentForm.state.imageSize === size ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"}`}>
-                  {size.charAt(0).toUpperCase() + size.slice(1)}
+                  {size === 'extra-large' ? 'Extra Large' : size.charAt(0).toUpperCase() + size.slice(1)}
                 </button>
               ))}
             </div>

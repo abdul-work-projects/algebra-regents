@@ -14,7 +14,7 @@ export interface QuestionFormState {
   answerImages: (File | null)[];
   answerImagePreviews: (string | null)[];
   answerLayout: "grid" | "list" | "row";
-  imageSize: "small" | "medium" | "large";
+  imageSize: "small" | "medium" | "large" | "extra-large";
   questionType: "multiple-choice" | "drag-order";
   correctAnswer: number;
   explanationText: string;
@@ -94,7 +94,7 @@ export function useQuestionForm() {
     answers: string[];
     answer_image_urls?: (string | null)[];
     answer_layout?: "grid" | "list" | "row";
-    image_size?: "small" | "medium" | "large";
+    image_size?: "small" | "medium" | "large" | "extra-large";
     question_type?: string | null;
     correct_answer: number;
     explanation_text: string;

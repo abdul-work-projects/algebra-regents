@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, Suspense } from "react";
+import React, { useEffect, useState, useRef, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Question,
@@ -34,6 +34,8 @@ import ExplanationSlider from "@/components/ExplanationSlider";
 import ReferenceImageModal from "@/components/ReferenceImageModal";
 import MathText from "@/components/MathText";
 import BugReportModal from "@/components/BugReport/BugReportModal";
+import { getScaledScore } from "@/lib/results";
+import LiveScoreBeaver from "@/components/LiveScoreBeaver";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/components/ThemeProvider";
 import { GraphData, DEFAULT_GRAPH_DATA } from "@/components/GraphingTool/types";
@@ -66,7 +68,7 @@ function QuizPageContent() {
   const [showAllQuestions, setShowAllQuestions] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
-  const [showScratchWork, setShowScratchWork] = useState(false);
+  const [scratchWorkIndex, setScratchWorkIndex] = useState<number | null>(null);
   const [showGraphingTool, setShowGraphingTool] = useState(false);
   const [graphClearKey, setGraphClearKey] = useState(0);
   const [dragOrderView, setDragOrderView] = useState<"list" | "slots">(() => {
@@ -93,6 +95,7 @@ function QuizPageContent() {
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [testName, setTestName] = useState<string | undefined>(undefined);
   const [sections, setSections] = useState<TestSection[]>([]);
+  const [scaledScoreTable, setScaledScoreTable] = useState<{ [key: number]: number } | null>(null);
 
   // Practice mode - multiple questions from question bank
   const practiceMode = searchParams.get("mode");
@@ -285,6 +288,12 @@ function QuizPageContent() {
           const testData = await fetchTestById(testId);
           if (testData) {
             setTestName(testData.name);
+            if (testData.scaled_score_table) {
+              const table = Object.fromEntries(
+                Object.entries(testData.scaled_score_table).map(([k, v]) => [parseInt(k), v])
+              );
+              setScaledScoreTable(table);
+            }
             // Load sections for this test
             const testSections = await fetchSectionsWithCounts(testId);
             if (testSections.length > 0) {
@@ -363,6 +372,21 @@ function QuizPageContent() {
     }
   }, [session, isPracticeMode]);
 
+  // Score snapshot — only updates when user clicks Next
+  const [snapshotRawScore, setSnapshotRawScore] = useState(0);
+  const [lastPointsGained, setLastPointsGained] = useState(0);
+  const prevSnapshotRef = useRef(0);
+
+  const liveTotalPoints = useMemo(() => {
+    if (isPracticeMode || !isTestPracticeMode) return 0;
+    return questions.reduce((sum, q) => sum + (q.points || 2), 0);
+  }, [questions, isPracticeMode, isTestPracticeMode]);
+
+  const snapshotScaledScore = useMemo(() => {
+    if (!isTestPracticeMode || !questions.length) return 0;
+    return getScaledScore(snapshotRawScore, scaledScoreTable || undefined);
+  }, [snapshotRawScore, scaledScoreTable, isTestPracticeMode, questions.length]);
+
   // Mode selection screen: testId present but no testMode chosen yet
   if (mounted && !isLoadingQuestions && testIdParam && !testModeParam && !isPracticeMode && !session) {
     return (
@@ -386,7 +410,7 @@ function QuizPageContent() {
                 <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400">Recommended</span>
               </div>
               <p className="text-sm text-gray-500 dark:text-neutral-400">
-                Check your answers as you go and get a second attempt if wrong.
+                Check your answers as you go. Get a second chance if you are wrong.
               </p>
             </button>
             <button
@@ -397,7 +421,7 @@ function QuizPageContent() {
                 <span className="text-lg font-bold text-gray-900 dark:text-neutral-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">Test Mode</span>
               </div>
               <p className="text-sm text-gray-500 dark:text-neutral-400">
-                No checking — your first answer is final, just like the real exam.
+                No checking. Your answer is your answer. Just like the real exam.
               </p>
             </button>
           </div>
@@ -696,7 +720,37 @@ function QuizPageContent() {
     });
   };
 
+  const computeRawScore = () => {
+    if (!session || !questions.length) return 0;
+    let earned = 0;
+    questions.forEach((q) => {
+      if (q.questionType === 'drag-order') {
+        const order = session.dragOrderAnswers?.[q.id] || [];
+        if (order.length > 0 && JSON.stringify(order) === JSON.stringify(q.answers)) {
+          earned += q.points || 2;
+        }
+      } else {
+        const ans = session.userAnswers[q.id];
+        if (ans !== null && ans !== undefined && ans === q.correctAnswer) {
+          earned += q.points || 2;
+        }
+      }
+    });
+    return earned;
+  };
+
   const handleNext = () => {
+    // Update score snapshot on Next
+    if (isTestPracticeMode) {
+      const newRaw = computeRawScore();
+      const newScaled = getScaledScore(newRaw, scaledScoreTable || undefined);
+      const oldScaled = getScaledScore(prevSnapshotRef.current, scaledScoreTable || undefined);
+      const gained = newScaled - oldScaled;
+      setLastPointsGained(gained > 0 ? gained : 0);
+      setSnapshotRawScore(newRaw);
+      prevSnapshotRef.current = newRaw;
+    }
+
     const timeSpent = Math.floor(
       (Date.now() - session.lastQuestionStartTime) / 1000,
     );
@@ -909,7 +963,7 @@ function QuizPageContent() {
             </div>
           )}
 
-          <div className="max-w-5xl mx-auto px-4 py-2.5 md:py-2 flex items-center justify-between">
+          <div className="max-w-5xl mx-auto px-4 py-2.5 md:py-2 flex items-center justify-between gap-2 min-w-0">
             <button
               onClick={() => {
                 if (isPracticeMode) {
@@ -947,21 +1001,24 @@ function QuizPageContent() {
                 questions)
               </span>
             ) : (
-              <span className="text-sm font-bold text-gray-700 dark:text-neutral-300 truncate max-w-[200px] md:max-w-none flex items-center gap-2">
+              <span className="text-sm font-bold text-gray-700 dark:text-neutral-300 truncate min-w-0 flex items-center gap-2">
                 {testName || "Quiz"}
                 {session.testMode && (
-                  <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
-                    session.testMode === 'practice'
-                      ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400'
-                      : 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400'
-                  }`}>
-                    {session.testMode === 'practice' ? 'PRACTICE' : 'TEST'}
+                  <span
+                    className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                      session.testMode === 'practice'
+                        ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400'
+                        : 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400'
+                    }`}
+                    title={session.testMode === 'practice' ? 'Check your answers as you go. Get a second chance if you are wrong.' : 'No checking. Your answer is your answer. Just like the real exam.'}
+                  >
+                    {session.testMode === 'practice' ? 'Practice Mode' : 'Test Mode'}
                   </span>
                 )}
               </span>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
               <button
                 onClick={() => setShowReferenceImage(true)}
                 className="flex flex-col items-center gap-0.5 hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all rounded-lg p-1"
@@ -980,7 +1037,7 @@ function QuizPageContent() {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <span className="text-[9px] font-medium text-gray-600 dark:text-neutral-400">
+                <span className="hidden md:block text-[9px] font-medium text-gray-600 dark:text-neutral-400">
                   Reference
                 </span>
               </button>
@@ -1014,7 +1071,7 @@ function QuizPageContent() {
                     d="M7 14l4-4 4 4 5-5"
                   />
                 </svg>
-                <span className="text-[9px] font-medium">Graph</span>
+                <span className="hidden md:block text-[9px] font-medium">Graph</span>
               </button>
 
               <button
@@ -1035,7 +1092,7 @@ function QuizPageContent() {
                     d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                   />
                 </svg>
-                <span className="text-[9px] font-medium text-gray-600 dark:text-neutral-400">
+                <span className="hidden md:block text-[9px] font-medium text-gray-600 dark:text-neutral-400">
                   Calculator
                 </span>
               </button>
@@ -1372,6 +1429,22 @@ function QuizPageContent() {
           {/* GROUPED QUESTIONS LAYOUT */}
           {isGroupedQuestion && question1 && question2 ? (
             <>
+              {/* Passage Above Text */}
+              {currentQuestion.passage?.aboveText && (
+                <div
+                  className="mb-2"
+                  style={{
+                    fontFamily: "'Times New Roman', Times, serif",
+                    fontSize: "1.125rem",
+                  }}
+                >
+                  <MathText
+                    text={currentQuestion.passage.aboveText}
+                    className="leading-relaxed dark:text-neutral-200"
+                  />
+                </div>
+              )}
+
               {/* Passage Image (drawable — stays under canvas) */}
               {currentQuestion.passage?.passageImageUrl && (
                 <div className="mb-4">
@@ -1381,7 +1454,7 @@ function QuizPageContent() {
                   <img
                     src={currentQuestion.passage.passageImageUrl}
                     alt="Passage"
-                    className="w-full h-auto object-contain rounded-lg"
+                    className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-md' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
                   />
                 </div>
               )}
@@ -1541,7 +1614,7 @@ function QuizPageContent() {
                           <img
                             src={question1.imageFilename}
                             alt="Question"
-                            className={`w-full h-auto object-contain rounded-lg ${question1.imageSize === 'small' ? 'max-h-32' : question1.imageSize === 'medium' ? 'max-h-48' : 'max-h-48'}`}
+                            className={`mx-auto h-auto rounded-lg w-full ${question1.imageSize === 'small' ? 'max-w-xs' : question1.imageSize === 'medium' ? 'max-w-md' : question1.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
                           />
                         </div>
                       )}
@@ -1678,7 +1751,7 @@ function QuizPageContent() {
                           <img
                             src={question2.imageFilename}
                             alt="Question"
-                            className={`w-full h-auto object-contain rounded-lg ${question2.imageSize === 'small' ? 'max-h-32' : question2.imageSize === 'medium' ? 'max-h-48' : 'max-h-48'}`}
+                            className={`mx-auto h-auto rounded-lg w-full ${question2.imageSize === 'small' ? 'max-w-xs' : question2.imageSize === 'medium' ? 'max-w-md' : question2.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
                           />
                         </div>
                       )}
@@ -1790,6 +1863,22 @@ function QuizPageContent() {
           ) : (
             <>
               {/* SINGLE QUESTION LAYOUT (original) */}
+              {/* Passage Above Text */}
+              {currentQuestion.passage?.aboveText && (
+                <div
+                  className="mb-2"
+                  style={{
+                    fontFamily: "'Times New Roman', Times, serif",
+                    fontSize: "1.125rem",
+                  }}
+                >
+                  <MathText
+                    text={currentQuestion.passage.aboveText}
+                    className="leading-relaxed dark:text-neutral-200"
+                  />
+                </div>
+              )}
+
               {/* Passage Image (drawable — stays under canvas) */}
               {currentQuestion.passage?.passageImageUrl && (
                 <div className="mb-4">
@@ -1799,7 +1888,7 @@ function QuizPageContent() {
                   <img
                     src={currentQuestion.passage.passageImageUrl}
                     alt="Passage"
-                    className="w-full h-auto object-contain rounded-lg"
+                    className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-md' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
                   />
                 </div>
               )}
@@ -1865,7 +1954,7 @@ function QuizPageContent() {
                       <img
                         src={currentQuestion.imageFilename}
                         alt="Question"
-                        className={`w-full h-auto object-contain rounded-lg ${currentQuestion.imageSize === 'small' ? 'max-h-32' : currentQuestion.imageSize === 'medium' ? 'max-h-48' : 'max-h-64'}`}
+                        className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-md' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
                       />
                     </div>
                   )}
@@ -1887,21 +1976,19 @@ function QuizPageContent() {
               )}
 
               {/* More Space */}
-              {!showScratchWork && (
-                <div className="relative z-[60]" style={{ pointerEvents: "auto" }}>
-                  <button
-                    onClick={() => setShowScratchWork(true)}
-                    className="flex items-center gap-1 text-xs text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 transition-colors mb-2"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                    More space
-                  </button>
-                </div>
-              )}
+              <div className="relative z-[60]" style={{ pointerEvents: "auto" }}>
+                <button
+                  onClick={() => setScratchWorkIndex(scratchWorkIndex === session.currentQuestionIndex ? null : session.currentQuestionIndex)}
+                  className="flex items-center gap-1 text-xs text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 transition-colors mb-2"
+                >
+                  <svg className={`w-3 h-3 transition-transform ${scratchWorkIndex === session.currentQuestionIndex ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  {scratchWorkIndex === session.currentQuestionIndex ? 'Less space' : 'More space'}
+                </button>
+              </div>
               <div
-                className={`transition-all duration-300 ease-in-out overflow-hidden ${showScratchWork ? 'max-h-[300px] mb-4' : 'max-h-0'}`}
+                className={`transition-all duration-300 ease-in-out overflow-hidden ${scratchWorkIndex === session.currentQuestionIndex ? 'max-h-[300px] mb-4' : 'max-h-0'}`}
               >
                 <div className="h-[300px] rounded-xl border-2 border-dashed border-gray-200 dark:border-neutral-700" />
               </div>
@@ -2459,6 +2546,16 @@ function QuizPageContent() {
         </>
       )}
 
+      {/* Live Score Beaver — practice mode only */}
+      {isTestPracticeMode && questions.length > 0 && session && (
+        <LiveScoreBeaver
+          scaledScore={snapshotScaledScore}
+          rawScore={snapshotRawScore}
+          totalPoints={liveTotalPoints}
+          pointsGained={lastPointsGained}
+        />
+      )}
+
       {/* Fixed Bottom Section - Duolingo Style */}
       <div
         className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 border-t border-gray-100 dark:border-neutral-800 z-[100] transition-all duration-300 ${
@@ -2542,12 +2639,14 @@ function QuizPageContent() {
 
             {/* Right: Explanation + Next Button */}
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowExplanation(true)}
-                className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-full transition-all"
-              >
-                EXPLANATION
-              </button>
+              {session.testMode !== 'test' && (
+                <button
+                  onClick={() => setShowExplanation(true)}
+                  className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-full transition-all"
+                >
+                  EXPLANATION
+                </button>
+              )}
               {session.currentQuestionIndex === questions.length - 1 ? (
                 isPracticeMode ? (
                   <button

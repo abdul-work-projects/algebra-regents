@@ -38,8 +38,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Type definition for database passage (shared context for grouped questions)
 export interface DatabasePassage {
   id: string;
+  above_text: string | null;
   passage_text: string | null;
   passage_image_url: string | null;
+  image_size: 'small' | 'medium' | 'large' | 'extra-large' | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,7 +57,7 @@ export interface DatabaseQuestion {
   answers: string[]; // Array of answer choices
   answer_image_urls?: (string | null)[]; // Optional array of image URLs for answers
   answer_layout?: 'grid' | 'list' | 'row'; // 'grid' = 2x2, 'list' = 1x4 (default), 'row' = 4x1
-  image_size?: 'small' | 'medium' | 'large'; // Display size for question image
+  image_size?: 'small' | 'medium' | 'large' | 'extra-large'; // Display size for question image
   question_type: string; // 'multiple-choice' or 'drag-order'
   correct_answer: number; // 1-4 (ignored for drag-order)
   explanation_text: string;
@@ -277,8 +279,10 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: 
     passageId: dbQuestion.passage_id || undefined,
     passage: dbQuestion.passages ? {
       id: dbQuestion.passages.id,
+      aboveText: dbQuestion.passages.above_text || undefined,
       passageText: dbQuestion.passages.passage_text || undefined,
       passageImageUrl: dbQuestion.passages.passage_image_url || undefined,
+      imageSize: dbQuestion.passages.image_size || 'large',
     } : undefined,
     sectionId: sectionInfo?.sectionId,
     sectionName: sectionInfo?.sectionName,
@@ -1024,8 +1028,10 @@ export async function getSubjectForQuestion(questionId: string): Promise<string 
 export function convertToPassageFormat(dbPassage: DatabasePassage): Passage {
   return {
     id: dbPassage.id,
+    aboveText: dbPassage.above_text || undefined,
     passageText: dbPassage.passage_text || undefined,
     passageImageUrl: dbPassage.passage_image_url || undefined,
+    imageSize: dbPassage.image_size || 'large',
     createdAt: dbPassage.created_at,
     updatedAt: dbPassage.updated_at,
   };
@@ -1033,8 +1039,10 @@ export function convertToPassageFormat(dbPassage: DatabasePassage): Passage {
 
 // Create a new passage
 export async function createPassage(passage: {
+  above_text?: string | null;
   passage_text?: string | null;
   passage_image_url?: string | null;
+  image_size?: string | null;
 }): Promise<DatabasePassage | null> {
   const { data, error } = await supabase
     .from('passages')
@@ -1120,8 +1128,10 @@ export async function fetchQuestionsForPassage(passageId: string): Promise<Datab
 // Create a passage with multiple questions (grouped question creation)
 export async function createPassageWithQuestions(
   passageData: {
+    above_text?: string | null;
     passage_text?: string | null;
     passage_image_url?: string | null;
+    image_size?: string | null;
   },
   questionsData: Omit<DatabaseQuestion, 'id' | 'created_at' | 'updated_at' | 'passage_id'>[]
 ): Promise<{ passage: DatabasePassage; questions: DatabaseQuestion[] } | null> {
@@ -1172,8 +1182,10 @@ export async function createPassageWithQuestions(
 export async function linkQuestionsToNewPassage(
   questionIds: string[],
   passageData: {
+    above_text?: string | null;
     passage_text?: string | null;
     passage_image_url?: string | null;
+    image_size?: string | null;
   }
 ): Promise<{ passage: DatabasePassage; updatedCount: number } | null> {
   // Create the passage first

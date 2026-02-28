@@ -478,7 +478,7 @@ export default function ResultsPage() {
                                 <img
                                   src={question.imageFilename}
                                   alt="Question"
-                                  className={`w-full h-auto object-contain rounded-lg mb-2 ${question.imageSize === 'small' ? 'max-h-32' : question.imageSize === 'medium' ? 'max-h-48' : 'max-h-64'}`}
+                                  className={`mx-auto h-auto rounded-lg mb-2 w-full ${question.imageSize === 'small' ? 'max-w-xs' : question.imageSize === 'medium' ? 'max-w-md' : question.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
                                 />
                               )}
                               {question.questionText && (
