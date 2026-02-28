@@ -251,7 +251,7 @@ function HomeContent() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-neutral-900 border-r border-gray-100 dark:border-neutral-800 transform transition-transform duration-300 lg:transform-none ${
+        className={`fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 w-64 bg-white dark:bg-neutral-900 border-r border-gray-100 dark:border-neutral-800 transform transition-transform duration-300 lg:transform-none lg:h-screen lg:shrink-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -358,18 +358,160 @@ function HomeContent() {
         <div className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === 'question-bank' ? (
           <div>
-            {/* Header */}
-            <div className="hidden lg:flex lg:items-center lg:justify-between mb-6">
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-neutral-100 tracking-tight">Question Bank</h2>
-                <p className="text-gray-600 dark:text-neutral-400 mt-1">Practice by topic and skill</p>
-              </div>
-            </div>
+            {/* Header + Filters */}
+            <div className="mb-6">
+              {/* Desktop: title + filters in one row */}
+              <div className="hidden lg:flex lg:items-center lg:justify-between mb-4">
+                <div className="shrink-0">
+                  <h2 className="text-3xl font-bold text-gray-900 dark:text-neutral-100 tracking-tight">Question Bank</h2>
+                  <p className="text-gray-600 dark:text-neutral-400 mt-1">Practice by topic and skill</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* Search Skills */}
+                  <div className="relative w-64">
+                    <input
+                      type="text"
+                      value={skillSearch}
+                      onChange={(e) => setSkillSearch(e.target.value)}
+                      placeholder="Search skills..."
+                      className="w-full h-10 px-3 pl-9 bg-gray-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-700 rounded-lg text-sm text-gray-700 dark:text-neutral-300 placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent"
+                    />
+                    <svg
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-neutral-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {skillSearch && (
+                      <button
+                        onClick={() => setSkillSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
 
-            {/* Filters */}
-            <div className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl p-4 mb-6 shadow-sm">
-              <div className="flex flex-col sm:flex-row gap-3">
-                {/* Search Skills */}
+                  {/* Tags Filter */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTagsDropdownOpen(!tagsDropdownOpen);
+                        setDifficultyDropdownOpen(false);
+                      }}
+                      className="h-10 px-4 bg-gray-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-700 rounded-full text-sm font-medium text-gray-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent inline-flex items-center gap-2 whitespace-nowrap"
+                    >
+                      <svg className="w-4 h-4 text-gray-500 dark:text-neutral-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      <span>Tags</span>
+                      {selectedTags.length > 0 && (
+                        <span className="bg-black dark:bg-white text-white dark:text-black text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                          {selectedTags.length}
+                        </span>
+                      )}
+                      <svg
+                        className={`w-4 h-4 text-gray-400 dark:text-neutral-500 flex-shrink-0 transition-transform ${tagsDropdownOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {tagsDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setTagsDropdownOpen(false)}
+                        />
+                        <div className="absolute right-0 z-20 mt-1 w-56 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-xl shadow-lg max-h-60 overflow-auto">
+                          {allTags.length === 0 ? (
+                            <div className="px-3 py-2 text-sm text-gray-400 dark:text-neutral-500">No tags available</div>
+                          ) : (
+                            allTags.map((tag) => (
+                              <label
+                                key={tag}
+                                className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-neutral-800 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTags.includes(tag)}
+                                  onChange={() => toggleTag(tag)}
+                                  className="w-4 h-4 rounded border-gray-300 dark:border-neutral-600 text-black dark:text-white focus:ring-black dark:focus:ring-white"
+                                />
+                                <span className="text-sm text-gray-700 dark:text-neutral-300">{tag}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Difficulty Filter */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDifficultyDropdownOpen(!difficultyDropdownOpen);
+                        setTagsDropdownOpen(false);
+                      }}
+                      className="h-10 px-4 bg-gray-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-700 rounded-full text-sm font-medium text-gray-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent inline-flex items-center gap-2 whitespace-nowrap"
+                    >
+                      <svg className="w-4 h-4 text-gray-500 dark:text-neutral-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                      </svg>
+                      <span>Difficulty</span>
+                      {selectedDifficulties.length > 0 && (
+                        <span className="bg-black dark:bg-white text-white dark:text-black text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                          {selectedDifficulties.length}
+                        </span>
+                      )}
+                      <svg
+                        className={`w-4 h-4 text-gray-400 dark:text-neutral-500 flex-shrink-0 transition-transform ${difficultyDropdownOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {difficultyDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setDifficultyDropdownOpen(false)}
+                        />
+                        <div className="absolute right-0 z-20 mt-1 w-44 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-xl shadow-lg">
+                          {['easy', 'medium', 'hard'].map((difficulty) => (
+                            <label
+                              key={difficulty}
+                              className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-neutral-800 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedDifficulties.includes(difficulty)}
+                                onChange={() => toggleDifficulty(difficulty)}
+                                className="w-4 h-4 rounded border-gray-300 dark:border-neutral-600 text-black dark:text-white focus:ring-black dark:focus:ring-white"
+                              />
+                              <span className="text-sm text-gray-700 dark:text-neutral-300 capitalize">{difficulty}</span>
+                            </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+              </div>
+
+              {/* Mobile: filters below */}
+              <div className="lg:hidden flex flex-col sm:flex-row gap-3 mb-4">
                 <div className="flex-1 relative">
                   <input
                     type="text"
@@ -397,8 +539,6 @@ function HomeContent() {
                     </button>
                   )}
                 </div>
-
-                {/* Tags Filter */}
                 <div className="relative">
                   <button
                     type="button"
@@ -455,8 +595,6 @@ function HomeContent() {
                     </>
                   )}
                 </div>
-
-                {/* Difficulty Filter */}
                 <div className="relative">
                   <button
                     type="button"
@@ -657,16 +795,42 @@ function HomeContent() {
         ) : (
           /* Full-length Tests Tab */
           <div>
-            {/* Header */}
-            <div className="hidden lg:flex lg:items-center lg:justify-between mb-6">
+            {/* Header + Search */}
+            <div className="hidden lg:flex lg:items-center lg:justify-between mb-4">
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 dark:text-neutral-100 tracking-tight">Full-length Tests</h2>
                 <p className="text-gray-600 dark:text-neutral-400 mt-1">Take complete practice exams</p>
               </div>
+              <div className="relative w-72">
+                <input
+                  type="text"
+                  value={testSearch}
+                  onChange={(e) => setTestSearch(e.target.value)}
+                  placeholder="Search tests..."
+                  className="w-full h-10 px-3 pl-9 bg-gray-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-700 rounded-lg text-sm text-gray-700 dark:text-neutral-300 placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent"
+                />
+                <svg
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-neutral-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {testSearch && (
+                  <button
+                    onClick={() => setTestSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
-
-            {/* Search */}
-            <div className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl p-4 mb-6 shadow-sm">
+            {/* Mobile search */}
+            <div className="lg:hidden mb-4">
               <div className="relative">
                 <input
                   type="text"

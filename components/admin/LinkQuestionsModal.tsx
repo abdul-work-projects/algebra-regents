@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { DatabaseQuestion } from "@/lib/supabase";
+import MathText from "@/components/MathText";
 
 interface LinkQuestionsModalProps {
   isOpen: boolean;
@@ -95,9 +96,9 @@ export default function LinkQuestionsModal({
               {selectedQuestions.map((id, idx) => {
                 const q = questions.find((q) => q.id === id);
                 return (
-                  <p key={id} className="text-sm text-gray-900 dark:text-neutral-100 truncate">
-                    {idx + 1}. {q?.name || q?.question_text?.slice(0, 50) || `Question ${idx + 1}`}
-                  </p>
+                  <div key={id} className="text-sm text-gray-900 dark:text-neutral-100 truncate">
+                    {idx + 1}. <MathText text={q?.name || q?.question_text?.slice(0, 50) || `Question ${idx + 1}`} className="inline" />
+                  </div>
                 );
               })}
             </div>
