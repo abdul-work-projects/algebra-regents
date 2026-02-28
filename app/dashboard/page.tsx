@@ -1,6 +1,6 @@
 'use client';
 
-import { loadSession, clearSession, loadMarkedForReview, saveSelectedSubject, loadSelectedSubject, loadSkillProgress, AllSkillProgress } from '@/lib/storage';
+import { loadSession, clearSession, loadMarkedForReview, loadSkillProgress, AllSkillProgress } from '@/lib/storage';
 import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchQuestionsForSubject, fetchAllTags } from '@/lib/supabase';
 import { Test, Question, Subject } from '@/lib/types';
 import { useEffect, useState, Suspense } from 'react';
@@ -39,7 +39,6 @@ function HomeContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all');
   const [allTags, setAllTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
@@ -66,12 +65,6 @@ function HomeContent() {
     const session = loadSession();
     if (session?.testId) {
       setExistingSessionTestId(session.testId);
-    }
-
-    // Load saved subject preference
-    const savedSubjectId = loadSelectedSubject();
-    if (savedSubjectId) {
-      setSelectedSubjectId(savedSubjectId);
     }
 
     async function loadData() {
@@ -138,11 +131,6 @@ function HomeContent() {
     window.location.href = `/quiz?${params.toString()}`;
   };
 
-  const handleSubjectChange = (subjectId: string) => {
-    setSelectedSubjectId(subjectId);
-    saveSelectedSubject(subjectId);
-  };
-
   const handleAllTopicsForSubject = (subjectId: string) => {
     const params = new URLSearchParams();
     params.set('mode', 'practice');
@@ -156,11 +144,6 @@ function HomeContent() {
     }
     window.location.href = `/quiz?${params.toString()}`;
   };
-
-  // Filter tests by selected subject only
-  const filteredTests = selectedSubjectId === 'all'
-    ? tests
-    : tests.filter(test => test.subjectId === selectedSubjectId);
 
   // Build filtered subject data - filter questions first, then build skills from filtered questions
   const filteredSubjectDataList = subjectQuestionsData.map(({ subject, questions }) => {
@@ -673,75 +656,81 @@ function HomeContent() {
         ) : (
           /* Full-length Tests Tab */
           <div>
-            {/* Header with Subject Filter */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div className="hidden lg:block">
+            {/* Header */}
+            <div className="hidden lg:flex lg:items-center lg:justify-between mb-6">
+              <div>
                 <h2 className="text-3xl font-bold text-gray-900 dark:text-neutral-100 tracking-tight">Full-length Tests</h2>
                 <p className="text-gray-600 dark:text-neutral-400 mt-1">Take complete practice exams</p>
               </div>
-              {subjects.length > 1 && (
-                <select
-                  value={selectedSubjectId}
-                  onChange={(e) => handleSubjectChange(e.target.value)}
-                  className="px-4 py-2.5 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-full text-sm font-medium text-gray-700 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent cursor-pointer hover:border-gray-300 dark:hover:border-neutral-600 transition-all"
-                >
-                  <option value="all">All Subjects</option>
-                  {subjects.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.name}
-                    </option>
-                  ))}
-                </select>
-              )}
             </div>
 
             {isLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl p-4 shadow-sm animate-pulse">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="h-5 w-48 bg-gray-100 dark:bg-neutral-800 rounded" />
-                        <div className="h-3 w-64 bg-gray-100 dark:bg-neutral-800 rounded mt-2" />
-                        <div className="h-6 w-24 bg-gray-100 dark:bg-neutral-800 rounded-lg mt-3" />
-                      </div>
-                      <div className="ml-4 h-10 w-28 bg-gray-100 dark:bg-neutral-800 rounded-full" />
+              <div className="space-y-6">
+                {[1, 2].map((i) => (
+                  <div key={i} className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-sm animate-pulse">
+                    <div className="p-4 bg-gray-100 dark:bg-neutral-800">
+                      <div className="h-6 w-40 bg-gray-200 dark:bg-neutral-700 rounded" />
+                      <div className="h-3 w-24 bg-gray-200 dark:bg-neutral-700 rounded mt-2" />
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {[1, 2, 3].map((j) => (
+                        <div key={j} className="flex items-center justify-between py-2">
+                          <div className="h-4 bg-gray-100 dark:bg-neutral-800 rounded w-2/5" />
+                          <div className="h-3 w-16 bg-gray-100 dark:bg-neutral-800 rounded" />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
               </div>
-            ) : filteredTests.length === 0 ? (
+            ) : tests.length === 0 ? (
               <div className="text-center py-12 text-gray-500 dark:text-neutral-400 bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm">
-                {tests.length === 0 ? 'No tests available yet. Check back later.' : 'No tests available for this subject.'}
+                No tests available yet. Check back later.
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredTests.map((test) => (
-                  <div
-                    key={test.id}
-                    className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl p-4 hover:-translate-y-1 transition-transform shadow-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 dark:text-neutral-100 truncate">{test.name}</h3>
-                        {test.description && (
-                          <p className="text-sm text-gray-600 dark:text-neutral-400 truncate">{test.description}</p>
-                        )}
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 rounded-lg text-xs font-medium">
-                            {test.questionCount || 0} Questions
-                          </span>
+              <div className="space-y-6">
+                {subjects
+                  .filter(subject => tests.some(t => t.subjectId === subject.id))
+                  .map((subject) => {
+                    const subjectTests = tests.filter(t => t.subjectId === subject.id);
+                    return (
+                      <div
+                        key={subject.id}
+                        className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-sm hover:-translate-y-1 transition-transform"
+                      >
+                        {/* Subject Header with Color */}
+                        <div
+                          className="p-4 flex items-center justify-between"
+                          style={{ backgroundColor: subject.color }}
+                        >
+                          <div>
+                            <h3 className="font-bold text-gray-900 text-xl tracking-tight">
+                              {subject.name}
+                            </h3>
+                            <p className="text-gray-800/70 text-sm">
+                              {subjectTests.length} {subjectTests.length === 1 ? 'test' : 'tests'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Tests List */}
+                        <div className="p-4">
+                          <div className="space-y-0.5">
+                            {subjectTests.map((test) => (
+                              <div
+                                key={test.id}
+                                onClick={() => handleStartTest(test.id)}
+                                className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
+                              >
+                                <span className="text-gray-700 dark:text-neutral-300">{test.name}</span>
+                                <span className="text-gray-400 dark:text-neutral-500 text-sm">{test.questionCount || 0} questions</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleStartTest(test.id)}
-                        className="ml-4 px-5 py-2.5 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full transition-all flex-shrink-0 shadow-sm"
-                      >
-                        START TEST
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
               </div>
             )}
 
