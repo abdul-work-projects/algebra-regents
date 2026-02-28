@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Test } from "@/lib/types";
+import { Test, Subject } from "@/lib/types";
 import TestMultiSelect from "@/components/TestMultiSelect";
 
 interface CsvPreviewRow {
@@ -16,14 +16,37 @@ interface CsvUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   tests: Test[];
+  subjects: Subject[];
   onUpload: (csvData: CsvPreviewRow[], testIds: string[]) => Promise<void>;
 }
 
 function parseCSV(text: string): CsvPreviewRow[] {
-  const lines = text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line);
+  // Split CSV into rows, respecting quoted fields that span multiple lines
+  const splitCsvRows = (csv: string): string[] => {
+    const rows: string[] = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < csv.length; i++) {
+      const char = csv[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+        current += char;
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (char === '\r' && csv[i + 1] === '\n') i++; // skip \r\n
+        const trimmed = current.trim();
+        if (trimmed) rows.push(trimmed);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    const trimmed = current.trim();
+    if (trimmed) rows.push(trimmed);
+    return rows;
+  };
+
+  const lines = splitCsvRows(text);
   if (lines.length < 2) {
     throw new Error("CSV must have a header row and at least one data row");
   }
@@ -115,7 +138,7 @@ function parseCSV(text: string): CsvPreviewRow[] {
   return questions;
 }
 
-export default function CsvUploadModal({ isOpen, onClose, tests, onUpload }: CsvUploadModalProps) {
+export default function CsvUploadModal({ isOpen, onClose, tests, subjects, onUpload }: CsvUploadModalProps) {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState<CsvPreviewRow[]>([]);
   const [csvError, setCsvError] = useState<string | null>(null);
@@ -206,7 +229,7 @@ export default function CsvUploadModal({ isOpen, onClose, tests, onUpload }: Csv
             {tests.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-neutral-400 italic">No tests available</p>
             ) : (
-              <TestMultiSelect tests={tests} selectedTestIds={selectedTestIds} onChange={setSelectedTestIds} placeholder="Select tests..." />
+              <TestMultiSelect tests={tests} subjects={subjects} selectedTestIds={selectedTestIds} onChange={setSelectedTestIds} placeholder="Select tests..." />
             )}
           </div>
 

@@ -3,7 +3,9 @@ import { Test, TestSection, Subject } from "@/lib/types";
 import { DatabaseQuestion, DatabasePassage } from "@/lib/supabase";
 import MathText from "@/components/MathText";
 
-type QuestionWithPassage = DatabaseQuestion & { passages?: DatabasePassage | null };
+type QuestionWithPassage = DatabaseQuestion & {
+  passages?: DatabasePassage | null;
+};
 
 interface QuestionListProps {
   questions: QuestionWithPassage[];
@@ -27,7 +29,9 @@ interface QuestionListProps {
   onLoadQuestionForEdit: (question: QuestionWithPassage) => void;
   onDeleteQuestion: (id: string) => void;
   onQuestionsReorder: (newQuestions: QuestionWithPassage[]) => void;
-  onTestQuestionOrderChange: (newOrder: { [questionId: string]: number }) => void;
+  onTestQuestionOrderChange: (newOrder: {
+    [questionId: string]: number;
+  }) => void;
   onDragDrop: (e: React.DragEvent) => void;
   onShowTestSettings: () => void;
   onUngroupQuestions: (passageId: string, questionIds: string[]) => void;
@@ -61,10 +65,16 @@ export default function QuestionList({
   onUngroupQuestions,
 }: QuestionListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [draggedQuestionId, setDraggedQuestionId] = useState<string | null>(null);
+  const [draggedQuestionId, setDraggedQuestionId] = useState<string | null>(
+    null,
+  );
   const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null);
-  const [originalQuestions, setOriginalQuestions] = useState<QuestionWithPassage[] | null>(null);
-  const [originalTestOrder, setOriginalTestOrder] = useState<{ [questionId: string]: number } | null>(null);
+  const [originalQuestions, setOriginalQuestions] = useState<
+    QuestionWithPassage[] | null
+  >(null);
+  const [originalTestOrder, setOriginalTestOrder] = useState<{
+    [questionId: string]: number;
+  } | null>(null);
   const dropSuccessRef = useRef(false);
 
   const handleQuestionDragStart = (e: React.DragEvent, questionId: string) => {
@@ -79,7 +89,11 @@ export default function QuestionList({
     e.dataTransfer.setData("text/plain", questionId);
   };
 
-  const handleGroupDragStart = (e: React.DragEvent, passageId: string, questionIds: string[]) => {
+  const handleGroupDragStart = (
+    e: React.DragEvent,
+    passageId: string,
+    questionIds: string[],
+  ) => {
     dropSuccessRef.current = false;
     setDraggedGroupId(passageId);
     setDraggedQuestionId(questionIds[0]);
@@ -103,19 +117,29 @@ export default function QuestionList({
       const currentOrder = { ...testQuestionOrder };
 
       if (draggedGroupId) {
-        const groupQuestionIds = questions.filter((q) => q.passage_id === draggedGroupId).map((q) => q.id);
-        const entries = Object.entries(currentOrder).sort((a, b) => a[1] - b[1]);
+        const groupQuestionIds = questions
+          .filter((q) => q.passage_id === draggedGroupId)
+          .map((q) => q.id);
+        const entries = Object.entries(currentOrder).sort(
+          (a, b) => a[1] - b[1],
+        );
         const targetIdx = entries.findIndex(([id]) => id === questionId);
         if (targetIdx === -1) return;
 
-        const filteredEntries = entries.filter(([id]) => !groupQuestionIds.includes(id));
-        const groupEntries = entries.filter(([id]) => groupQuestionIds.includes(id));
+        const filteredEntries = entries.filter(
+          ([id]) => !groupQuestionIds.includes(id),
+        );
+        const groupEntries = entries.filter(([id]) =>
+          groupQuestionIds.includes(id),
+        );
         let insertIdx = filteredEntries.findIndex(([id]) => id === questionId);
         if (insertIdx === -1) insertIdx = filteredEntries.length;
         filteredEntries.splice(insertIdx, 0, ...groupEntries);
 
         const newOrder: { [questionId: string]: number } = {};
-        filteredEntries.forEach(([id], index) => { newOrder[id] = index; });
+        filteredEntries.forEach(([id], index) => {
+          newOrder[id] = index;
+        });
         onTestQuestionOrderChange(newOrder);
       } else {
         const draggedOrder = currentOrder[draggedQuestionId];
@@ -123,15 +147,24 @@ export default function QuestionList({
         if (draggedOrder === undefined || targetOrder === undefined) return;
         if (draggedOrder === targetOrder) return;
 
-        const entries = Object.entries(currentOrder).sort((a, b) => a[1] - b[1]);
-        const draggedIdx = entries.findIndex(([id]) => id === draggedQuestionId);
+        const entries = Object.entries(currentOrder).sort(
+          (a, b) => a[1] - b[1],
+        );
+        const draggedIdx = entries.findIndex(
+          ([id]) => id === draggedQuestionId,
+        );
         let targetIdx = entries.findIndex(([id]) => id === questionId);
         if (draggedIdx === -1 || targetIdx === -1) return;
 
         const tq = questions.find((q) => q.id === questionId);
         if (tq?.passage_id) {
-          const groupIds = new Set(questions.filter((q) => q.passage_id === tq.passage_id).map((q) => q.id));
-          let groupFirst = -1, groupLast = -1;
+          const groupIds = new Set(
+            questions
+              .filter((q) => q.passage_id === tq.passage_id)
+              .map((q) => q.id),
+          );
+          let groupFirst = -1,
+            groupLast = -1;
           entries.forEach(([id], idx) => {
             if (groupIds.has(id)) {
               if (groupFirst === -1) groupFirst = idx;
@@ -147,29 +180,43 @@ export default function QuestionList({
         entries.splice(insertIdx, 0, draggedEntry);
 
         const newOrder: { [questionId: string]: number } = {};
-        entries.forEach(([id], index) => { newOrder[id] = index; });
+        entries.forEach(([id], index) => {
+          newOrder[id] = index;
+        });
         onTestQuestionOrderChange(newOrder);
       }
     } else {
       if (draggedGroupId) {
-        const groupQuestions = questions.filter((q) => q.passage_id === draggedGroupId);
+        const groupQuestions = questions.filter(
+          (q) => q.passage_id === draggedGroupId,
+        );
         const groupQuestionIds = groupQuestions.map((q) => q.id);
         const targetIndex = questions.findIndex((q) => q.id === questionId);
         if (targetIndex === -1) return;
 
-        const newQuestions = questions.filter((q) => !groupQuestionIds.includes(q.id));
+        const newQuestions = questions.filter(
+          (q) => !groupQuestionIds.includes(q.id),
+        );
         let newTargetIndex = newQuestions.findIndex((q) => q.id === questionId);
         if (newTargetIndex === -1) newTargetIndex = newQuestions.length;
         newQuestions.splice(newTargetIndex, 0, ...groupQuestions);
         onQuestionsReorder(newQuestions);
       } else {
-        const draggedIndex = questions.findIndex((q) => q.id === draggedQuestionId);
+        const draggedIndex = questions.findIndex(
+          (q) => q.id === draggedQuestionId,
+        );
         let targetIndex = questions.findIndex((q) => q.id === questionId);
-        if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) return;
+        if (
+          draggedIndex === -1 ||
+          targetIndex === -1 ||
+          draggedIndex === targetIndex
+        )
+          return;
 
         const tq = questions[targetIndex];
         if (tq?.passage_id) {
-          let groupFirst = -1, groupLast = -1;
+          let groupFirst = -1,
+            groupLast = -1;
           questions.forEach((q, idx) => {
             if (q.passage_id === tq.passage_id) {
               if (groupFirst === -1) groupFirst = idx;
@@ -182,7 +229,8 @@ export default function QuestionList({
 
         const newQuestions = [...questions];
         const [draggedQuestion] = newQuestions.splice(draggedIndex, 1);
-        const insertIdx = draggedIndex < targetIndex ? targetIndex : targetIndex;
+        const insertIdx =
+          draggedIndex < targetIndex ? targetIndex : targetIndex;
         newQuestions.splice(insertIdx, 0, draggedQuestion);
         onQuestionsReorder(newQuestions);
       }
@@ -211,20 +259,26 @@ export default function QuestionList({
   };
 
   // Get test IDs for the selected subject
-  const subjectTestIds = filterSubjectId === "all"
-    ? null
-    : new Set(tests.filter((t) => t.subjectId === filterSubjectId).map((t) => t.id));
+  const subjectTestIds =
+    filterSubjectId === "all"
+      ? null
+      : new Set(
+          tests.filter((t) => t.subjectId === filterSubjectId).map((t) => t.id),
+        );
 
   // Filter tests shown in dropdown by subject
-  const filteredTests = filterSubjectId === "all"
-    ? tests
-    : tests.filter((t) => t.subjectId === filterSubjectId);
+  const filteredTests =
+    filterSubjectId === "all"
+      ? tests
+      : tests.filter((t) => t.subjectId === filterSubjectId);
 
   // Filter and sort questions
   const testFilteredQuestions = questions
     .filter((q) => {
-      if (filterTestId !== "all") return questionTestMap[q.id]?.includes(filterTestId);
-      if (subjectTestIds) return questionTestMap[q.id]?.some((tid) => subjectTestIds.has(tid));
+      if (filterTestId !== "all")
+        return questionTestMap[q.id]?.includes(filterTestId);
+      if (subjectTestIds)
+        return questionTestMap[q.id]?.some((tid) => subjectTestIds.has(tid));
       return true;
     })
     .sort((a, b) => {
@@ -244,8 +298,13 @@ export default function QuestionList({
     if (q.passage_id) {
       if (!origProcessedPassages.has(q.passage_id)) {
         origProcessedPassages.add(q.passage_id);
-        const grouped = testFilteredQuestions.filter((gq) => gq.passage_id === q.passage_id);
-        grouped.forEach((gq) => { origIdx++; originalIndexMap.set(gq.id, origIdx); });
+        const grouped = testFilteredQuestions.filter(
+          (gq) => gq.passage_id === q.passage_id,
+        );
+        grouped.forEach((gq) => {
+          origIdx++;
+          originalIndexMap.set(gq.id, origIdx);
+        });
       }
     } else {
       origIdx++;
@@ -267,14 +326,24 @@ export default function QuestionList({
 
   // Group questions by passage_id
   const processedPassageIds = new Set<string>();
-  const groupedItems: Array<{ type: "single" | "grouped"; questions: typeof filteredQuestions; passageId?: string }> = [];
+  const groupedItems: Array<{
+    type: "single" | "grouped";
+    questions: typeof filteredQuestions;
+    passageId?: string;
+  }> = [];
 
   filteredQuestions.forEach((question) => {
     if (question.passage_id) {
       if (processedPassageIds.has(question.passage_id)) return;
       processedPassageIds.add(question.passage_id);
-      const groupedQuestions = filteredQuestions.filter((q) => q.passage_id === question.passage_id);
-      groupedItems.push({ type: "grouped", questions: groupedQuestions, passageId: question.passage_id });
+      const groupedQuestions = filteredQuestions.filter(
+        (q) => q.passage_id === question.passage_id,
+      );
+      groupedItems.push({
+        type: "grouped",
+        questions: groupedQuestions,
+        passageId: question.passage_id,
+      });
     } else {
       groupedItems.push({ type: "single", questions: [question] });
     }
@@ -296,7 +365,7 @@ export default function QuestionList({
     index: number,
     isGrouped: boolean,
     groupPosition?: "first" | "last" | "middle",
-    ungroupInfo?: { passageId: string; questionIds: string[] }
+    ungroupInfo?: { passageId: string; questionIds: string[] },
   ) => (
     <div
       key={question.id}
@@ -311,8 +380,8 @@ export default function QuestionList({
         editingId === question.id
           ? "border-black dark:border-neutral-400 bg-gray-50 dark:bg-neutral-800"
           : selectedForGrouping.includes(question.id)
-          ? "border-purple-400 bg-purple-50 dark:bg-purple-900/30"
-          : "border-gray-100 dark:border-neutral-800"
+            ? "border-purple-400 bg-purple-50 dark:bg-purple-900/30"
+            : "border-gray-100 dark:border-neutral-800"
       } ${draggedQuestionId === question.id ? "opacity-40 bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700" : ""} ${
         isGrouped && groupPosition === "first" ? "rounded-t-2xl border-b-0" : ""
       } ${isGrouped && groupPosition === "last" ? "rounded-b-2xl border-t-0" : ""} ${
@@ -347,49 +416,93 @@ export default function QuestionList({
                   {question.name || `Q${index}`}
                 </p>
                 {isGrouped && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-[10px] font-medium flex-shrink-0" title="Grouped question (shares a passage)">
-                    <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+                  <span
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-[10px] font-medium flex-shrink-0"
+                    title="Grouped question (shares a passage)"
+                  >
+                    <svg
+                      className="w-2.5 h-2.5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
                       <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
                     </svg>
                     Grouped
                   </span>
                 )}
-                {filterTestId !== "all" && testSections.length > 0 && questionSectionMap[question.id] && (
-                  <span className="inline-block px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-medium flex-shrink-0">
-                    {testSections.find((s) => s.id === questionSectionMap[question.id])?.name || "Section"}
-                  </span>
-                )}
-              </div>
-              {question.name && <p className="text-[10px] text-gray-400 dark:text-neutral-500">Q{index}</p>}
-              <p className="text-xs text-gray-600 dark:text-neutral-400 truncate">{(question.skills || []).join(", ")}</p>
-              {filterTestId === "all" && questionTestMap[question.id]?.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-0.5">
-                  {questionTestMap[question.id].slice(0, 2).map((testId) => {
-                    const test = tests.find((t) => t.id === testId);
-                    return test ? (
-                      <span key={testId} className="inline-block px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-medium truncate max-w-[200px]" title={test.name}>
-                        {test.name}
-                      </span>
-                    ) : null;
-                  })}
-                  {questionTestMap[question.id].length > 2 && (
-                    <span className="text-xs text-gray-500 dark:text-neutral-400">+{questionTestMap[question.id].length - 2}</span>
+                {filterTestId !== "all" &&
+                  testSections.length > 0 &&
+                  questionSectionMap[question.id] && (
+                    <span className="inline-block px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-medium flex-shrink-0">
+                      {testSections.find(
+                        (s) => s.id === questionSectionMap[question.id],
+                      )?.name || "Section"}
+                    </span>
                   )}
-                </div>
+              </div>
+              {question.name && (
+                <p className="text-[10px] text-gray-400 dark:text-neutral-500">
+                  Q{index}
+                </p>
               )}
+              <p className="text-xs text-gray-600 dark:text-neutral-400 truncate">
+                {(question.skills || []).join(", ")}
+              </p>
+              {filterTestId === "all" &&
+                questionTestMap[question.id]?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {questionTestMap[question.id].slice(0, 2).map((testId) => {
+                      const test = tests.find((t) => t.id === testId);
+                      return test ? (
+                        <span
+                          key={testId}
+                          className="inline-block px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-medium truncate max-w-[200px]"
+                          title={test.name}
+                        >
+                          {test.name}
+                        </span>
+                      ) : null;
+                    })}
+                    {questionTestMap[question.id].length > 2 && (
+                      <span className="text-xs text-gray-500 dark:text-neutral-400">
+                        +{questionTestMap[question.id].length - 2}
+                      </span>
+                    )}
+                  </div>
+                )}
             </div>
             {question.question_image_url && (
-              <img src={question.question_image_url} alt={`Q${index + 1}`} className="w-10 h-10 object-cover rounded flex-shrink-0" />
+              <img
+                src={question.question_image_url}
+                alt={`Q${index + 1}`}
+                className="w-10 h-10 object-cover rounded flex-shrink-0"
+              />
             )}
             <div className="flex gap-1 flex-shrink-0">
               {ungroupInfo && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); onUngroupQuestions(ungroupInfo.passageId, ungroupInfo.questionIds); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUngroupQuestions(
+                      ungroupInfo.passageId,
+                      ungroupInfo.questionIds,
+                    );
+                  }}
                   className="p-1.5 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-full active:scale-95 transition-all"
                   title="Ungroup questions"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                    />
                   </svg>
                 </button>
               )}
@@ -398,8 +511,18 @@ export default function QuestionList({
                 className="p-1.5 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-full active:scale-95 transition-all"
                 title={isGrouped ? "Edit grouped questions" : "Edit question"}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
                 </svg>
               </button>
               <button
@@ -407,8 +530,18 @@ export default function QuestionList({
                 className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full active:scale-95 transition-all"
                 title="Delete question"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
                 </svg>
               </button>
             </div>
@@ -428,8 +561,18 @@ export default function QuestionList({
       {/* Search + Actions */}
       <div className="flex items-center gap-2 mb-2 flex-shrink-0">
         <div className="relative flex-1 min-w-0">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
           <input
             type="text"
@@ -443,8 +586,18 @@ export default function QuestionList({
               onClick={() => setSearchQuery("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-full"
             >
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-4 h-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           )}
@@ -477,7 +630,7 @@ export default function QuestionList({
           className="flex-shrink-0 text-xs px-3 py-2 font-bold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-full hover:border-black dark:hover:border-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 transition-all"
           title="Bulk upload questions from CSV"
         >
-          CSV
+          Upload CSV
         </button>
         {editingId && (
           <button
@@ -499,7 +652,9 @@ export default function QuestionList({
         >
           <option value="all">All Subjects</option>
           {subjects.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
           ))}
         </select>
         <select
@@ -508,27 +663,25 @@ export default function QuestionList({
           className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 dark:border-neutral-700 rounded-full focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
         >
           <option value="all">All Tests</option>
-          {filterSubjectId !== "all" ? (
-            filteredTests.map((test) => (
-              <option key={test.id} value={test.id}>
-                {test.name} ({test.questionCount || 0})
-              </option>
-            ))
-          ) : (
-            subjects.map((s) => {
-              const subjectTests = tests.filter((t) => t.subjectId === s.id);
-              if (subjectTests.length === 0) return null;
-              return (
-                <optgroup key={s.id} label={s.name}>
-                  {subjectTests.map((test) => (
-                    <option key={test.id} value={test.id}>
-                      {test.name} ({test.questionCount || 0})
-                    </option>
-                  ))}
-                </optgroup>
-              );
-            })
-          )}
+          {filterSubjectId !== "all"
+            ? filteredTests.map((test) => (
+                <option key={test.id} value={test.id}>
+                  {test.name} ({test.questionCount || 0})
+                </option>
+              ))
+            : subjects.map((s) => {
+                const subjectTests = tests.filter((t) => t.subjectId === s.id);
+                if (subjectTests.length === 0) return null;
+                return (
+                  <optgroup key={s.id} label={s.name}>
+                    {subjectTests.map((test) => (
+                      <option key={test.id} value={test.id}>
+                        {test.name} ({test.questionCount || 0})
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
         </select>
         {filterTestId !== "all" && (
           <button
@@ -536,9 +689,24 @@ export default function QuestionList({
             className="flex-shrink-0 p-2 text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-neutral-100 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full active:scale-95 transition-all"
             title="Test settings"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
             </svg>
           </button>
         )}
@@ -546,9 +714,13 @@ export default function QuestionList({
 
       <div className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
         {isLoadingQuestions ? (
-          <div className="text-center py-8 text-gray-500 dark:text-neutral-400 text-sm">Loading...</div>
+          <div className="text-center py-8 text-gray-500 dark:text-neutral-400 text-sm">
+            Loading...
+          </div>
         ) : questions.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 dark:text-neutral-400 text-sm">No questions yet</div>
+          <div className="text-center py-8 text-gray-500 dark:text-neutral-400 text-sm">
+            No questions yet
+          </div>
         ) : (
           <div
             className="space-y-1 overflow-y-auto flex-1 p-3"
@@ -558,7 +730,11 @@ export default function QuestionList({
             {groupedItems.map((item) => {
               if (item.type === "single") {
                 const question = item.questions[0];
-                return renderQuestionItem(question, originalIndexMap.get(question.id) || 0, false);
+                return renderQuestionItem(
+                  question,
+                  originalIndexMap.get(question.id) || 0,
+                  false,
+                );
               } else {
                 const groupQuestionIds = item.questions.map((q) => q.id);
                 const isGroupBeingDragged = draggedGroupId === item.passageId;
@@ -567,16 +743,37 @@ export default function QuestionList({
                     key={`group-${item.passageId}`}
                     className={`relative cursor-grab active:cursor-grabbing ${isGroupBeingDragged ? "opacity-40" : ""}`}
                     draggable
-                    onDragStart={(e) => handleGroupDragStart(e, item.passageId!, groupQuestionIds)}
-                    onDragOver={(e) => { e.preventDefault(); handleQuestionDragOver(e, item.questions[0].id); }}
+                    onDragStart={(e) =>
+                      handleGroupDragStart(e, item.passageId!, groupQuestionIds)
+                    }
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      handleQuestionDragOver(e, item.questions[0].id);
+                    }}
                     onDrop={handleQuestionDrop}
                     onDragEnd={handleQuestionDragEnd}
                   >
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-400 rounded-l-2xl" />
                     <div className="ml-1">
                       {item.questions.map((question, qIndex) => {
-                        const groupPosition = qIndex === 0 ? "first" : qIndex === item.questions.length - 1 ? "last" : "middle";
-                        return renderQuestionItem(question, originalIndexMap.get(question.id) || 0, true, groupPosition, qIndex === 0 ? { passageId: item.passageId!, questionIds: groupQuestionIds } : undefined);
+                        const groupPosition =
+                          qIndex === 0
+                            ? "first"
+                            : qIndex === item.questions.length - 1
+                              ? "last"
+                              : "middle";
+                        return renderQuestionItem(
+                          question,
+                          originalIndexMap.get(question.id) || 0,
+                          true,
+                          groupPosition,
+                          qIndex === 0
+                            ? {
+                                passageId: item.passageId!,
+                                questionIds: groupQuestionIds,
+                              }
+                            : undefined,
+                        );
                       })}
                     </div>
                   </div>

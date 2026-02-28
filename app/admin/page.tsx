@@ -810,6 +810,7 @@ export default function AdminPage() {
               selectedTestIds={selectedTestIds}
               onSelectedTestIdsChange={setSelectedTestIds}
               tests={tests}
+              subjects={subjects}
               availableTags={availableTags}
               availableTagNames={availableTagNames}
               isSubmitting={isSubmitting}
@@ -863,6 +864,7 @@ export default function AdminPage() {
         isOpen={showCsvModal}
         onClose={() => setShowCsvModal(false)}
         tests={tests}
+        subjects={subjects}
         onUpload={handleCsvUpload}
       />
 

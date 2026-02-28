@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Test } from "@/lib/types";
+import { Test, Subject } from "@/lib/types";
 import { UseQuestionFormReturn } from "@/hooks/useQuestionForm";
 import TagInput from "@/components/TagInput";
 import TestMultiSelect from "@/components/TestMultiSelect";
@@ -25,6 +25,7 @@ interface QuestionFormProps {
   selectedTestIds: string[];
   onSelectedTestIdsChange: (ids: string[]) => void;
   tests: Test[];
+  subjects: Subject[];
   availableTags: string[];
   availableTagNames: string[];
   isSubmitting: boolean;
@@ -52,6 +53,7 @@ export default function QuestionForm({
   selectedTestIds,
   onSelectedTestIdsChange,
   tests,
+  subjects,
   availableTags,
   availableTagNames,
   isSubmitting,
@@ -581,7 +583,7 @@ export default function QuestionForm({
           {tests.length === 0 ? (
             <p className="text-xs text-gray-500 dark:text-neutral-400 italic">No tests available. Create a test first.</p>
           ) : (
-            <TestMultiSelect tests={tests} selectedTestIds={selectedTestIds} onChange={onSelectedTestIdsChange} placeholder="Select tests..." />
+            <TestMultiSelect tests={tests} subjects={subjects} selectedTestIds={selectedTestIds} onChange={onSelectedTestIdsChange} placeholder="Select tests..." />
           )}
           <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">Select which tests this question should appear in</p>
         </div>

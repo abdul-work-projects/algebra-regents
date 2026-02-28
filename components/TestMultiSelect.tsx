@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Test } from "@/lib/types";
+import { Test, Subject } from "@/lib/types";
 
 interface TestMultiSelectProps {
   tests: Test[];
+  subjects?: Subject[];
   selectedTestIds: string[];
   onChange: (testIds: string[]) => void;
   placeholder?: string;
@@ -12,6 +13,7 @@ interface TestMultiSelectProps {
 
 export default function TestMultiSelect({
   tests,
+  subjects,
   selectedTestIds,
   onChange,
   placeholder = "Select tests...",
@@ -110,6 +112,44 @@ export default function TestMultiSelect({
           <div className="max-h-48 overflow-y-auto">
             {filteredTests.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-500 dark:text-neutral-400">No tests found</div>
+            ) : subjects && subjects.length > 0 ? (
+              subjects.map((subject) => {
+                const subjectTests = filteredTests.filter((t) => t.subjectId === subject.id);
+                if (subjectTests.length === 0) return null;
+                return (
+                  <div key={subject.id}>
+                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-neutral-500 bg-gray-50 dark:bg-neutral-800/50 sticky top-0">
+                      {subject.name}
+                    </div>
+                    {subjectTests.map((test) => {
+                      const isSelected = selectedTestIds.includes(test.id);
+                      return (
+                        <div
+                          key={test.id}
+                          onClick={() => toggleTest(test.id)}
+                          className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${
+                            isSelected ? "bg-blue-50 dark:bg-blue-900/30" : "hover:bg-gray-50 dark:hover:bg-neutral-800"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="w-4 h-4 rounded border-gray-300 dark:border-neutral-600 pointer-events-none"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-neutral-300 flex-1">{test.name}</span>
+                          {!test.isActive && (
+                            <span className="text-xs text-gray-400 dark:text-neutral-500">(inactive)</span>
+                          )}
+                          <span className="text-xs text-gray-400 dark:text-neutral-500">
+                            {test.questionCount || 0} Q
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })
             ) : (
               filteredTests.map((test) => {
                 const isSelected = selectedTestIds.includes(test.id);

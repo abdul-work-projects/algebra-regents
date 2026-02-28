@@ -118,7 +118,33 @@ export default function TestsTab({
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredTests.map((test) => (
+          {filterSubjectId === "all" ? (
+            subjects.map((subject) => {
+              const subjectTests = filteredTests.filter((t) => t.subjectId === subject.id);
+              if (subjectTests.length === 0) return null;
+              return (
+                <div key={subject.id}>
+                  <div className="flex items-center gap-2 mb-2 mt-1">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-neutral-500">{subject.name}</h3>
+                    <div className="flex-1 h-px bg-gray-100 dark:bg-neutral-800" />
+                    <span className="text-xs text-gray-400 dark:text-neutral-500">{subjectTests.length}</span>
+                  </div>
+                  <div className="space-y-3">
+                    {subjectTests.map((test) => renderTestCard(test))}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            filteredTests.map((test) => renderTestCard(test))
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  function renderTestCard(test: Test) {
+    return (
             <div
               key={test.id}
               className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm p-4 hover:border-gray-200 dark:hover:border-neutral-700 transition-all"
@@ -358,9 +384,6 @@ export default function TestsTab({
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+    );
+  }
 }
