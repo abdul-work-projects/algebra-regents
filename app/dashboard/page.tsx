@@ -43,6 +43,7 @@ function HomeContent() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
   const [skillSearch, setSkillSearch] = useState<string>('');
+  const [testSearch, setTestSearch] = useState<string>('');
   const [tagsDropdownOpen, setTagsDropdownOpen] = useState(false);
   const [difficultyDropdownOpen, setDifficultyDropdownOpen] = useState(false);
 
@@ -664,6 +665,37 @@ function HomeContent() {
               </div>
             </div>
 
+            {/* Search */}
+            <div className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl p-4 mb-6 shadow-sm">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={testSearch}
+                  onChange={(e) => setTestSearch(e.target.value)}
+                  placeholder="Search tests..."
+                  className="w-full h-10 px-3 pl-9 bg-gray-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-700 rounded-lg text-sm text-gray-700 dark:text-neutral-300 placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent"
+                />
+                <svg
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-neutral-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {testSearch && (
+                  <button
+                    onClick={() => setTestSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+
             {isLoading ? (
               <div className="space-y-6">
                 {[1, 2].map((i) => (
@@ -692,7 +724,12 @@ function HomeContent() {
                 {subjects
                   .filter(subject => tests.some(t => t.subjectId === subject.id))
                   .map((subject) => {
-                    const subjectTests = tests.filter(t => t.subjectId === subject.id);
+                    const searchLower = testSearch.toLowerCase().trim();
+                    const subjectTests = tests.filter(t =>
+                      t.subjectId === subject.id &&
+                      (!searchLower || t.name.toLowerCase().includes(searchLower))
+                    );
+                    if (subjectTests.length === 0) return null;
                     return (
                       <div
                         key={subject.id}
