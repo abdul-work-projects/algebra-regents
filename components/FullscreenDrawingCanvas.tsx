@@ -36,6 +36,9 @@ export default function FullscreenDrawingCanvas({
 }: FullscreenDrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const initializedRef = useRef(false);
+  const loadedDrawingRef = useRef<string | undefined>(undefined);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
@@ -50,7 +53,7 @@ export default function FullscreenDrawingCanvas({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const initCanvas = () => {
+    const initCanvas = (drawing?: string) => {
       const rect = container.getBoundingClientRect();
       const width = rect.width;
       const height = rect.height;
@@ -58,32 +61,36 @@ export default function FullscreenDrawingCanvas({
       canvas.width = width;
       canvas.height = height;
 
-      // Transparent background
       ctx.clearRect(0, 0, width, height);
 
-      // Load initial drawing if provided
-      if (initialDrawing) {
+      if (drawing) {
         const img = new Image();
         img.onload = () => {
           ctx.drawImage(img, 0, 0, width, height);
         };
-        img.src = initialDrawing;
+        img.src = drawing;
       }
     };
 
-    initCanvas();
+    // Only load initialDrawing on first mount or when it changes externally
+    // (not from our own saveDrawing calls)
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      loadedDrawingRef.current = initialDrawing;
+      initCanvas(initialDrawing);
+    }
 
     // Handle resize
     const handleResize = () => {
       const currentDrawing = canvas.toDataURL();
-      initCanvas();
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (currentDrawing && currentDrawing !== 'data:,') {
         const img = new Image();
         img.onload = () => {
-          const drawCtx = canvas.getContext('2d');
-          if (drawCtx) {
-            drawCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         };
         img.src = currentDrawing;
       }
@@ -94,6 +101,28 @@ export default function FullscreenDrawingCanvas({
     return () => {
       window.removeEventListener('resize', handleResize);
     };
+  }, []);
+
+  // Handle external initialDrawing changes (e.g. question navigation, undo)
+  useEffect(() => {
+    if (!initializedRef.current) return;
+    // Only reload if the drawing changed externally (not from our own save)
+    if (initialDrawing !== loadedDrawingRef.current) {
+      loadedDrawingRef.current = initialDrawing;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (initialDrawing) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+        img.src = initialDrawing;
+      }
+    }
   }, [initialDrawing]);
 
   const saveDrawing = () => {
@@ -101,6 +130,7 @@ export default function FullscreenDrawingCanvas({
     if (!canvas) return;
 
     const dataUrl = canvas.toDataURL();
+    loadedDrawingRef.current = dataUrl;
     onDrawingChange(dataUrl);
   };
 
@@ -135,25 +165,24 @@ export default function FullscreenDrawingCanvas({
     if (!tool) return;
     setIsDrawing(true);
     const { x, y } = getCoordinates(e);
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (ctx) {
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    }
+    lastPointRef.current = { x, y };
   };
 
   const draw = (
     e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
   ) => {
     e.preventDefault();
-    if (!isDrawing) return;
+    if (!isDrawing || !lastPointRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx) return;
 
     const { x, y } = getCoordinates(e);
+
+    ctx.beginPath();
+    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+    ctx.lineTo(x, y);
 
     if (tool === 'pen') {
       ctx.strokeStyle = penColor;
@@ -168,8 +197,8 @@ export default function FullscreenDrawingCanvas({
       ctx.lineJoin = 'round';
     }
 
-    ctx.lineTo(x, y);
     ctx.stroke();
+    lastPointRef.current = { x, y };
   };
 
   const handleMouseMove = (
@@ -194,6 +223,7 @@ export default function FullscreenDrawingCanvas({
   const stopDrawing = () => {
     if (isDrawing) {
       setIsDrawing(false);
+      lastPointRef.current = null;
       saveDrawing();
     }
   };
