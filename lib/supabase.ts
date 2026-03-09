@@ -85,6 +85,11 @@ export interface DatabaseTestSection {
   updated_at: string;
 }
 
+// Lightweight question type for list views (omits heavy fields)
+export type LightweightQuestion = Pick<DatabaseQuestion,
+  'id' | 'name' | 'question_text' | 'question_image_url' | 'skills' | 'tags' | 'difficulty' | 'points' | 'passage_id' | 'display_order' | 'created_at' | 'updated_at'
+> & { passages?: DatabasePassage | null };
+
 // Fetch all questions from database (with passage data)
 export async function fetchQuestions(): Promise<(DatabaseQuestion & { passages?: DatabasePassage | null })[]> {
   const { data, error } = await supabase
@@ -99,6 +104,38 @@ export async function fetchQuestions(): Promise<(DatabaseQuestion & { passages?:
   }
 
   return data || [];
+}
+
+// Fetch questions with only columns needed for the admin list view (much faster)
+export async function fetchQuestionsLightweight(): Promise<LightweightQuestion[]> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select('id, name, question_text, question_image_url, skills, tags, difficulty, points, passage_id, display_order, created_at, updated_at, passages (*)')
+    .order('display_order', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching questions (lightweight):', error);
+    return [];
+  }
+
+  return (data || []) as unknown as LightweightQuestion[];
+}
+
+// Fetch a single question by ID (full data for editing)
+export async function fetchQuestionById(id: string): Promise<(DatabaseQuestion & { passages?: DatabasePassage | null }) | null> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select('*, passages (*)')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching question by id:', error);
+    return null;
+  }
+
+  return data;
 }
 
 // Upload image to Supabase storage
@@ -297,9 +334,8 @@ export async function fetchQuestionsForQuiz(): Promise<Question[]> {
   return dbQuestions.map(q => convertToQuizFormat(q));
 }
 
-// Fetch all unique skills from questions
-export async function fetchAllSkillNames(): Promise<string[]> {
-  const dbQuestions = await fetchQuestions();
+// Extract unique skills from questions (accepts pre-fetched questions to avoid redundant fetch)
+export function extractSkillNames(dbQuestions: DatabaseQuestion[]): string[] {
   const skillsSet = new Set<string>();
   dbQuestions.forEach(q => {
     if (q.skills && Array.isArray(q.skills)) {
@@ -309,11 +345,35 @@ export async function fetchAllSkillNames(): Promise<string[]> {
   return Array.from(skillsSet).sort();
 }
 
-// Fetch all unique tags from questions
-export async function fetchAllTags(): Promise<string[]> {
-  const dbQuestions = await fetchQuestions();
+// Extract unique tags from questions (accepts pre-fetched questions to avoid redundant fetch)
+export function extractTags(dbQuestions: DatabaseQuestion[]): string[] {
   const tagsSet = new Set<string>();
   dbQuestions.forEach(q => {
+    if (q.tags && Array.isArray(q.tags)) {
+      q.tags.forEach(tag => tagsSet.add(tag));
+    }
+  });
+  return Array.from(tagsSet).sort();
+}
+
+// Fetch all unique skills from questions (legacy, fetches questions itself)
+export async function fetchAllSkillNames(): Promise<string[]> {
+  return extractSkillNames(await fetchQuestions());
+}
+
+// Fetch all unique tags from questions (legacy, fetches questions itself)
+export async function fetchAllTags(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select('tags');
+
+  if (error) {
+    console.error('Error fetching tags:', error);
+    return [];
+  }
+
+  const tagsSet = new Set<string>();
+  (data || []).forEach((q: { tags: string[] | null }) => {
     if (q.tags && Array.isArray(q.tags)) {
       q.tags.forEach(tag => tagsSet.add(tag));
     }
@@ -363,110 +423,103 @@ export interface DatabaseSubjectWithCount extends DatabaseSubject {
 
 // Fetch all tests
 export async function fetchTests(): Promise<DatabaseTestWithCount[]> {
-  const { data, error } = await supabase
-    .from('tests')
-    .select(`
-      *,
-      subjects (name)
-    `)
-    .order('created_at', { ascending: true });
+  const [testsResult, countsResult] = await Promise.all([
+    supabase
+      .from('tests')
+      .select(`*, subjects (name)`)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('test_questions')
+      .select('test_id'),
+  ]);
 
-  if (error) {
-    console.error('Error fetching tests:', error);
+  if (testsResult.error) {
+    console.error('Error fetching tests:', testsResult.error);
     return [];
   }
 
-  // Get question counts for each test
-  const testsWithCounts = await Promise.all(
-    (data || []).map(async (test: any) => {
-      const { count } = await supabase
-        .from('test_questions')
-        .select('*', { count: 'exact', head: true })
-        .eq('test_id', test.id);
+  // Count questions per test from the flat list
+  const countMap: Record<string, number> = {};
+  if (countsResult.data) {
+    for (const row of countsResult.data) {
+      countMap[row.test_id] = (countMap[row.test_id] || 0) + 1;
+    }
+  }
 
-      return {
-        ...test,
-        subject_name: test.subjects?.name || undefined,
-        subjects: undefined, // Remove the nested object
-        question_count: count || 0,
-      };
-    })
-  );
-
-  return testsWithCounts;
+  return (testsResult.data || []).map((test: any) => ({
+    ...test,
+    subject_name: test.subjects?.name || undefined,
+    subjects: undefined,
+    question_count: countMap[test.id] || 0,
+  }));
 }
 
 // Fetch active tests only (for students)
 export async function fetchActiveTests(): Promise<DatabaseTestWithCount[]> {
-  const { data, error } = await supabase
-    .from('tests')
-    .select(`
-      *,
-      subjects (name)
-    `)
-    .eq('is_active', true)
-    .order('created_at', { ascending: true });
+  const [testsResult, countsResult] = await Promise.all([
+    supabase
+      .from('tests')
+      .select('*, subjects (name)')
+      .eq('is_active', true)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('test_questions')
+      .select('test_id'),
+  ]);
 
-  if (error) {
-    console.error('Error fetching active tests:', error);
+  if (testsResult.error) {
+    console.error('Error fetching active tests:', testsResult.error);
     return [];
   }
 
-  // Get question counts for each test
-  const testsWithCounts = await Promise.all(
-    (data || []).map(async (test: any) => {
-      const { count } = await supabase
-        .from('test_questions')
-        .select('*', { count: 'exact', head: true })
-        .eq('test_id', test.id);
+  // Count questions per test from the flat list
+  const countMap: Record<string, number> = {};
+  if (countsResult.data) {
+    for (const row of countsResult.data) {
+      countMap[row.test_id] = (countMap[row.test_id] || 0) + 1;
+    }
+  }
 
-      return {
-        ...test,
-        subject_name: test.subjects?.name || undefined,
-        subjects: undefined, // Remove the nested object
-        question_count: count || 0,
-      };
-    })
-  );
-
-  return testsWithCounts;
+  return (testsResult.data || []).map((test: any) => ({
+    ...test,
+    subject_name: test.subjects?.name || undefined,
+    subjects: undefined,
+    question_count: countMap[test.id] || 0,
+  }));
 }
 
 // Fetch active tests for a specific subject (for students)
 export async function fetchActiveTestsForSubject(subjectId: string): Promise<DatabaseTestWithCount[]> {
-  const { data, error } = await supabase
-    .from('tests')
-    .select(`
-      *,
-      subjects (name)
-    `)
-    .eq('is_active', true)
-    .eq('subject_id', subjectId)
-    .order('created_at', { ascending: true });
+  const [testsResult, countsResult] = await Promise.all([
+    supabase
+      .from('tests')
+      .select('*, subjects (name)')
+      .eq('is_active', true)
+      .eq('subject_id', subjectId)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('test_questions')
+      .select('test_id'),
+  ]);
 
-  if (error) {
-    console.error('Error fetching active tests for subject:', error);
+  if (testsResult.error) {
+    console.error('Error fetching active tests for subject:', testsResult.error);
     return [];
   }
 
-  // Get question counts for each test
-  const testsWithCounts = await Promise.all(
-    (data || []).map(async (test: any) => {
-      const { count } = await supabase
-        .from('test_questions')
-        .select('*', { count: 'exact', head: true })
-        .eq('test_id', test.id);
+  const countMap: Record<string, number> = {};
+  if (countsResult.data) {
+    for (const row of countsResult.data) {
+      countMap[row.test_id] = (countMap[row.test_id] || 0) + 1;
+    }
+  }
 
-      return {
-        ...test,
-        subject_name: test.subjects?.name || undefined,
-        subjects: undefined,
-        question_count: count || 0,
-      };
-    })
-  );
-
-  return testsWithCounts;
+  return (testsResult.data || []).map((test: any) => ({
+    ...test,
+    subject_name: test.subjects?.name || undefined,
+    subjects: undefined,
+    question_count: countMap[test.id] || 0,
+  }));
 }
 
 // Fetch a single test by ID
@@ -794,66 +847,71 @@ export function convertToTestFormat(dbTest: DatabaseTestWithCount): Test {
 
 // Fetch all subjects with test counts
 export async function fetchSubjects(): Promise<DatabaseSubjectWithCount[]> {
-  const { data, error } = await supabase
-    .from('subjects')
-    .select('*')
-    .order('display_order', { ascending: true })
-    .order('name', { ascending: true });
+  const [subjectsResult, testsResult] = await Promise.all([
+    supabase
+      .from('subjects')
+      .select('*')
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true }),
+    supabase
+      .from('tests')
+      .select('subject_id'),
+  ]);
 
-  if (error) {
-    console.error('Error fetching subjects:', error);
+  if (subjectsResult.error) {
+    console.error('Error fetching subjects:', subjectsResult.error);
     return [];
   }
 
-  // Get test counts for each subject
-  const subjectsWithCounts = await Promise.all(
-    (data || []).map(async (subject) => {
-      const { count } = await supabase
-        .from('tests')
-        .select('*', { count: 'exact', head: true })
-        .eq('subject_id', subject.id);
+  // Count tests per subject from the flat list
+  const countMap: Record<string, number> = {};
+  if (testsResult.data) {
+    for (const row of testsResult.data) {
+      if (row.subject_id) {
+        countMap[row.subject_id] = (countMap[row.subject_id] || 0) + 1;
+      }
+    }
+  }
 
-      return {
-        ...subject,
-        test_count: count || 0,
-      };
-    })
-  );
-
-  return subjectsWithCounts;
+  return (subjectsResult.data || []).map((subject) => ({
+    ...subject,
+    test_count: countMap[subject.id] || 0,
+  }));
 }
 
 // Fetch active subjects only (for students)
 export async function fetchActiveSubjects(): Promise<DatabaseSubjectWithCount[]> {
-  const { data, error } = await supabase
-    .from('subjects')
-    .select('*')
-    .eq('is_active', true)
-    .order('display_order', { ascending: true })
-    .order('name', { ascending: true });
+  const [subjectsResult, testsResult] = await Promise.all([
+    supabase
+      .from('subjects')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true }),
+    supabase
+      .from('tests')
+      .select('subject_id')
+      .eq('is_active', true),
+  ]);
 
-  if (error) {
-    console.error('Error fetching active subjects:', error);
+  if (subjectsResult.error) {
+    console.error('Error fetching active subjects:', subjectsResult.error);
     return [];
   }
 
-  // Get test counts for each subject (only active tests)
-  const subjectsWithCounts = await Promise.all(
-    (data || []).map(async (subject) => {
-      const { count } = await supabase
-        .from('tests')
-        .select('*', { count: 'exact', head: true })
-        .eq('subject_id', subject.id)
-        .eq('is_active', true);
+  const countMap: Record<string, number> = {};
+  if (testsResult.data) {
+    for (const row of testsResult.data) {
+      if (row.subject_id) {
+        countMap[row.subject_id] = (countMap[row.subject_id] || 0) + 1;
+      }
+    }
+  }
 
-      return {
-        ...subject,
-        test_count: count || 0,
-      };
-    })
-  );
-
-  return subjectsWithCounts;
+  return (subjectsResult.data || []).map((subject) => ({
+    ...subject,
+    test_count: countMap[subject.id] || 0,
+  }));
 }
 
 // Create a new subject
@@ -991,6 +1049,191 @@ export async function fetchQuestionsForSubject(subjectId: string): Promise<Quest
   }
 
   return (questions || []).map(q => convertToQuizFormat(q));
+}
+
+// Lightweight question type for dashboard (only fields needed for skill/tag display)
+export interface DashboardQuestion {
+  id: string;
+  skills: string[];
+  tags: string[];
+  difficulty: 'easy' | 'medium' | 'hard' | null;
+}
+
+// Batch fetch lightweight questions for ALL subjects at once (avoids N+1 per-subject queries)
+// Only fetches id, skills, tags, difficulty — not full question data
+export async function fetchQuestionsForAllSubjects(subjectIds: string[]): Promise<{ [subjectId: string]: DashboardQuestion[] }> {
+  if (subjectIds.length === 0) return {};
+
+  // 1. Get all active tests with their subject_id
+  const { data: tests, error: testsError } = await supabase
+    .from('tests')
+    .select('id, subject_id')
+    .eq('is_active', true)
+    .in('subject_id', subjectIds);
+
+  if (testsError || !tests || tests.length === 0) {
+    return {};
+  }
+
+  const testIds = tests.map(t => t.id);
+  const testSubjectMap: Record<string, string> = {};
+  for (const t of tests) {
+    testSubjectMap[t.id] = t.subject_id;
+  }
+
+  // 2. Get all question IDs for these tests
+  const { data: testQuestions, error: tqError } = await supabase
+    .from('test_questions')
+    .select('question_id, test_id')
+    .in('test_id', testIds);
+
+  if (tqError || !testQuestions || testQuestions.length === 0) {
+    return {};
+  }
+
+  // Map: question_id -> Set of subject_ids
+  const questionSubjects: Record<string, Set<string>> = {};
+  const allQuestionIds = new Set<string>();
+  for (const tq of testQuestions) {
+    allQuestionIds.add(tq.question_id);
+    const subjectId = testSubjectMap[tq.test_id];
+    if (subjectId) {
+      if (!questionSubjects[tq.question_id]) questionSubjects[tq.question_id] = new Set();
+      questionSubjects[tq.question_id].add(subjectId);
+    }
+  }
+
+  // 3. Fetch only the columns we need (id, skills, tags, difficulty) — NOT full question data
+  const questionIdsArray = [...allQuestionIds];
+  const BATCH_SIZE = 200;
+  const allQuestions: any[] = [];
+  for (let i = 0; i < questionIdsArray.length; i += BATCH_SIZE) {
+    const batch = questionIdsArray.slice(i, i + BATCH_SIZE);
+    const { data, error } = await supabase
+      .from('questions')
+      .select('id, skills, tags, difficulty')
+      .in('id', batch);
+    if (!error && data) allQuestions.push(...data);
+  }
+
+  // 4. Group by subject
+  const result: { [subjectId: string]: DashboardQuestion[] } = {};
+  for (const sid of subjectIds) result[sid] = [];
+
+  for (const q of allQuestions) {
+    const subjects = questionSubjects[q.id];
+    if (subjects) {
+      for (const sid of subjects) {
+        result[sid].push({
+          id: q.id,
+          skills: q.skills || [],
+          tags: q.tags || [],
+          difficulty: q.difficulty || null,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+// Fetch ALL dashboard data in a single parallel batch (tests, subjects, tags, questions-by-subject)
+export async function fetchAllDashboardData(): Promise<{
+  tests: DatabaseTestWithCount[];
+  subjects: DatabaseSubjectWithCount[];
+  tags: string[];
+  questionsBySubject: { [subjectId: string]: DashboardQuestion[] };
+}> {
+  // Single parallel batch: fetch all raw data at once
+  const [testsResult, testQuestionsResult, subjectsResult, activeTestsResult, questionsResult] = await Promise.all([
+    // For active tests with subject names
+    supabase.from('tests').select('*, subjects (name)').eq('is_active', true).order('created_at', { ascending: true }),
+    // For question counts per test AND question-subject mapping
+    supabase.from('test_questions').select('test_id, question_id'),
+    // For active subjects
+    supabase.from('subjects').select('*').eq('is_active', true).order('display_order', { ascending: true }).order('name', { ascending: true }),
+    // For subject test counts (active tests with subject_id)
+    supabase.from('tests').select('subject_id').eq('is_active', true),
+    // For all questions (lightweight: id, skills, tags, difficulty)
+    supabase.from('questions').select('id, skills, tags, difficulty'),
+  ]);
+
+  // Build test question count map
+  const testCountMap: Record<string, number> = {};
+  const testQuestionRows = testQuestionsResult.data || [];
+  for (const row of testQuestionRows) {
+    testCountMap[row.test_id] = (testCountMap[row.test_id] || 0) + 1;
+  }
+
+  // Format tests with counts
+  const tests: DatabaseTestWithCount[] = (testsResult.data || []).map((test: any) => ({
+    ...test,
+    subject_name: test.subjects?.name || undefined,
+    subjects: undefined,
+    question_count: testCountMap[test.id] || 0,
+  }));
+
+  // Build subject test count map
+  const subjectCountMap: Record<string, number> = {};
+  for (const row of (activeTestsResult.data || [])) {
+    if (row.subject_id) {
+      subjectCountMap[row.subject_id] = (subjectCountMap[row.subject_id] || 0) + 1;
+    }
+  }
+
+  // Format subjects with counts
+  const subjects: DatabaseSubjectWithCount[] = (subjectsResult.data || []).map((subject) => ({
+    ...subject,
+    test_count: subjectCountMap[subject.id] || 0,
+  }));
+
+  // Extract tags from questions
+  const tagsSet = new Set<string>();
+  const questionsData = questionsResult.data || [];
+  for (const q of questionsData) {
+    if (q.tags && Array.isArray(q.tags)) {
+      for (const tag of q.tags) tagsSet.add(tag);
+    }
+  }
+  const tags = Array.from(tagsSet).sort();
+
+  // Build question-to-subject mapping using test_questions + tests
+  // Map: test_id -> subject_id (only active tests)
+  const testSubjectMap: Record<string, string> = {};
+  for (const test of (testsResult.data || [])) {
+    testSubjectMap[test.id] = test.subject_id;
+  }
+
+  // Map: question_id -> Set<subject_id>
+  const questionSubjects: Record<string, Set<string>> = {};
+  for (const tq of testQuestionRows) {
+    const subjectId = testSubjectMap[tq.test_id];
+    if (subjectId) {
+      if (!questionSubjects[tq.question_id]) questionSubjects[tq.question_id] = new Set();
+      questionSubjects[tq.question_id].add(subjectId);
+    }
+  }
+
+  // Build questions-by-subject map
+  const questionsBySubject: { [subjectId: string]: DashboardQuestion[] } = {};
+  for (const subject of subjects) questionsBySubject[subject.id] = [];
+
+  for (const q of questionsData) {
+    const subs = questionSubjects[q.id];
+    if (subs) {
+      const dq: DashboardQuestion = {
+        id: q.id,
+        skills: q.skills || [],
+        tags: q.tags || [],
+        difficulty: q.difficulty || null,
+      };
+      for (const sid of subs) {
+        if (questionsBySubject[sid]) questionsBySubject[sid].push(dq);
+      }
+    }
+  }
+
+  return { tests, subjects, tags, questionsBySubject };
 }
 
 // Get subject ID for a question (via test association)

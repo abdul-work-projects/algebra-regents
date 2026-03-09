@@ -32,8 +32,8 @@ import {
   updateSubject,
   deleteSubject,
   convertToSubjectFormat,
-  fetchAllSkillNames,
-  fetchAllTags,
+  extractSkillNames,
+  extractTags,
   createPassageWithQuestions,
   updatePassage,
   linkQuestionsToNewPassage,
@@ -180,20 +180,47 @@ export default function AdminPage() {
 
   // ── Data loading ──────────────────────────────────────────────────────
   useEffect(() => {
-    loadQuestions();
-    loadTestsData();
-    loadSubjectsData();
-    loadFieldAutocomplete();
-    getBugReportCounts().then((counts) => setBugCounts(counts));
+    loadAllData();
   }, []);
+
+  const loadAllData = async () => {
+    setIsLoadingQuestions(true);
+    setIsLoadingTests(true);
+    setIsLoadingSubjects(true);
+
+    const [questionsData, mappings, testsData, subjectsData, bugCounts] = await Promise.all([
+      fetchQuestions(),
+      getAllQuestionTestMappings(),
+      fetchTests(),
+      fetchSubjects(),
+      getBugReportCounts(),
+    ]);
+
+    setQuestions(questionsData);
+    const allSkills = questionsData.flatMap((q) => q.skills || []);
+    setAvailableTags(Array.from(new Set(allSkills)).sort());
+    setAvailableSkillNames(extractSkillNames(questionsData));
+    setAvailableTagNames(extractTags(questionsData));
+    setQuestionTestMap(mappings);
+    setIsLoadingQuestions(false);
+
+    setTests(testsData.map(convertToTestFormat));
+    setIsLoadingTests(false);
+
+    setSubjects(subjectsData.map(convertToSubjectFormat));
+    setIsLoadingSubjects(false);
+
+    setBugCounts(bugCounts);
+  };
 
   const loadQuestions = async () => {
     setIsLoadingQuestions(true);
-    const data = await fetchQuestions();
+    const [data, mappings] = await Promise.all([fetchQuestions(), getAllQuestionTestMappings()]);
     setQuestions(data);
     const allSkills = data.flatMap((q) => q.skills || []);
     setAvailableTags(Array.from(new Set(allSkills)).sort());
-    const mappings = await getAllQuestionTestMappings();
+    setAvailableSkillNames(extractSkillNames(data));
+    setAvailableTagNames(extractTags(data));
     setQuestionTestMap(mappings);
     setIsLoadingQuestions(false);
   };
@@ -210,12 +237,6 @@ export default function AdminPage() {
     const data = await fetchSubjects();
     setSubjects(data.map(convertToSubjectFormat));
     setIsLoadingSubjects(false);
-  };
-
-  const loadFieldAutocomplete = async () => {
-    const [skills, tags] = await Promise.all([fetchAllSkillNames(), fetchAllTags()]);
-    setAvailableSkillNames(skills);
-    setAvailableTagNames(tags);
   };
 
   // Load test-specific order when filter changes

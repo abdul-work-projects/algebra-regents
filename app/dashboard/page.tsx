@@ -1,8 +1,8 @@
 'use client';
 
 import { loadSession, clearSession, loadMarkedForReview, loadSkillProgress, AllSkillProgress } from '@/lib/storage';
-import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchQuestionsForSubject, fetchAllTags } from '@/lib/supabase';
-import { Test, Question, Subject } from '@/lib/types';
+import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchAllDashboardData, DashboardQuestion } from '@/lib/supabase';
+import { Test, Subject } from '@/lib/types';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -21,7 +21,7 @@ interface SkillInfo {
 
 interface SubjectQuestionsData {
   subject: Subject;
-  questions: Question[];
+  questions: DashboardQuestion[];
 }
 
 function HomeContent() {
@@ -70,33 +70,22 @@ function HomeContent() {
 
     async function loadData() {
       try {
-        const [dbTests, dbSubjects, tags] = await Promise.all([
-          fetchActiveTests(),
-          fetchActiveSubjects(),
-          fetchAllTags(),
-        ]);
+        const { tests: dbTests, subjects: dbSubjects, tags, questionsBySubject } = await fetchAllDashboardData();
 
         const formattedSubjects = dbSubjects.map(convertToSubjectFormat);
         setTests(dbTests.map(convertToTestFormat));
         setSubjects(formattedSubjects);
         setAllTags(tags);
 
-        // Load marked for review questions and skill progress
         const loadedMarkedQuestions = loadMarkedForReview();
         const loadedSkillProgress = loadSkillProgress();
         setMarkedQuestions(loadedMarkedQuestions);
         setSkillProgress(loadedSkillProgress);
 
-        // Fetch questions for each subject
-        const subjectDataPromises = formattedSubjects.map(async (subject) => {
-          const questions = await fetchQuestionsForSubject(subject.id);
-          return {
-            subject,
-            questions,
-          };
-        });
-
-        const subjectData = await Promise.all(subjectDataPromises);
+        const subjectData = formattedSubjects.map(subject => ({
+          subject,
+          questions: questionsBySubject[subject.id] || [],
+        }));
         setSubjectQuestionsData(subjectData);
       } catch (error) {
         console.error('Error fetching data:', error);
