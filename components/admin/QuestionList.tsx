@@ -605,7 +605,7 @@ export default function QuestionList({
         {selectedForGrouping.length > 0 && (
           <>
             <span className="text-xs px-2 py-2 text-purple-700 dark:text-purple-400 font-medium whitespace-nowrap">
-              {selectedForGrouping.length}/2
+              {selectedForGrouping.length} selected
             </span>
             <button
               onClick={() => onToggleQuestionSelection("")}
@@ -614,7 +614,7 @@ export default function QuestionList({
             >
               Clear
             </button>
-            {selectedForGrouping.length === 2 && (
+            {selectedForGrouping.length >= 2 && (
               <button
                 onClick={onLinkQuestions}
                 className="text-xs px-3 py-2 font-bold bg-purple-600 text-white rounded-full hover:bg-purple-700 active:scale-95 transition-all whitespace-nowrap"

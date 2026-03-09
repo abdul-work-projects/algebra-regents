@@ -134,10 +134,13 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description for this section..."
+                placeholder="e.g., Answer all 24 questions. Each correct answer will receive 2 credits."
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
               />
+              <p className="mt-1 text-xs text-gray-500 dark:text-neutral-400">
+                Shown on the divider page between test parts
+              </p>
             </div>
 
             <div>

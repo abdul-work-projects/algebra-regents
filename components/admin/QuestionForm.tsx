@@ -4,6 +4,7 @@ import { UseQuestionFormReturn } from "@/hooks/useQuestionForm";
 import TagInput from "@/components/TagInput";
 import TestMultiSelect from "@/components/TestMultiSelect";
 import MathText from "@/components/MathText";
+import PassageTextEditor from "@/components/admin/PassageTextEditor";
 
 interface QuestionFormProps {
   editingId: string | null;
@@ -281,16 +282,15 @@ export default function QuestionForm({
         {isGroupedQuestion && (
           <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-2xl space-y-3">
             <h3 className="text-sm font-bold text-blue-900 dark:text-blue-300">Shared Passage</h3>
-            <div>
-              <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">Passage Text (above image)</label>
-              <textarea
-                value={passageAboveText}
-                onChange={(e) => onPassageAboveTextChange(e.target.value)}
-                placeholder="Text displayed above the passage (supports LaTeX)..."
-                rows={2}
-                className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
-              />
-            </div>
+            <PassageTextEditor
+              value={passageAboveText}
+              onChange={onPassageAboveTextChange}
+              label="Passage Text (above image)"
+              labelClassName="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1"
+              placeholder="Text displayed above the passage (supports LaTeX)..."
+              rows={3}
+              inputClassName="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
+            />
             <div>
               <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">Passage Image (Optional)</label>
               <input type="file" accept="image/*" onChange={(e) => handleImageSelect(e, (f) => onPassageImageChange(f, passageImagePreview), (p) => onPassageImageChange(passageImage, p))} className="hidden" id="passage-image" />
@@ -336,16 +336,15 @@ export default function QuestionForm({
                 </div>
               )}
             </div>
-            <div>
-              <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">Passage Text (below image)</label>
-              <textarea
-                value={passageText}
-                onChange={(e) => onPassageTextChange(e.target.value)}
-                placeholder="Enter the shared passage or summary text..."
-                rows={4}
-                className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
-              />
-            </div>
+            <PassageTextEditor
+              value={passageText}
+              onChange={onPassageTextChange}
+              label="Passage Text (below image)"
+              labelClassName="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1"
+              placeholder="Enter the shared passage or summary text..."
+              rows={12}
+              inputClassName="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
+            />
           </div>
         )}
 
@@ -386,7 +385,7 @@ export default function QuestionForm({
             onChange={(e) => currentForm.setField("aboveImageText", e.target.value)}
             placeholder="Text displayed above the question image (optional)..."
             rows={2}
-            className="w-full px-2 py-1 text-sm border border-gray-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+            className="w-full px-2 py-1 text-sm border border-gray-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
           />
         </div>
 
@@ -567,7 +566,28 @@ export default function QuestionForm({
         {/* Explanation */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">Explanation <span className="text-red-500">*</span></label>
-          <textarea value={currentForm.state.explanationText} onChange={(e) => currentForm.setField("explanationText", e.target.value)} placeholder="Explain the correct answer" rows={3} className="w-full px-2 py-1 text-sm border border-gray-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100" />
+          <textarea value={currentForm.state.explanationText} onChange={(e) => currentForm.setField("explanationText", e.target.value)} placeholder="Explain the correct answer" rows={3} className="w-full px-2 py-1 text-sm border border-gray-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono" />
+        </div>
+
+        {/* Notes */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300">Notes</label>
+            <button
+              type="button"
+              onClick={() => currentForm.setField("notes", "The real test will not look this way")}
+              className="px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-all"
+            >
+              + Default Note
+            </button>
+          </div>
+          <textarea
+            value={currentForm.state.notes}
+            onChange={(e) => currentForm.setField("notes", e.target.value)}
+            placeholder="Add a note for this question (visible to students)..."
+            rows={2}
+            className="w-full px-2 py-1 text-sm border border-gray-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+          />
         </div>
 
         {/* Tags */}

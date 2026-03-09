@@ -12,6 +12,8 @@ interface ScrollablePassageProps {
   onHighlightRemove: (highlightId: string) => void;
   onNoteAdd: (highlightId: string, note: string) => void;
   maxHeight?: string;
+  showLineNumbers?: boolean;
+  fillHeight?: boolean; // If true, fills available height instead of using maxHeight
 }
 
 // Parse text into segments of plain text and math delimiters
@@ -52,7 +54,58 @@ function parseTextSegments(text: string): { type: 'text' | 'math'; content: stri
   return segments;
 }
 
-// Apply highlights to plain text
+// Render inline formatting: **bold**, *italic*, ^{superscript} / ^N
+function renderInlineFormatting(text: string, keyPrefix: string): React.ReactNode[] {
+  // Strip orphan * at start/end of text (from multi-line italic that spans blocks)
+  let processed = text;
+  // Count unmatched * — if odd number, strip leading or trailing one
+  const asteriskCount = (processed.match(/(?<!\*)\*(?!\*)/g) || []).length;
+  if (asteriskCount % 2 === 1) {
+    // Remove a leading orphan * or trailing orphan *
+    if (processed.startsWith('*') && !processed.startsWith('**')) {
+      processed = processed.slice(1);
+    } else if (processed.endsWith('*') && !processed.endsWith('**')) {
+      processed = processed.slice(0, -1);
+    }
+  }
+
+  // Match **bold**, *italic*, ^{superscript}, ^N (single digit superscript)
+  const inlineRegex = /(\*\*(.+?)\*\*|\*(.+?)\*|\^\{(.+?)\}|\^(\d))/g;
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = inlineRegex.exec(processed)) !== null) {
+    // Push text before this match
+    if (match.index > lastIndex) {
+      nodes.push(processed.slice(lastIndex, match.index));
+    }
+
+    if (match[2] !== undefined) {
+      // **bold**
+      nodes.push(<strong key={`${keyPrefix}-b-${match.index}`}>{match[2]}</strong>);
+    } else if (match[3] !== undefined) {
+      // *italic*
+      nodes.push(<em key={`${keyPrefix}-i-${match.index}`}>{match[3]}</em>);
+    } else if (match[4] !== undefined) {
+      // ^{superscript}
+      nodes.push(<sup key={`${keyPrefix}-s-${match.index}`} className="text-[0.7em]">{match[4]}</sup>);
+    } else if (match[5] !== undefined) {
+      // ^N single digit
+      nodes.push(<sup key={`${keyPrefix}-s-${match.index}`} className="text-[0.7em]">{match[5]}</sup>);
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < processed.length) {
+    nodes.push(processed.slice(lastIndex));
+  }
+
+  return nodes.length > 0 ? nodes : [processed];
+}
+
+// Apply highlights to plain text, then inline formatting
 function renderHighlightedText(
   text: string,
   baseOffset: number,
@@ -64,7 +117,7 @@ function renderHighlightedText(
   );
 
   if (relevantHighlights.length === 0) {
-    return [<span key="t-0" data-offset={baseOffset}>{text}</span>];
+    return [<span key="t-0" data-offset={baseOffset}>{renderInlineFormatting(text, `f-${baseOffset}`)}</span>];
   }
 
   const sorted = [...relevantHighlights].sort((a, b) => a.startOffset - b.startOffset);
@@ -79,7 +132,7 @@ function renderHighlightedText(
     if (relStart > currentPos) {
       nodes.push(
         <span key={`t-${currentPos}`} data-offset={baseOffset + currentPos}>
-          {text.slice(currentPos, relStart)}
+          {renderInlineFormatting(text.slice(currentPos, relStart), `f-${baseOffset}-${currentPos}`)}
         </span>
       );
     }
@@ -96,7 +149,7 @@ function renderHighlightedText(
             onHighlightClick(highlight.id, e);
           }}
         >
-          {text.slice(relStart, relEnd)}
+          {renderInlineFormatting(text.slice(relStart, relEnd), `f-${baseOffset}-h-${relStart}`)}
           {highlight.note && (
             <span className="inline-flex items-center justify-center w-3.5 h-3.5 bg-blue-500 rounded-full text-[8px] text-white font-bold ml-0.5 align-super cursor-pointer">
               i
@@ -112,12 +165,111 @@ function renderHighlightedText(
   if (currentPos < text.length) {
     nodes.push(
       <span key={`t-${currentPos}`} data-offset={baseOffset + currentPos}>
-        {text.slice(currentPos)}
+        {renderInlineFormatting(text.slice(currentPos), `f-${baseOffset}-${currentPos}`)}
       </span>
     );
   }
 
   return nodes;
+}
+
+// Block types for structured passage rendering
+type BlockType = 'heading' | 'heading-center' | 'paragraph' | 'paragraph-indent' | 'footnote' | 'source' | 'blockquote' | 'rule' | 'blank';
+
+interface PassageBlock {
+  type: BlockType;
+  content: string;
+  startOffset: number;
+  lineNum?: number; // Manual line number override
+}
+
+// Parse passage text into structured blocks
+// Supported syntax:
+//   # Heading            → bold left-aligned heading
+//   ## Heading            → bold centered heading
+//   > text                → italic blockquote (for intro/context)
+//   [^1]definition        → numbered footnote (superscript number + definition)
+//   [footnote]text        → unnumbered footnote
+//   [source]text          → right-aligned source attribution
+//   Source: text          → right-aligned source attribution
+//   — text                → right-aligned source attribution (em dash)
+//   ---                   → horizontal rule
+//   [5]text               → paragraph with manual line number 5
+//   [5]\ttext             → indented paragraph with manual line number 5
+//   \ttext or 4-space     → indented paragraph (first-line indent)
+//   (blank line)          → vertical spacing
+//   anything else         → regular paragraph
+//
+// Inline formatting (rendered in all text):
+//   **bold**              → bold text
+//   *italic*              → italic text
+//   ^1 or ^{text}         → superscript (footnote references)
+function parsePassageBlocks(text: string): PassageBlock[] {
+  const blocks: PassageBlock[] = [];
+  const lines = text.split('\n');
+  let offset = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Check for manual line number prefix: [N] where N is a number
+    let manualLineNum: number | undefined;
+    let contentAfterLineNum = trimmed;
+    const lineNumMatch = trimmed.match(/^\[(\d+)\]\s?(.*)$/);
+    if (lineNumMatch && !trimmed.startsWith('[^') && !trimmed.startsWith('[footnote]') && !trimmed.startsWith('[source]')) {
+      manualLineNum = parseInt(lineNumMatch[1], 10);
+      contentAfterLineNum = lineNumMatch[2];
+    }
+
+    if (trimmed === '```' || trimmed.startsWith('```')) {
+      // Skip markdown code fences entirely
+      offset += line.length + 1;
+      continue;
+    } else if (trimmed === '') {
+      blocks.push({ type: 'blank', content: '', startOffset: offset });
+    } else if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
+      blocks.push({ type: 'rule', content: '', startOffset: offset });
+    } else if (trimmed.startsWith('## ')) {
+      blocks.push({ type: 'heading-center', content: trimmed.slice(3), startOffset: offset });
+    } else if (trimmed.startsWith('# ')) {
+      blocks.push({ type: 'heading', content: trimmed.slice(2), startOffset: offset });
+    } else if (trimmed.startsWith('> ')) {
+      // Strip wrapping *italic* markers since blockquote is already italic
+      let bqContent = trimmed.slice(2);
+      bqContent = bqContent.replace(/^\*([^*])/,'$1').replace(/([^*])\*$/,'$1');
+      blocks.push({ type: 'blockquote', content: bqContent, startOffset: offset });
+    } else if (/^\[\^\d+\]/.test(trimmed)) {
+      // [^1]definition text
+      const match = trimmed.match(/^\[\^(\d+)\](.*)$/);
+      if (match) {
+        const content = match[1] + '|' + match[2].trim(); // encode as "num|definition"
+        blocks.push({ type: 'footnote', content, startOffset: offset });
+      } else {
+        blocks.push({ type: 'paragraph', content: line, startOffset: offset });
+      }
+    } else if (trimmed.startsWith('[footnote]')) {
+      blocks.push({ type: 'footnote', content: trimmed.slice(10).trim(), startOffset: offset });
+    } else if (trimmed.startsWith('[source]') || trimmed.startsWith('Source:') || trimmed.startsWith('—')) {
+      const content = trimmed.startsWith('[source]') ? trimmed.slice(8).trim() : trimmed;
+      blocks.push({ type: 'source', content, startOffset: offset });
+    } else if (manualLineNum !== undefined) {
+      // Has manual line number — check if indented after the [N] prefix
+      const isIndented = contentAfterLineNum.startsWith('\t') || contentAfterLineNum.startsWith('    ');
+      const content = contentAfterLineNum.trim() || contentAfterLineNum;
+      blocks.push({ type: isIndented ? 'paragraph-indent' : 'paragraph', content, startOffset: offset, lineNum: manualLineNum });
+    } else if (line.startsWith('\t') || line.startsWith('    ')) {
+      blocks.push({ type: 'paragraph-indent', content: trimmed, startOffset: offset });
+    } else if (blocks.length > 0 && blocks[blocks.length - 1].type === 'blockquote') {
+      // Continuation of blockquote — plain line after a blockquote line
+      let bqContent = trimmed;
+      bqContent = bqContent.replace(/^\*([^*])/,'$1').replace(/([^*])\*$/,'$1');
+      blocks.push({ type: 'blockquote', content: bqContent, startOffset: offset });
+    } else {
+      blocks.push({ type: 'paragraph', content: line, startOffset: offset });
+    }
+    offset += line.length + 1; // +1 for \n
+  }
+  return blocks;
 }
 
 export default function ScrollablePassage({
@@ -127,6 +279,8 @@ export default function ScrollablePassage({
   onHighlightRemove,
   onNoteAdd,
   maxHeight = '50vh',
+  showLineNumbers = false,
+  fillHeight = false,
 }: ScrollablePassageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number } | null>(null);
@@ -293,39 +447,190 @@ export default function ScrollablePassage({
       }))
     : [];
 
-  return (
-    <div className="relative">
-      {/* Scrollable text container */}
-      <div
-        ref={containerRef}
-        className="overflow-y-auto border border-gray-200 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-900 px-4 py-3 pr-6 scrollbar-hide"
-        style={{ maxHeight, scrollbarWidth: 'none' }}
-        onMouseUp={handleTextSelection}
-        onTouchEnd={handleTextSelection}
-      >
-        <div className="text-gray-900 dark:text-neutral-100" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem', whiteSpace: 'pre-wrap' }}>
-          {segments.map((segment, idx) => {
-            if (segment.type === 'math') {
+  // Render content with or without line numbers
+  const renderContent = () => {
+    if (showLineNumbers) {
+      const blocks = parsePassageBlocks(passage.passageText!);
+
+      // Helper to render a block's text content with math, highlights, and inline formatting
+      const renderBlockText = (block: PassageBlock) => {
+        const blockSegments = parseTextSegments(block.content);
+        return blockSegments.map((segment, idx) => {
+          if (segment.type === 'math') {
+            return (
+              <span key={idx}>
+                <MathText text={segment.content} className="inline" />
+              </span>
+            );
+          }
+          return (
+            <span key={idx} data-offset={block.startOffset + segment.startOffset}>
+              {renderHighlightedText(
+                segment.content,
+                block.startOffset + segment.startOffset,
+                highlights,
+                handleHighlightClick
+              )}
+            </span>
+          );
+        });
+      };
+
+      // Track whether we've rendered the first footnote (to show rule above it)
+      let firstFootnote = true;
+
+      return (
+        <div className="text-gray-900 dark:text-neutral-100" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
+          {blocks.map((block, blockIdx) => {
+            if (block.type === 'blank') {
+              return <div key={blockIdx} className="h-3" />;
+            }
+
+            if (block.type === 'rule') {
               return (
-                <span key={idx}>
-                  <MathText text={segment.content} className="inline" />
-                </span>
+                <div key={blockIdx} className="flex gap-3 my-3">
+                  <div className="w-8 shrink-0" />
+                  <hr className="flex-1 border-t border-gray-300 dark:border-neutral-600" />
+                </div>
               );
             }
 
+            if (block.type === 'heading') {
+              return (
+                <div key={blockIdx} className="flex gap-3 mb-2 mt-3">
+                  <div className="w-8 shrink-0" />
+                  <div className="flex-1 font-bold text-lg" data-offset={block.startOffset}>
+                    {renderBlockText(block)}
+                  </div>
+                </div>
+              );
+            }
+
+            if (block.type === 'heading-center') {
+              return (
+                <div key={blockIdx} className="flex gap-3 mb-2 mt-3">
+                  <div className="w-8 shrink-0" />
+                  <div className="flex-1 font-bold text-lg text-center" data-offset={block.startOffset}>
+                    {renderBlockText(block)}
+                  </div>
+                </div>
+              );
+            }
+
+            if (block.type === 'blockquote') {
+              return (
+                <div key={blockIdx} className="flex gap-3 my-2">
+                  <div className="w-8 shrink-0" />
+                  <div className="flex-1 italic pl-4" data-offset={block.startOffset}>
+                    {renderBlockText(block)}
+                  </div>
+                </div>
+              );
+            }
+
+            if (block.type === 'footnote') {
+              // Check if content has numbered format "num|definition"
+              const pipeIdx = block.content.indexOf('|');
+              const isNumbered = pipeIdx > 0 && /^\d+$/.test(block.content.slice(0, pipeIdx));
+              const footnoteNum = isNumbered ? block.content.slice(0, pipeIdx) : null;
+              const footnoteContent = isNumbered ? block.content.slice(pipeIdx + 1) : block.content;
+
+              // Create a modified block with just the definition text for rendering
+              const renderBlock = { ...block, content: footnoteContent };
+
+              const showRule = firstFootnote;
+              firstFootnote = false;
+
+              return (
+                <div key={blockIdx}>
+                  {showRule && (
+                    <div className="flex gap-3 mt-4 mb-2">
+                      <div className="w-8 shrink-0" />
+                      <hr className="w-24 border-t border-gray-300 dark:border-neutral-600" />
+                    </div>
+                  )}
+                  <div className="flex gap-3 mt-1">
+                    <div className="w-8 shrink-0" />
+                    <div className="flex-1 text-sm" data-offset={block.startOffset}>
+                      {footnoteNum && <sup className="text-[0.75em] mr-0.5">{footnoteNum}</sup>}
+                      {renderBlockText(renderBlock)}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            if (block.type === 'source') {
+              return (
+                <div key={blockIdx} className="flex gap-3 mt-1">
+                  <div className="w-8 shrink-0" />
+                  <div className="flex-1 text-sm text-right" data-offset={block.startOffset}>
+                    {renderBlockText(block)}
+                  </div>
+                </div>
+              );
+            }
+
+            // Paragraph types - only show manually specified line numbers
+            const showNum = block.lineNum !== undefined;
+            const isIndented = block.type === 'paragraph-indent';
+
             return (
-              <span key={idx} data-offset={segment.startOffset}>
-                {renderHighlightedText(
-                  segment.content,
-                  segment.startOffset,
-                  highlights,
-                  handleHighlightClick
-                )}
-              </span>
+              <div key={blockIdx} className="flex gap-3 leading-relaxed">
+                <div className="w-8 shrink-0 text-right text-sm text-gray-900 dark:text-neutral-100 select-none" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                  {showNum ? block.lineNum : ''}
+                </div>
+                <div className={`flex-1 min-w-0 ${isIndented ? 'indent-8' : ''}`} style={{ whiteSpace: 'pre-wrap' }}>
+                  {renderBlockText(block)}
+                </div>
+              </div>
             );
           })}
         </div>
+      );
+    }
 
+    // Default rendering (no line numbers)
+    return (
+      <div className="text-gray-900 dark:text-neutral-100" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem', whiteSpace: 'pre-wrap' }}>
+        {segments.map((segment, idx) => {
+          if (segment.type === 'math') {
+            return (
+              <span key={idx}>
+                <MathText text={segment.content} className="inline" />
+              </span>
+            );
+          }
+
+          return (
+            <span key={idx} data-offset={segment.startOffset}>
+              {renderHighlightedText(
+                segment.content,
+                segment.startOffset,
+                highlights,
+                handleHighlightClick
+              )}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // When no maxHeight is set and not fillHeight, render inline (parent handles scroll)
+  const isInline = !fillHeight && maxHeight === '50vh' && showLineNumbers;
+
+  return (
+    <div className={`relative ${fillHeight ? 'h-full' : ''}`}>
+      {/* Text container */}
+      <div
+        ref={containerRef}
+        className={`${isInline ? 'py-1' : `overflow-y-auto px-4 py-3 pr-6 scrollbar-hide ${fillHeight ? 'h-full' : ''}`}`}
+        style={isInline ? {} : (fillHeight ? { scrollbarWidth: 'none' } : { maxHeight, scrollbarWidth: 'none' })}
+        onMouseUp={handleTextSelection}
+        onTouchEnd={handleTextSelection}
+      >
+        {renderContent()}
       </div>
 
       {/* Custom scrollbar track + thumb (replaces native) */}

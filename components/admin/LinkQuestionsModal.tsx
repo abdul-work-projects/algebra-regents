@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DatabaseQuestion } from "@/lib/supabase";
 import MathText from "@/components/MathText";
+import PassageTextEditor from "@/components/admin/PassageTextEditor";
 
 interface LinkQuestionsModalProps {
   isOpen: boolean;
@@ -84,7 +85,7 @@ export default function LinkQuestionsModal({
         </div>
 
         {/* Body */}
-        <div className="p-4">
+        <div className="p-4 overflow-y-auto max-h-[calc(100vh-200px)]">
           <p className="text-sm text-gray-600 dark:text-neutral-400 mb-4">
             Add a shared passage for these questions. The passage will be displayed above both questions when students take the quiz.
           </p>
@@ -95,9 +96,11 @@ export default function LinkQuestionsModal({
             <div className="space-y-1">
               {selectedQuestions.map((id, idx) => {
                 const q = questions.find((q) => q.id === id);
+                const displayText = q?.name || q?.question_text || `Question ${idx + 1}`;
                 return (
-                  <div key={id} className="text-sm text-gray-900 dark:text-neutral-100 truncate">
-                    {idx + 1}. <MathText text={q?.name || q?.question_text?.slice(0, 50) || `Question ${idx + 1}`} className="inline" />
+                  <div key={id} className="text-sm text-gray-900 dark:text-neutral-100 flex items-baseline gap-1 min-w-0">
+                    <span className="shrink-0">{idx + 1}.</span>
+                    <span className="line-clamp-2 min-w-0" style={{ fontSize: '0.875rem' }}><MathText text={displayText} className="inline [&_.katex]:!text-[0.875rem]" /></span>
                   </div>
                 );
               })}
@@ -106,19 +109,19 @@ export default function LinkQuestionsModal({
 
           {/* Passage Text */}
           <div className="mb-4">
-            <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">Passage Text</label>
-            <textarea
+            <PassageTextEditor
               value={passageText}
-              onChange={(e) => setPassageText(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-sm bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
-              rows={4}
+              onChange={setPassageText}
+              label="Passage Text"
               placeholder="Enter the shared passage text... (supports LaTeX: $x^2$)"
+              rows={12}
+              inputClassName="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-sm bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
             />
           </div>
 
           {/* Passage Image */}
           <div>
-            <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">Passage Image (Optional)</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">Passage Image (Optional)</label>
             <input
               type="file"
               id="link-passage-image"

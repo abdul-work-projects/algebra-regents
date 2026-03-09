@@ -25,6 +25,7 @@ export interface Question {
   skills: string[]; // Skills tested by this question (renamed from topics)
   tags: string[]; // Broader categorization tags
   difficulty?: 'easy' | 'medium' | 'hard' | null; // Question difficulty level
+  notes?: string; // Admin notes for this question
   points?: number; // Points for this question (default: 2)
   passageId?: string; // Reference to shared passage for grouped questions
   passage?: Passage; // Joined passage data

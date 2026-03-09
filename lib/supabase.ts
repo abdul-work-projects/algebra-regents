@@ -66,6 +66,7 @@ export interface DatabaseQuestion {
   tags: string[]; // Broader categorization tags
   difficulty: 'easy' | 'medium' | 'hard' | null; // Question difficulty level
   points: number;
+  notes: string | null; // Admin notes for this question
   passage_id: string | null; // Reference to shared passage
   display_order?: number;
   created_at: string;
@@ -275,6 +276,7 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: 
     skills: dbQuestion.skills || [],
     tags: dbQuestion.tags || [],
     difficulty: dbQuestion.difficulty,
+    notes: dbQuestion.notes || undefined,
     points: dbQuestion.points,
     passageId: dbQuestion.passage_id || undefined,
     passage: dbQuestion.passages ? {

@@ -26,6 +26,7 @@ import {
 import DragOrderAnswer from "@/components/DragOrderAnswer";
 import BucketOrderAnswer from "@/components/BucketOrderAnswer";
 import ScrollablePassage from "@/components/ScrollablePassage";
+import SplitPane from "@/components/SplitPane";
 import { seededShuffle } from "@/lib/shuffle";
 import { resolveReferenceImage } from "@/lib/reference";
 import FullscreenDrawingCanvas from "@/components/FullscreenDrawingCanvas";
@@ -95,6 +96,7 @@ function QuizPageContent() {
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [testName, setTestName] = useState<string | undefined>(undefined);
   const [sections, setSections] = useState<TestSection[]>([]);
+  const [sectionDivider, setSectionDivider] = useState<TestSection | null>(null);
   const [scaledScoreTable, setScaledScoreTable] = useState<{ [key: number]: number } | null>(null);
 
   // Practice mode - multiple questions from question bank
@@ -117,6 +119,8 @@ function QuizPageContent() {
   const [eraserSize, setEraserSize] = useState(15);
   const [penColor, setPenColor] = useState("#22c55e");
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showZoomTip, setShowZoomTip] = useState(false);
+  const [isMac, setIsMac] = useState(false);
   const [drawingHistory, setDrawingHistory] = useState<
     Record<string, string[]>
   >({});
@@ -184,6 +188,26 @@ function QuizPageContent() {
       };
     });
   };
+
+  useEffect(() => {
+    setIsMac(/(Mac|iPhone|iPod|iPad)/i.test(navigator.platform));
+  }, []);
+
+  useEffect(() => {
+    if (!showZoomTip) return;
+    const dismiss = () => setShowZoomTip(false);
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", dismiss);
+      document.addEventListener("scroll", dismiss, true);
+      document.addEventListener("touchstart", dismiss);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", dismiss);
+      document.removeEventListener("scroll", dismiss, true);
+      document.removeEventListener("touchstart", dismiss);
+    };
+  }, [showZoomTip]);
 
   useEffect(() => {
     setMounted(true);
@@ -462,6 +486,34 @@ function QuizPageContent() {
     );
   }
 
+  // Section divider screen between parts
+  if (sectionDivider) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950 px-4">
+        <div className="max-w-lg w-full">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-neutral-100 mb-2">
+              {sectionDivider.name}
+            </h1>
+            {sectionDivider.description && (
+              <p className="text-gray-500 dark:text-neutral-400 text-sm">
+                {sectionDivider.description}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => setSectionDivider(null)}
+            className="w-full p-5 rounded-xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all group"
+          >
+            <span className="text-lg font-bold text-gray-900 dark:text-neutral-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
+              Continue
+            </span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const currentQuestion = questions[session.currentQuestionIndex];
 
   // Determine current section (if sections exist)
@@ -470,39 +522,27 @@ function QuizPageContent() {
       ? sections.find((s) => s.id === currentQuestion.sectionId)
       : undefined;
 
-  // Find grouped question pair (questions sharing the same passageId)
-  const siblingQuestion = currentQuestion.passageId
-    ? questions.find(
-        (q) =>
-          q.id !== currentQuestion.id &&
-          q.passageId === currentQuestion.passageId,
+  // Find ALL grouped questions sharing the same passageId
+  const groupedQuestions = currentQuestion.passageId
+    ? questions.filter(
+        (q) => q.passageId === currentQuestion.passageId,
       )
+    : [];
+  const isGroupedQuestion = groupedQuestions.length > 1;
+
+  // For backwards compatibility, find the sibling (used by navigation/time logic)
+  const siblingQuestion = isGroupedQuestion
+    ? groupedQuestions.find((q) => q.id !== currentQuestion.id) || null
     : null;
-  const isGroupedQuestion = !!siblingQuestion;
 
-  // Debug logging for grouped questions
-  if (currentQuestion.passageId) {
-    console.log("Grouped question detected:", {
-      currentId: currentQuestion.id,
-      passageId: currentQuestion.passageId,
-      hasPassage: !!currentQuestion.passage,
-      siblingFound: !!siblingQuestion,
-      siblingId: siblingQuestion?.id,
-    });
-  }
+  // Current question's position within its group (1-based)
+  const groupQuestionIndex = isGroupedQuestion
+    ? groupedQuestions.findIndex((q) => q.id === currentQuestion.id)
+    : -1;
 
-  // For grouped questions, determine which question comes first
   const currentQuestionIdx = questions.findIndex(
     (q) => q.id === currentQuestion.id,
   );
-  const siblingQuestionIdx = siblingQuestion
-    ? questions.findIndex((q) => q.id === siblingQuestion.id)
-    : -1;
-  const isFirstInGroup = siblingQuestionIdx > currentQuestionIdx;
-
-  // The two questions to display (in order)
-  const question1 = isFirstInGroup ? currentQuestion : siblingQuestion;
-  const question2 = isFirstInGroup ? siblingQuestion : currentQuestion;
 
   const progress =
     ((session.currentQuestionIndex + 1) / questions.length) * 100;
@@ -512,13 +552,6 @@ function QuizPageContent() {
     ? practiceMarkedQuestions.has(currentQuestion.id)
     : session.markedForReview[currentQuestion.id] || false;
 
-  // For grouped questions, also track the sibling's answers
-  const siblingSelectedAnswer = siblingQuestion
-    ? session.userAnswers[siblingQuestion.id] || null
-    : null;
-  const siblingCheckedAnswers = siblingQuestion
-    ? session.checkedAnswers[siblingQuestion.id] || []
-    : [];
 
   const handleAnswerSelect = (answerIndex: number) => {
     const timeSpent = Math.floor(
@@ -567,61 +600,6 @@ function QuizPageContent() {
         firstAttemptAnswers: {
           ...prev.firstAttemptAnswers,
           [currentQuestion.id]: answerIndex,
-        },
-      };
-    });
-  };
-
-  // Generic handlers for grouped questions that take question as parameter
-  const handleAnswerSelectForQuestion = (
-    question: Question,
-    answerIndex: number,
-  ) => {
-    const timeSpent = Math.floor(
-      (Date.now() - session.lastQuestionStartTime) / 1000,
-    );
-
-    setSession((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        userAnswers: {
-          ...prev.userAnswers,
-          [question.id]: answerIndex,
-        },
-        questionTimes: {
-          ...prev.questionTimes,
-          [question.id]: (prev.questionTimes[question.id] || 0) + timeSpent,
-        },
-      };
-    });
-  };
-
-  const handleCheckAnswerForQuestion = (
-    question: Question,
-    answerIndex: number,
-  ) => {
-    const isCorrect = answerIndex === question.correctAnswer;
-
-    if (isPracticeMode && practiceSkill) {
-      updateSkillProgress(practiceSkill, question.id, isCorrect);
-    }
-
-    setSession((prev) => {
-      if (!prev) return prev;
-      const currentChecked = prev.checkedAnswers[question.id] || [];
-
-      if (currentChecked.length >= 1) return prev;
-
-      return {
-        ...prev,
-        checkedAnswers: {
-          ...prev.checkedAnswers,
-          [question.id]: [answerIndex],
-        },
-        firstAttemptAnswers: {
-          ...prev.firstAttemptAnswers,
-          [question.id]: answerIndex,
         },
       };
     });
@@ -755,24 +733,44 @@ function QuizPageContent() {
       (Date.now() - session.lastQuestionStartTime) / 1000,
     );
 
-    // For grouped questions, skip the sibling (we show both together)
-    const skipCount = isGroupedQuestion && isFirstInGroup ? 2 : 1;
-    const nextIndex = session.currentQuestionIndex + skipCount;
+    // Each question navigates individually (even grouped ones)
+    const nextIndex = session.currentQuestionIndex + 1;
 
     if (nextIndex < questions.length) {
+      // Check if moving to a new section — show divider if so
+      const nextQuestion = questions[nextIndex];
+      const currentSectionId = currentQuestion.sectionId;
+      const nextSectionId = nextQuestion.sectionId;
+      if (
+        sections.length > 0 &&
+        nextSectionId &&
+        nextSectionId !== currentSectionId
+      ) {
+        const nextSec = sections.find((s) => s.id === nextSectionId);
+        if (nextSec) {
+          // Save time for current question, advance index, then show divider
+          setSession((prev) => {
+            if (!prev) return prev;
+            const newTimes = { ...prev.questionTimes };
+            newTimes[currentQuestion.id] =
+              (newTimes[currentQuestion.id] || 0) + timeSpent;
+            return {
+              ...prev,
+              currentQuestionIndex: nextIndex,
+              lastQuestionStartTime: Date.now(),
+              questionTimes: newTimes,
+            };
+          });
+          setSectionDivider(nextSec);
+          return;
+        }
+      }
+
       setSession((prev) => {
         if (!prev) return prev;
         const newTimes = { ...prev.questionTimes };
-        // Split time equally between grouped questions
-        const perQuestionTime = siblingQuestion
-          ? Math.round(timeSpent / 2)
-          : timeSpent;
         newTimes[currentQuestion.id] =
-          (newTimes[currentQuestion.id] || 0) + perQuestionTime;
-        if (siblingQuestion) {
-          newTimes[siblingQuestion.id] =
-            (newTimes[siblingQuestion.id] || 0) + perQuestionTime;
-        }
+          (newTimes[currentQuestion.id] || 0) + timeSpent;
         return {
           ...prev,
           currentQuestionIndex: nextIndex,
@@ -781,19 +779,12 @@ function QuizPageContent() {
         };
       });
     } else {
-      // Last question(s)
+      // Last question
       setSession((prev) => {
         if (!prev) return prev;
         const newTimes = { ...prev.questionTimes };
-        const perQuestionTime = siblingQuestion
-          ? Math.round(timeSpent / 2)
-          : timeSpent;
         newTimes[currentQuestion.id] =
-          (newTimes[currentQuestion.id] || 0) + perQuestionTime;
-        if (siblingQuestion) {
-          newTimes[siblingQuestion.id] =
-            (newTimes[siblingQuestion.id] || 0) + perQuestionTime;
-        }
+          (newTimes[currentQuestion.id] || 0) + timeSpent;
         return {
           ...prev,
           questionTimes: newTimes,
@@ -814,39 +805,16 @@ function QuizPageContent() {
         (Date.now() - session.lastQuestionStartTime) / 1000,
       );
 
-      // Check if the previous question is part of a group we need to jump over
       const prevIndex = session.currentQuestionIndex - 1;
-      const prevQuestion = questions[prevIndex];
-      const prevSibling = prevQuestion?.passageId
-        ? questions.find(
-            (q) =>
-              q.id !== prevQuestion.id &&
-              q.passageId === prevQuestion.passageId,
-          )
-        : null;
-      const prevSiblingIdx = prevSibling
-        ? questions.findIndex((q) => q.id === prevSibling.id)
-        : -1;
-
-      // If prev question has a sibling that comes before it, jump to that sibling
-      const targetIndex =
-        prevSibling && prevSiblingIdx < prevIndex ? prevSiblingIdx : prevIndex;
 
       setSession((prev) => {
         if (!prev) return prev;
         const newTimes = { ...prev.questionTimes };
-        const perQuestionTime = siblingQuestion
-          ? Math.round(timeSpent / 2)
-          : timeSpent;
         newTimes[currentQuestion.id] =
-          (newTimes[currentQuestion.id] || 0) + perQuestionTime;
-        if (siblingQuestion) {
-          newTimes[siblingQuestion.id] =
-            (newTimes[siblingQuestion.id] || 0) + perQuestionTime;
-        }
+          (newTimes[currentQuestion.id] || 0) + timeSpent;
         return {
           ...prev,
-          currentQuestionIndex: targetIndex,
+          currentQuestionIndex: prevIndex,
           lastQuestionStartTime: Date.now(),
           questionTimes: newTimes,
         };
@@ -856,39 +824,26 @@ function QuizPageContent() {
 
   const handleToggleMarkForReview = () => {
     if (isPracticeMode) {
-      // Use persistent storage for practice mode
       const isNowMarked = toggleMarkedForReview(currentQuestion.id);
-      // Also toggle sibling question if grouped
-      if (siblingQuestion) {
-        toggleMarkedForReview(siblingQuestion.id);
-      }
       setPracticeMarkedQuestions((prev) => {
         const newSet = new Set(prev);
         if (isNowMarked) {
           newSet.add(currentQuestion.id);
-          if (siblingQuestion) newSet.add(siblingQuestion.id);
         } else {
           newSet.delete(currentQuestion.id);
-          if (siblingQuestion) newSet.delete(siblingQuestion.id);
         }
         return newSet;
       });
     } else {
-      // Use session storage for test mode
       setSession((prev) => {
         if (!prev) return prev;
         const newMarkedValue = !prev.markedForReview[currentQuestion.id];
-        const newMarkedForReview = {
-          ...prev.markedForReview,
-          [currentQuestion.id]: newMarkedValue,
-        };
-        // Also mark sibling question if grouped
-        if (siblingQuestion) {
-          newMarkedForReview[siblingQuestion.id] = newMarkedValue;
-        }
         return {
           ...prev,
-          markedForReview: newMarkedForReview,
+          markedForReview: {
+            ...prev.markedForReview,
+            [currentQuestion.id]: newMarkedValue,
+          },
         };
       });
     }
@@ -932,7 +887,7 @@ function QuizPageContent() {
   return (
     <>
       <div
-        className={`min-h-screen pb-16 transition-all duration-300 relative ${
+        className={`${isGroupedQuestion ? 'h-screen overflow-hidden' : 'min-h-screen'} pb-16 transition-all duration-300 relative ${
           showCalculator ? "md:mr-[420px]" : ""
         }`}
         style={{ backgroundColor: "transparent", pointerEvents: "none" }}
@@ -1105,12 +1060,12 @@ function QuizPageContent() {
         </div>
 
         <div
-          className={`mx-auto pt-4 ${isGroupedQuestion ? "max-w-6xl px-2" : "max-w-3xl px-4"}`}
+          className={`mx-auto ${isGroupedQuestion ? "max-w-none px-0 pt-4 h-full flex flex-col" : "max-w-3xl px-4 pt-4"} ${isTestPracticeMode && !isGroupedQuestion ? "lg:pr-16" : ""}`}
           style={{ pointerEvents: "auto" }}
         >
           {/* Question Number and Topic Badges Row */}
           <div
-            className="mb-4 flex items-center gap-2 flex-wrap relative"
+            className={`${isGroupedQuestion ? 'mb-2 px-2 shrink-0' : 'mb-4'} flex items-center gap-2 flex-wrap relative`}
             style={{
               zIndex: 100,
               transform: "translateZ(0)",
@@ -1123,9 +1078,7 @@ function QuizPageContent() {
               style={{ pointerEvents: "auto" }}
             >
               <span className="inline-block text-sm font-bold px-4 py-1.5 rounded-full bg-black dark:bg-white text-white dark:text-black">
-                {isGroupedQuestion
-                  ? `Questions ${Math.min(currentQuestionIdx, siblingQuestionIdx) + 1}-${Math.max(currentQuestionIdx, siblingQuestionIdx) + 1}`
-                  : `Question ${session.currentQuestionIndex + 1}`}
+                {`Question ${session.currentQuestionIndex + 1}`}
               </span>
               {currentSection && (
                 <span className="inline-block text-xs font-semibold px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
@@ -1213,9 +1166,9 @@ function QuizPageContent() {
             )}
           </div>
 
-          {/* Drawing Toolbar - Compact Single Row */}
+          {/* Drawing Toolbar - Compact Single Row (hidden for grouped questions, shown inside passage panel instead) */}
           <div
-            className="flex items-center gap-2 mb-8 relative"
+            className={`flex items-center gap-2 mb-8 relative ${isGroupedQuestion ? 'hidden' : ''}`}
             style={{
               zIndex: 100,
               transform: "translateZ(0)",
@@ -1424,442 +1377,458 @@ function QuizPageContent() {
                 </svg>
               </button>
             </div>
+
+            {/* Zoom Info Button */}
+            <div className="relative" style={{ pointerEvents: "auto" }}>
+              <button
+                onClick={() => setShowZoomTip(!showZoomTip)}
+                className={`p-1.5 rounded-lg border-2 transition-all active:scale-95 ${
+                  showZoomTip
+                    ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black"
+                    : "border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800"
+                }`}
+                title="Zoom instructions"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+                </svg>
+              </button>
+              {showZoomTip && (
+                <>
+                  {/* overlay dismissed via useEffect listener */}
+                  <div className="absolute top-full right-0 mt-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-600 rounded-lg shadow-xl p-3 z-[120] w-48">
+                    <p className="text-xs font-bold text-gray-900 dark:text-neutral-100 mb-2">Zoom Controls</p>
+                    <div className="space-y-1.5 text-xs text-gray-600 dark:text-neutral-400">
+                      {isMac ? (
+                        <div>
+                          <div className="mt-0.5"><kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">&#8984;</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">=</kbd> Zoom in</div>
+                          <div><kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">&#8984;</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">-</kbd> Zoom out</div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="mt-0.5"><kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">Ctrl</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">=</kbd> Zoom in</div>
+                          <div><kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">Ctrl</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">-</kbd> Zoom out</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* GROUPED QUESTIONS LAYOUT */}
-          {isGroupedQuestion && question1 && question2 ? (
-            <>
-              {/* Passage Above Text */}
-              {currentQuestion.passage?.aboveText && (
-                <div
-                  className="mb-2"
-                  style={{
-                    fontFamily: "'Times New Roman', Times, serif",
-                    fontSize: "1.125rem",
-                  }}
-                >
-                  <MathText
-                    text={currentQuestion.passage.aboveText}
-                    className="leading-relaxed dark:text-neutral-200"
-                  />
-                </div>
-              )}
-
-              {/* Passage Image (drawable — stays under canvas) */}
-              {currentQuestion.passage?.passageImageUrl && (
-                <div className="mb-4">
-                  <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">
-                    Passage
-                  </div>
-                  <img
-                    src={currentQuestion.passage.passageImageUrl}
-                    alt="Passage"
-                    className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-md' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
-                  />
-                </div>
-              )}
-
-              {/* Passage Text (above canvas — scrollable with annotation tools) */}
-              {currentQuestion.passage?.passageText && (
-                <div
-                  className="mb-4 relative"
-                  style={{ zIndex: 60, pointerEvents: "auto" }}
-                >
-                  {!currentQuestion.passage.passageImageUrl && (
-                    <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">
-                      Passage
+          {/* GROUPED QUESTIONS - SPLIT PANE LAYOUT */}
+          {isGroupedQuestion ? (
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+              <SplitPane
+                defaultSplit={60}
+                minLeft={30}
+                minRight={25}
+                className="h-full"
+                left={
+                  <div className="px-4 py-3 pb-16">
+                    {/* Passage Header with Drawing Tools */}
+                    <div className="flex items-center justify-between mb-3 flex-wrap gap-y-1">
+                      <div className="flex items-center gap-2">
+                        {(currentQuestion.passage?.passageText || currentQuestion.passage?.aboveText) && (
+                          <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">
+                            Passage
+                          </div>
+                        )}
+                        {/* Drawing toolbar inline for grouped questions */}
+                        <div className="flex items-center gap-1.5">
+                          {/* Pen Tool */}
+                          <div className="relative">
+                            <button
+                              onClick={() => {
+                                if (tool === "pen") {
+                                  setTool(null);
+                                  setShowColorPicker(false);
+                                } else {
+                                  setTool("pen");
+                                }
+                              }}
+                              className={`relative p-1 rounded-md border-2 transition-all active:scale-95 ${
+                                tool === "pen"
+                                  ? "border-2 shadow-sm"
+                                  : "bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800"
+                              }`}
+                              style={
+                                tool === "pen"
+                                  ? {
+                                      backgroundColor: penColor,
+                                      borderColor: theme === "dark" ? "#525252" : penColor,
+                                      color: ["#000000","#3b82f6","#a855f7","#ef4444"].includes(penColor) ? "#ffffff" : "#000000",
+                                    }
+                                  : {}
+                              }
+                              title="Pen"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                            {tool === "pen" && (
+                              <div
+                                onClick={(e) => { e.stopPropagation(); setShowColorPicker(!showColorPicker); }}
+                                className="absolute bottom-0 right-0 cursor-pointer rounded-br-md"
+                                title="Change color"
+                                style={{ width: 0, height: 0, borderLeft: '10px solid transparent', borderBottom: `10px solid ${theme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)'}` }}
+                              />
+                            )}
+                            {showColorPicker && tool === "pen" && (
+                              <>
+                                <div className="fixed inset-0 z-[110]" onClick={() => setShowColorPicker(false)} />
+                                <div className="absolute top-full left-0 mt-1 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-600 rounded-lg shadow-xl p-1.5 z-[120]">
+                                  <div className="flex items-center gap-1.5">
+                                    {[
+                                      { name: "Green", value: "#22c55e" },
+                                      { name: "Blue", value: "#3b82f6" },
+                                      { name: "Red", value: "#ef4444" },
+                                      { name: "Yellow", value: "#eab308" },
+                                      { name: "Purple", value: "#a855f7" },
+                                      theme === "dark" ? { name: "White", value: "#ffffff" } : { name: "Black", value: "#000000" },
+                                    ].map((color) => (
+                                      <button
+                                        key={color.value}
+                                        onClick={() => { setPenColor(color.value); setShowColorPicker(false); }}
+                                        className={`w-6 h-6 rounded-md transition-all hover:scale-110 active:scale-95 ${
+                                          penColor === color.value
+                                            ? "ring-2 ring-black dark:ring-white ring-offset-1 dark:ring-offset-neutral-800"
+                                            : "border-2 border-gray-300 dark:border-neutral-600"
+                                        }`}
+                                        style={{ backgroundColor: color.value }}
+                                        title={color.name}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          {/* Eraser */}
+                          <button
+                            onClick={() => setTool(tool === "eraser" ? null : "eraser")}
+                            className={`p-1 rounded-md border-2 transition-all active:scale-95 ${
+                              tool === "eraser"
+                                ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black"
+                                : "bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800"
+                            }`}
+                            title="Eraser"
+                          >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z" />
+                            </svg>
+                          </button>
+                          {/* Clear */}
+                          <button
+                            onClick={handleClear}
+                            className="p-1 rounded-md border-2 border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-300 hover:border-rose-500 dark:hover:border-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 active:scale-95 transition-all"
+                            title="Clear all"
+                          >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" />
+                            </svg>
+                          </button>
+                          {/* Size Buttons */}
+                          {tool && (
+                            <div className="flex items-center gap-1">
+                              {tool === "pen" ? (
+                                [2, 6].map((size) => (
+                                  <button key={size} onClick={() => setPenSize(size)}
+                                    className={`px-1.5 py-0.5 rounded-md border-2 text-[10px] font-medium transition-all active:scale-95 ${
+                                      penSize === size
+                                        ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black"
+                                        : "bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white"
+                                    }`}
+                                  >{size === 2 ? "S" : "L"}</button>
+                                ))
+                              ) : (
+                                [15, 35].map((size) => (
+                                  <button key={size} onClick={() => setEraserSize(size)}
+                                    className={`px-1.5 py-0.5 rounded-md border-2 text-[10px] font-medium transition-all active:scale-95 ${
+                                      eraserSize === size
+                                        ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black"
+                                        : "bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white"
+                                    }`}
+                                  >{size === 15 ? "S" : "L"}</button>
+                                ))
+                              )}
+                            </div>
+                          )}
+                          {/* Undo */}
+                          <button
+                            onClick={handleUndo}
+                            disabled={!canUndo}
+                            className="p-1 rounded-md border-2 border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                            title="Undo"
+                          >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" />
+                            </svg>
+                          </button>
+                          {/* Zoom Info */}
+                          <div className="relative">
+                            <button
+                              onClick={() => setShowZoomTip(!showZoomTip)}
+                              className={`p-1 rounded-md border-2 transition-all active:scale-95 ${
+                                showZoomTip
+                                  ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black"
+                                  : "border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-300 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800"
+                              }`}
+                              title="Zoom instructions"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+                              </svg>
+                            </button>
+                            {showZoomTip && (
+                              <>
+                                {/* overlay dismissed via useEffect listener */}
+                                <div className="absolute top-full left-0 mt-1 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-600 rounded-lg shadow-xl p-3 z-[120] w-48">
+                                  <p className="text-xs font-bold text-gray-900 dark:text-neutral-100 mb-2">Zoom Controls</p>
+                                  <div className="space-y-1.5 text-xs text-gray-600 dark:text-neutral-400">
+                                    {isMac ? (
+                                      <div>
+                                        <div className="mt-0.5"><kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">&#8984;</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">=</kbd> Zoom in</div>
+                                        <div><kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">&#8984;</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">-</kbd> Zoom out</div>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <div className="mt-0.5"><kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">Ctrl</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">=</kbd> Zoom in</div>
+                                        <div><kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">Ctrl</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-neutral-800 rounded text-[10px] font-mono">-</kbd> Zoom out</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {/* Spacer for alignment */}
+                      <div />
                     </div>
-                  )}
-                  <ScrollablePassage
-                    passage={currentQuestion.passage}
-                    highlights={
-                      session.passageHighlights[currentQuestion.passage.id] ||
-                      []
-                    }
-                    onHighlightAdd={(highlight) =>
-                      handleHighlightAdd(currentQuestion.passage!.id, highlight)
-                    }
-                    onHighlightRemove={(highlightId) =>
-                      handleHighlightRemove(
-                        currentQuestion.passage!.id,
-                        highlightId,
-                      )
-                    }
-                    onNoteAdd={(highlightId, note) =>
-                      handleNoteAdd(
-                        currentQuestion.passage!.id,
-                        highlightId,
-                        note,
-                      )
-                    }
-                  />
-                </div>
-              )}
 
-              {/* Embedded Graphing Tool for grouped questions - below passage */}
-              {showGraphingTool && (
-                <div
-                  className="mb-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl overflow-hidden bg-white dark:bg-neutral-900 max-w-md mx-auto relative"
-                  style={{
-                    zIndex: 100,
-                    pointerEvents: "auto",
-                    transform: "translateZ(0)",
-                  }}
-                >
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-700">
-                    <span className="text-xs font-bold text-blue-900 dark:text-blue-300">
-                      Graph
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setSession((prev) => {
-                            if (!prev) return prev;
-                            const newGraphs = { ...prev.graphs };
-                            delete newGraphs[currentQuestion.id];
-                            return { ...prev, graphs: newGraphs };
-                          });
-                          setGraphClearKey((prev) => prev + 1);
+                    {/* Passage Above Text */}
+                    {currentQuestion.passage?.aboveText && (
+                      <div
+                        className="mb-3"
+                        style={{
+                          fontFamily: "'Times New Roman', Times, serif",
+                          fontSize: "1.125rem",
                         }}
-                        className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 active:scale-95 transition-all"
-                        title="Clear graph"
                       >
-                        <svg
-                          className="w-4 h-4 text-red-500 dark:text-red-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => setShowGraphingTool(false)}
-                        className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-                        title="Close graph"
+                        <MathText
+                          text={currentQuestion.passage.aboveText}
+                          className="leading-relaxed dark:text-neutral-200"
+                        />
+                      </div>
+                    )}
+
+                    {/* Passage Image */}
+                    {currentQuestion.passage?.passageImageUrl && (
+                      <div className="mb-3 shrink-0">
+                        <img
+                          src={currentQuestion.passage.passageImageUrl}
+                          alt="Passage"
+                          className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
+                        />
+                      </div>
+                    )}
+
+                    {/* Passage Text */}
+                    {currentQuestion.passage?.passageText && (
+                      <div className="relative" style={{ zIndex: 60, pointerEvents: "auto" }}>
+                        <ScrollablePassage
+                          passage={currentQuestion.passage}
+                          highlights={
+                            session.passageHighlights[currentQuestion.passage.id] || []
+                          }
+                          onHighlightAdd={(highlight) =>
+                            handleHighlightAdd(currentQuestion.passage!.id, highlight)
+                          }
+                          onHighlightRemove={(highlightId) =>
+                            handleHighlightRemove(currentQuestion.passage!.id, highlightId)
+                          }
+                          onNoteAdd={(highlightId, note) =>
+                            handleNoteAdd(currentQuestion.passage!.id, highlightId, note)
+                          }
+                          showLineNumbers
+                        />
+                      </div>
+                    )}
+                  </div>
+                }
+                right={
+                  <div className={`flex flex-col px-5 py-3 pb-16 ${isTestPracticeMode ? 'lg:pr-16' : ''}`}>
+
+                    {/* Question Content - Regents style: number on left, text indented */}
+                    <div className="mb-4 shrink-0 flex gap-3" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: "1.125rem" }}>
+                      {/* Question number */}
+                      <div className="shrink-0 font-bold text-gray-900 dark:text-neutral-100" style={{ width: '1.5rem', textAlign: 'right' }}>
+                        {session.currentQuestionIndex + 1}
+                      </div>
+                      {/* Question body */}
+                      <div className="flex-1 min-w-0">
+                        {currentQuestion.aboveImageText && (
+                          <div className="mb-2">
+                            <MathText
+                              text={currentQuestion.aboveImageText}
+                              className="leading-relaxed dark:text-neutral-200"
+                            />
+                          </div>
+                        )}
+                        {currentQuestion.imageFilename && (
+                          <div className="w-full mb-2">
+                            <img
+                              src={currentQuestion.imageFilename}
+                              alt="Question"
+                              className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
+                            />
+                          </div>
+                        )}
+                        {currentQuestion.questionText && (
+                          <div>
+                            <MathText
+                              text={currentQuestion.questionText}
+                              className="leading-relaxed dark:text-neutral-200"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Graphing Tool */}
+                    {showGraphingTool && (
+                      <div
+                        className="mb-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl overflow-hidden bg-white dark:bg-neutral-900 shrink-0"
+                        style={{ zIndex: 100, pointerEvents: "auto", transform: "translateZ(0)" }}
                       >
-                        <svg
-                          className="w-4 h-4 text-blue-600 dark:text-blue-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ height: "380px" }}>
-                    <GraphingTool
-                      key={`grouped-${currentQuestion.id}-${graphClearKey}`}
-                      initialData={
-                        session.graphs?.[currentQuestion.id] ||
-                        DEFAULT_GRAPH_DATA
-                      }
-                      onChange={(data: GraphData) => {
-                        setSession((prev) => {
-                          if (!prev) return prev;
-                          return {
-                            ...prev,
-                            graphs: {
-                              ...prev.graphs,
-                              [currentQuestion.id]: data,
-                            },
-                          };
-                        });
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Two questions side by side */}
-              <div className="grid grid-cols-2 gap-0 mb-6">
-                {/* Question 1 */}
-                <div className="pr-4 border-r-2 border-dashed border-gray-300 dark:border-neutral-600 flex flex-col">
-                  <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 mb-2">
-                    Q{questions.findIndex((q) => q.id === question1.id) + 1}
-                  </div>
-                  {/* Q1 Question Card */}
-                  {(question1.imageFilename ||
-                    question1.questionText ||
-                    question1.aboveImageText) && (
-                    <div className="mb-3">
-                      {question1.aboveImageText && (
-                        <div
-                          className="mb-2"
-                          style={{
-                            fontFamily: "'Times New Roman', Times, serif",
-                            fontSize: "1rem",
-                          }}
-                        >
-                          <MathText
-                            text={question1.aboveImageText}
-                            className="leading-relaxed dark:text-neutral-200"
-                          />
-                        </div>
-                      )}
-                      {question1.imageFilename && (
-                        <div className="w-full">
-                          <img
-                            src={question1.imageFilename}
-                            alt="Question"
-                            className={`mx-auto h-auto rounded-lg w-full ${question1.imageSize === 'small' ? 'max-w-xs' : question1.imageSize === 'medium' ? 'max-w-md' : question1.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
-                          />
-                        </div>
-                      )}
-                      {question1.questionText && (
-                        <div
-                          className={question1.imageFilename ? "mt-2" : ""}
-                          style={{
-                            fontFamily: "'Times New Roman', Times, serif",
-                            fontSize: "1rem",
-                          }}
-                        >
-                          <MathText
-                            text={question1.questionText}
-                            className="leading-relaxed dark:text-neutral-200"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {/* Q1 Answers */}
-                  <div
-                    className="space-y-2 relative z-[60] mt-auto"
-                    style={{ pointerEvents: "auto" }}
-                  >
-                    {question1.answers.map((answer, index) => {
-                      const answerNum = index + 1;
-                      const q1Selected =
-                        session.userAnswers[question1.id] || null;
-                      const q1Checked =
-                        session.checkedAnswers[question1.id] || [];
-                      const isChecked = q1Checked.includes(answerNum);
-                      const isCorrectAnswer =
-                        answerNum === question1.correctAnswer;
-                      const isSelected = q1Selected === answerNum;
-                      const q1CanAttempt = q1Checked.length < 1;
-
-                      let btnClass =
-                        "w-full px-3 py-2 text-left rounded-lg border-2 transition-all duration-200 font-medium active:scale-[0.98] text-sm";
-                      if (isChecked) {
-                        btnClass += isCorrectAnswer
-                          ? " bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-900 dark:text-green-300"
-                          : " bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-900 dark:text-rose-300";
-                      } else if (isSelected) {
-                        btnClass +=
-                          " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
-                      } else {
-                        btnClass +=
-                          " bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800";
-                      }
-
-                      return (
-                        <div key={index} className="relative">
-                          <button
-                            onClick={() =>
-                              handleAnswerSelectForQuestion(
-                                question1,
-                                answerNum,
-                              )
-                            }
-                            className={btnClass}
-                          >
-                            <div
-                              className="flex items-start gap-2"
-                              style={{
-                                fontFamily: "'Times New Roman', Times, serif",
-                              }}
-                            >
-                              <span className="font-bold shrink-0">
-                                ({answerNum})
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                {answer && (
-                                  <MathText
-                                    text={answer}
-                                    className="text-left"
-                                  />
-                                )}
-                                {question1.answerImageUrls?.[index] && (
-                                  <img
-                                    src={question1.answerImageUrls[index]}
-                                    alt={`Answer ${answerNum}`}
-                                    className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1"
-                                  />
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                          {showCheckButton && isSelected && !isChecked && q1CanAttempt && (
+                        <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-700">
+                          <span className="text-xs font-bold text-blue-900 dark:text-blue-300">Graph</span>
+                          <div className="flex items-center gap-2">
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCheckAnswerForQuestion(
-                                  question1,
-                                  answerNum,
-                                );
+                              onClick={() => {
+                                setSession((prev) => {
+                                  if (!prev) return prev;
+                                  const newGraphs = { ...prev.graphs };
+                                  delete newGraphs[currentQuestion.id];
+                                  return { ...prev, graphs: newGraphs };
+                                });
+                                setGraphClearKey((prev) => prev + 1);
                               }}
-                              className="absolute right-2 top-2 px-2 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
+                              className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 active:scale-95 transition-all"
+                              title="Clear graph"
                             >
-                              CHECK
+                              <svg className="w-4 h-4 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
                             </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Question 2 */}
-                <div className="pl-4 flex flex-col">
-                  <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 mb-2">
-                    Q{questions.findIndex((q) => q.id === question2.id) + 1}
-                  </div>
-                  {/* Q2 Question Card */}
-                  {(question2.imageFilename ||
-                    question2.questionText ||
-                    question2.aboveImageText) && (
-                    <div className="mb-3">
-                      {question2.aboveImageText && (
-                        <div
-                          className="mb-2"
-                          style={{
-                            fontFamily: "'Times New Roman', Times, serif",
-                            fontSize: "1rem",
-                          }}
-                        >
-                          <MathText
-                            text={question2.aboveImageText}
-                            className="leading-relaxed dark:text-neutral-200"
-                          />
-                        </div>
-                      )}
-                      {question2.imageFilename && (
-                        <div className="w-full">
-                          <img
-                            src={question2.imageFilename}
-                            alt="Question"
-                            className={`mx-auto h-auto rounded-lg w-full ${question2.imageSize === 'small' ? 'max-w-xs' : question2.imageSize === 'medium' ? 'max-w-md' : question2.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
-                          />
-                        </div>
-                      )}
-                      {question2.questionText && (
-                        <div
-                          className={question2.imageFilename ? "mt-2" : ""}
-                          style={{
-                            fontFamily: "'Times New Roman', Times, serif",
-                            fontSize: "1rem",
-                          }}
-                        >
-                          <MathText
-                            text={question2.questionText}
-                            className="leading-relaxed dark:text-neutral-200"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {/* Q2 Answers */}
-                  <div
-                    className="space-y-2 relative z-[60] mt-auto"
-                    style={{ pointerEvents: "auto" }}
-                  >
-                    {question2.answers.map((answer, index) => {
-                      const answerNum = index + 1;
-                      const q2Selected =
-                        session.userAnswers[question2.id] || null;
-                      const q2Checked =
-                        session.checkedAnswers[question2.id] || [];
-                      const isChecked = q2Checked.includes(answerNum);
-                      const isCorrectAnswer =
-                        answerNum === question2.correctAnswer;
-                      const isSelected = q2Selected === answerNum;
-                      const q2CanAttempt = q2Checked.length < 1;
-
-                      let btnClass =
-                        "w-full px-3 py-2 text-left rounded-lg border-2 transition-all duration-200 font-medium active:scale-[0.98] text-sm";
-                      if (isChecked) {
-                        btnClass += isCorrectAnswer
-                          ? " bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-900 dark:text-green-300"
-                          : " bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-900 dark:text-rose-300";
-                      } else if (isSelected) {
-                        btnClass +=
-                          " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
-                      } else {
-                        btnClass +=
-                          " bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800";
-                      }
-
-                      return (
-                        <div key={index} className="relative">
-                          <button
-                            onClick={() =>
-                              handleAnswerSelectForQuestion(
-                                question2,
-                                answerNum,
-                              )
-                            }
-                            className={btnClass}
-                          >
-                            <div
-                              className="flex items-start gap-2"
-                              style={{
-                                fontFamily: "'Times New Roman', Times, serif",
-                              }}
-                            >
-                              <span className="font-bold shrink-0">
-                                ({answerNum})
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                {answer && (
-                                  <MathText
-                                    text={answer}
-                                    className="text-left"
-                                  />
-                                )}
-                                {question2.answerImageUrls?.[index] && (
-                                  <img
-                                    src={question2.answerImageUrls[index]}
-                                    alt={`Answer ${answerNum}`}
-                                    className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1"
-                                  />
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                          {showCheckButton && isSelected && !isChecked && q2CanAttempt && (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCheckAnswerForQuestion(
-                                  question2,
-                                  answerNum,
-                                );
-                              }}
-                              className="absolute right-2 top-2 px-2 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
+                              onClick={() => setShowGraphingTool(false)}
+                              className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                              title="Close graph"
                             >
-                              CHECK
+                              <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
                             </button>
-                          )}
+                          </div>
                         </div>
-                      );
-                    })}
+                        <div style={{ height: "340px" }}>
+                          <GraphingTool
+                            key={`grouped-${currentQuestion.id}-${graphClearKey}`}
+                            initialData={session.graphs?.[currentQuestion.id] || DEFAULT_GRAPH_DATA}
+                            onChange={(data: GraphData) => {
+                              setSession((prev) => {
+                                if (!prev) return prev;
+                                return { ...prev, graphs: { ...prev.graphs, [currentQuestion.id]: data } };
+                              });
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Answer Options - Regents style (1),(2),(3),(4) */}
+                    <div
+                      className="space-y-1 relative z-[60] mt-auto w-full max-w-full pl-8"
+                      style={{ pointerEvents: "auto", fontFamily: "'Times New Roman', Times, serif", fontSize: "1.125rem" }}
+                    >
+                      {currentQuestion.answers.map((answer, index) => {
+                        const answerNum = index + 1;
+                        const isChecked = checkedAnswers.includes(answerNum);
+                        const isCorrectAnswer = answerNum === currentQuestion.correctAnswer;
+                        const isSelected = selectedAnswer === answerNum;
+                        const canAttempt = checkedAnswers.length < 1;
+
+                        let textColor = "text-gray-900 dark:text-neutral-100";
+                        let bgClass = "hover:bg-gray-100 dark:hover:bg-neutral-800";
+                        if (isChecked) {
+                          if (isCorrectAnswer) {
+                            textColor = "text-green-700 dark:text-green-300";
+                            bgClass = "bg-green-50 dark:bg-green-900/30";
+                          } else {
+                            textColor = "text-rose-700 dark:text-rose-300";
+                            bgClass = "bg-rose-50 dark:bg-rose-900/30";
+                          }
+                        } else if (isSelected) {
+                          textColor = "text-sky-700 dark:text-sky-300";
+                          bgClass = "bg-sky-50 dark:bg-sky-900/30";
+                        }
+
+                        return (
+                          <div key={index} className="relative">
+                            <button
+                              onClick={() => handleAnswerSelect(answerNum)}
+                              className={`w-full text-left rounded-lg px-2 py-1 transition-all active:scale-[0.98] ${textColor} ${bgClass}`}
+                            >
+                              <div className="flex items-start gap-1.5 min-w-0 w-full">
+                                <span className="shrink-0">({answerNum})</span>
+                                <div className="flex-1 min-w-0">
+                                  {answer && <MathText text={answer} className="text-left" />}
+                                  {currentQuestion.answerImageUrls?.[index] && (
+                                    <img
+                                      src={currentQuestion.answerImageUrls[index]}
+                                      alt={`Answer ${answerNum}`}
+                                      className="h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1"
+                                      style={{ maxWidth: '100%', display: 'block' }}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                            {showCheckButton && isSelected && !isChecked && canAttempt && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCheckAnswer(answerNum);
+                                }}
+                                className="absolute right-2 top-1 px-2.5 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
+                              >
+                                CHECK
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Notes - after answers */}
+                    {currentQuestion.notes && (
+                      <div className="mt-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                        <p className="text-sm text-amber-800 dark:text-amber-300 italic">
+                          <span className="font-semibold not-italic">Note: </span>
+                          {currentQuestion.notes}
+                        </p>
+                      </div>
+                    )}
+
                   </div>
-                </div>
-              </div>
-            </>
+                }
+              />
+            </div>
           ) : (
             <>
               {/* SINGLE QUESTION LAYOUT (original) */}
@@ -1888,7 +1857,7 @@ function QuizPageContent() {
                   <img
                     src={currentQuestion.passage.passageImageUrl}
                     alt="Passage"
-                    className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-md' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
+                    className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
                   />
                 </div>
               )}
@@ -1954,7 +1923,7 @@ function QuizPageContent() {
                       <img
                         src={currentQuestion.imageFilename}
                         alt="Question"
-                        className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-md' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
+                        className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
                       />
                     </div>
                   )}
@@ -1972,6 +1941,7 @@ function QuizPageContent() {
                       />
                     </div>
                   )}
+
                 </div>
               )}
 
@@ -2304,6 +2274,16 @@ function QuizPageContent() {
                   })}
                 </div>
               )}
+
+              {/* Notes - after answers */}
+              {currentQuestion.notes && (
+                <div className="mt-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg" style={{ pointerEvents: "auto", position: "relative", zIndex: 60 }}>
+                  <p className="text-sm text-amber-800 dark:text-amber-300 italic">
+                    <span className="font-semibold not-italic">Note: </span>
+                    {currentQuestion.notes}
+                  </p>
+                </div>
+              )}
             </>
           )}
 
@@ -2455,11 +2435,8 @@ function QuizPageContent() {
                     "bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-neutral-400";
                 }
 
-                // For grouped questions, navigate to the first question in the pair
-                const targetIndex =
-                  hasPassage && !isFirstInPair && siblingIdx !== -1
-                    ? siblingIdx
-                    : index;
+                // Navigate directly to the clicked question
+                const targetIndex = index;
 
                 return (
                   <React.Fragment key={q.id}>
@@ -2489,7 +2466,7 @@ function QuizPageContent() {
                         });
                         setShowAllQuestions(false);
                       }}
-                      className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass} ${hasPassage && siblingQ ? (isFirstInPair ? 'rounded-r-sm !mr-0' : 'rounded-l-sm !ml-0') : ''}`}
+                      className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass} ${hasPassage ? 'ring-2 ring-purple-300 dark:ring-purple-700 ring-offset-1 dark:ring-offset-neutral-900' : ''}`}
                       title={`Question ${index + 1}${hasPassage ? " (Grouped)" : ""}${
                         isMarked ? " (Marked for review)" : ""
                       }`}
@@ -2510,14 +2487,6 @@ function QuizPageContent() {
                         </svg>
                       )}
                     </button>
-                    {/* Connector between grouped questions */}
-                    {hasPassage && isFirstInPair && (
-                      <div className="flex items-center -mx-1.5 z-10">
-                        <svg className="w-2.5 h-2.5 text-gray-400 dark:text-neutral-500" viewBox="0 0 10 10" fill="currentColor">
-                          <rect x="1" y="4" width="8" height="2" rx="1" />
-                        </svg>
-                      </div>
-                    )}
                   </React.Fragment>
                 );
               })}
@@ -2573,9 +2542,7 @@ function QuizPageContent() {
                 className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 active:scale-95 transition-all flex items-center gap-1.5"
               >
                 <span>
-                  {isGroupedQuestion
-                    ? `${Math.min(currentQuestionIdx, siblingQuestionIdx) + 1} and ${Math.max(currentQuestionIdx, siblingQuestionIdx) + 1}`
-                    : session.currentQuestionIndex + 1}/{questions.length}
+                  {session.currentQuestionIndex + 1}/{questions.length}
                 </span>
                 <svg
                   className="w-3 h-3 md:w-3.5 md:h-3.5"
@@ -2693,42 +2660,11 @@ function QuizPageContent() {
       <ExplanationSlider
         isOpen={showExplanation}
         onClose={() => setShowExplanation(false)}
-        explanationText={question1?.explanation || currentQuestion.explanation}
-        explanationImageUrl={
-          question1?.explanationImageUrl || currentQuestion.explanationImageUrl
-        }
-        correctAnswer={
-          question1
-            ? question1.answers[question1.correctAnswer - 1]
-            : currentQuestion.answers[currentQuestion.correctAnswer - 1]
-        }
-        isCorrect={
-          question1
-            ? session.userAnswers[question1.id] === question1.correctAnswer
-            : isCorrect
-        }
-        hasAnswered={
-          question1
-            ? session.checkedAnswers[question1.id]?.length > 0
-            : checkedAnswers.length > 0
-        }
-        additionalExplanations={
-          isGroupedQuestion && question2
-            ? [
-                {
-                  questionNumber: 2,
-                  explanationText: question2.explanation,
-                  explanationImageUrl: question2.explanationImageUrl,
-                  correctAnswer: question2.answers[question2.correctAnswer - 1],
-                  isCorrect:
-                    session.userAnswers[question2.id] ===
-                    question2.correctAnswer,
-                  hasAnswered:
-                    (session.checkedAnswers[question2.id]?.length || 0) > 0,
-                },
-              ]
-            : undefined
-        }
+        explanationText={currentQuestion.explanation}
+        explanationImageUrl={currentQuestion.explanationImageUrl}
+        correctAnswer={currentQuestion.answers[currentQuestion.correctAnswer - 1]}
+        isCorrect={isCorrect}
+        hasAnswered={checkedAnswers.length > 0}
       />
 
       {/* Reference Image Modal - Shows default PDF if no specific reference */}

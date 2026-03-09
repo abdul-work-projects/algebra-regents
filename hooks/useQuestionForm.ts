@@ -22,6 +22,7 @@ export interface QuestionFormState {
   selectedTags: string[]; // New field for tags
   difficulty: string; // 'easy' | 'medium' | 'hard' | '' (empty = none)
   points: number;
+  notes: string;
 }
 
 const initialState: QuestionFormState = {
@@ -46,6 +47,7 @@ const initialState: QuestionFormState = {
   selectedTags: [],
   difficulty: "",
   points: 1,
+  notes: "",
 };
 
 export function useQuestionForm() {
@@ -102,6 +104,7 @@ export function useQuestionForm() {
     tags?: string[];
     difficulty?: 'easy' | 'medium' | 'hard' | null;
     points?: number;
+    notes?: string | null;
   }) => {
     setState({
       questionName: question.name || "",
@@ -125,6 +128,7 @@ export function useQuestionForm() {
       selectedTags: question.tags || [],
       difficulty: question.difficulty || "",
       points: question.points || 1,
+      notes: question.notes || "",
     });
   };
 

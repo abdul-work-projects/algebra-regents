@@ -79,7 +79,7 @@ export default function LiveScoreBeaver({
         }
       `}</style>
 
-      <div className="hidden md:flex fixed right-6 top-1/2 -translate-y-1/2 z-[90] flex-col items-center">
+      <div className="hidden lg:flex fixed right-2 top-28 z-[201] flex-col items-center">
         {/* Label */}
         <span className="text-[8px] md:text-[9px] font-semibold text-gray-400 dark:text-neutral-500 uppercase tracking-wider text-center mb-1">
           Projected<br />Test Score
@@ -139,14 +139,15 @@ export default function LiveScoreBeaver({
                 : "beaver-idle 2.5s ease-in-out infinite",
             }}
           >
-            <Image
-              src="/beaver-images/beaver.gif"
-              alt="Score beaver"
-              width={48}
-              height={48}
-              className="drop-shadow-sm"
-              unoptimized
-            />
+            <div className="relative w-[48px] h-[48px]">
+              <Image
+                src={isJumping ? "/beaver-images/beaver.gif" : "/beaver-images/beaver-still.png"}
+                alt="Score beaver"
+                fill
+                className="drop-shadow-sm object-contain"
+                unoptimized
+              />
+            </div>
           </div>
         </div>
       </div>

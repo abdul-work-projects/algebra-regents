@@ -43,6 +43,36 @@ export default function FullscreenDrawingCanvas({
   const [isDrawing, setIsDrawing] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
 
+  // Helper to resize canvas buffer to match container + DPR, then restore drawing
+  const resizeCanvas = (canvas: HTMLCanvasElement, container: HTMLDivElement, drawing?: string) => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = container.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    if (drawing && drawing !== 'data:,') {
+      const img = new Image();
+      img.onload = () => {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      };
+      img.src = drawing;
+    }
+  };
+
   // Initialize canvas to fill container
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -50,50 +80,17 @@ export default function FullscreenDrawingCanvas({
 
     if (!canvas || !container) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const initCanvas = (drawing?: string) => {
-      const rect = container.getBoundingClientRect();
-      const width = rect.width;
-      const height = rect.height;
-
-      canvas.width = width;
-      canvas.height = height;
-
-      ctx.clearRect(0, 0, width, height);
-
-      if (drawing) {
-        const img = new Image();
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, width, height);
-        };
-        img.src = drawing;
-      }
-    };
-
-    // Only load initialDrawing on first mount or when it changes externally
-    // (not from our own saveDrawing calls)
+    // Only load initialDrawing on first mount
     if (!initializedRef.current) {
       initializedRef.current = true;
       loadedDrawingRef.current = initialDrawing;
-      initCanvas(initialDrawing);
+      resizeCanvas(canvas, container, initialDrawing);
     }
 
-    // Handle resize
+    // Handle resize / zoom — capture at current buffer resolution, then redraw
     const handleResize = () => {
       const currentDrawing = canvas.toDataURL();
-      const rect = container.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (currentDrawing && currentDrawing !== 'data:,') {
-        const img = new Image();
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        };
-        img.src = currentDrawing;
-      }
+      resizeCanvas(canvas, container, currentDrawing);
     };
 
     window.addEventListener('resize', handleResize);
@@ -106,22 +103,13 @@ export default function FullscreenDrawingCanvas({
   // Handle external initialDrawing changes (e.g. question navigation, undo)
   useEffect(() => {
     if (!initializedRef.current) return;
-    // Only reload if the drawing changed externally (not from our own save)
     if (initialDrawing !== loadedDrawingRef.current) {
       loadedDrawingRef.current = initialDrawing;
       const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      const container = containerRef.current;
+      if (!canvas || !container) return;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (initialDrawing) {
-        const img = new Image();
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        };
-        img.src = initialDrawing;
-      }
+      resizeCanvas(canvas, container, initialDrawing);
     }
   }, [initialDrawing]);
 
@@ -141,19 +129,18 @@ export default function FullscreenDrawingCanvas({
     if (!canvas) return { x: 0, y: 0 };
 
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
 
+    // Context is already scaled by DPR via setTransform, so use CSS coordinates
     if ('touches' in e) {
       const touch = e.touches[0];
       return {
-        x: (touch.clientX - rect.left) * scaleX,
-        y: (touch.clientY - rect.top) * scaleY,
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top,
       };
     } else {
       return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY,
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
       };
     }
   };
@@ -242,8 +229,6 @@ export default function FullscreenDrawingCanvas({
         onTouchEnd={stopDrawing}
         className={`absolute inset-0 touch-none ${tool ? 'pointer-events-auto' : 'pointer-events-none'}`}
         style={{
-          width: '100%',
-          height: '100%',
           cursor: tool === 'pen'
             ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(penColor)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z'/%3E%3C/svg%3E") 0 20, auto`
             : tool === 'eraser' ? 'none' : 'default'

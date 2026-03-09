@@ -373,27 +373,26 @@ export default function AdminPage() {
     if (!questionId) { setSelectedForGrouping([]); return; }
     setSelectedForGrouping((prev) => {
       if (prev.includes(questionId)) return prev.filter((id) => id !== questionId);
-      if (prev.length >= 2) return [...prev.slice(1), questionId];
       return [...prev, questionId];
     });
   };
 
   const handleLinkQuestions = async () => {
-    if (selectedForGrouping.length !== 2) { setNotification({ type: "error", message: "Please select exactly 2 questions to group" }); return; }
+    if (selectedForGrouping.length < 2) { setNotification({ type: "error", message: "Please select at least 2 questions to group" }); return; }
     const alreadyGrouped = selectedForGrouping.some((id) => { const q = questions.find((q) => q.id === id); return q?.passage_id; });
     if (alreadyGrouped) { setNotification({ type: "error", message: "One or more selected questions are already in a group. Ungroup them first." }); return; }
     setShowLinkModal(true);
   };
 
   const confirmLinkQuestions = async (linkPassageText: string, linkPassageImage: File | null) => {
-    if (selectedForGrouping.length !== 2) return;
+    if (selectedForGrouping.length < 2) return;
     let passageImageUrl: string | null = null;
     if (linkPassageImage) {
       const sanitizedName = linkPassageImage.name.replace(/[^a-zA-Z0-9.-]/g, "_");
       passageImageUrl = await uploadImage("question-images", linkPassageImage, `passages/${Date.now()}-${sanitizedName}`);
     }
     const result = await linkQuestionsToNewPassage(selectedForGrouping, { passage_text: linkPassageText.trim() || null, passage_image_url: passageImageUrl });
-    if (result && result.updatedCount === 2) {
+    if (result && result.updatedCount === selectedForGrouping.length) {
       setNotification({ type: "success", message: "Questions linked successfully!" });
       setShowLinkModal(false);
       setSelectedForGrouping([]);
@@ -428,8 +427,8 @@ export default function AdminPage() {
         setPassageImagePreview(passage?.passage_image_url || null);
         setPassageImage(null);
         setPassageImageSize((passage?.image_size as "small" | "medium" | "large" | "extra-large") || "large");
-        q1Form.loadFromQuestion({ name: q1.name, question_text: q1.question_text, above_image_text: q1.above_image_text, question_image_url: q1.question_image_url, reference_image_url: q1.reference_image_url, explanation_image_url: q1.explanation_image_url, answers: q1.answers, answer_image_urls: q1.answer_image_urls, answer_layout: q1.answer_layout, image_size: q1.image_size, question_type: q1.question_type, correct_answer: q1.correct_answer, explanation_text: q1.explanation_text, skills: q1.skills || [], tags: q1.tags || [], difficulty: q1.difficulty, points: q1.points });
-        q2Form.loadFromQuestion({ name: q2.name, question_text: q2.question_text, above_image_text: q2.above_image_text, question_image_url: q2.question_image_url, reference_image_url: q2.reference_image_url, explanation_image_url: q2.explanation_image_url, answers: q2.answers, answer_image_urls: q2.answer_image_urls, answer_layout: q2.answer_layout, image_size: q2.image_size, question_type: q2.question_type, correct_answer: q2.correct_answer, explanation_text: q2.explanation_text, skills: q2.skills || [], tags: q2.tags || [], difficulty: q2.difficulty, points: q2.points });
+        q1Form.loadFromQuestion({ name: q1.name, question_text: q1.question_text, above_image_text: q1.above_image_text, question_image_url: q1.question_image_url, reference_image_url: q1.reference_image_url, explanation_image_url: q1.explanation_image_url, answers: q1.answers, answer_image_urls: q1.answer_image_urls, answer_layout: q1.answer_layout, image_size: q1.image_size, question_type: q1.question_type, correct_answer: q1.correct_answer, explanation_text: q1.explanation_text, skills: q1.skills || [], tags: q1.tags || [], difficulty: q1.difficulty, points: q1.points, notes: q1.notes });
+        q2Form.loadFromQuestion({ name: q2.name, question_text: q2.question_text, above_image_text: q2.above_image_text, question_image_url: q2.question_image_url, reference_image_url: q2.reference_image_url, explanation_image_url: q2.explanation_image_url, answers: q2.answers, answer_image_urls: q2.answer_image_urls, answer_layout: q2.answer_layout, image_size: q2.image_size, question_type: q2.question_type, correct_answer: q2.correct_answer, explanation_text: q2.explanation_text, skills: q2.skills || [], tags: q2.tags || [], difficulty: q2.difficulty, points: q2.points, notes: q2.notes });
         const questionTestIds = await getTestsForQuestion(q1.id);
         setSelectedTestIds(questionTestIds);
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -441,7 +440,7 @@ export default function AdminPage() {
     setEditingQ2Id(null);
     setEditingPassageId(null);
     setIsGroupedQuestion(false);
-    q1Form.loadFromQuestion({ name: question.name, question_text: question.question_text, above_image_text: question.above_image_text, question_image_url: question.question_image_url, reference_image_url: question.reference_image_url, explanation_image_url: question.explanation_image_url, answers: question.answers, answer_image_urls: question.answer_image_urls, answer_layout: question.answer_layout, image_size: question.image_size, question_type: question.question_type, correct_answer: question.correct_answer, explanation_text: question.explanation_text, skills: question.skills || [], tags: question.tags || [], difficulty: question.difficulty, points: question.points });
+    q1Form.loadFromQuestion({ name: question.name, question_text: question.question_text, above_image_text: question.above_image_text, question_image_url: question.question_image_url, reference_image_url: question.reference_image_url, explanation_image_url: question.explanation_image_url, answers: question.answers, answer_image_urls: question.answer_image_urls, answer_layout: question.answer_layout, image_size: question.image_size, question_type: question.question_type, correct_answer: question.correct_answer, explanation_text: question.explanation_text, skills: question.skills || [], tags: question.tags || [], difficulty: question.difficulty, points: question.points, notes: question.notes });
     const questionTestIds = await getTestsForQuestion(question.id);
     setSelectedTestIds(questionTestIds);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -507,8 +506,8 @@ export default function AdminPage() {
         const result = await createPassageWithQuestions(
           { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: passageImageUrl, image_size: passageImageSize },
           [
-            { name: q1.questionName.trim() || null, question_text: q1.questionText.trim() || null, above_image_text: q1.aboveImageText.trim() || null, question_image_url: q1Images.imageUrl, reference_image_url: null, answers: q1.answers, answer_image_urls: q1Images.answerImageUrls, answer_layout: q1.answerLayout, image_size: q1.imageSize, question_type: q1.questionType, correct_answer: q1.correctAnswer, explanation_text: q1.explanationText, explanation_image_url: q1Images.explanationImageUrl, skills: q1.selectedSkills, tags: q1.selectedTags, difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, points: q1.points, display_order: baseOrder },
-            { name: q2.questionName.trim() || null, question_text: q2.questionText.trim() || null, above_image_text: q2.aboveImageText.trim() || null, question_image_url: q2Images.imageUrl, reference_image_url: null, answers: q2.answers, answer_image_urls: q2Images.answerImageUrls, answer_layout: q2.answerLayout, image_size: q2.imageSize, question_type: q2.questionType, correct_answer: q2.correctAnswer, explanation_text: q2.explanationText, explanation_image_url: q2Images.explanationImageUrl, skills: q1.selectedSkills, tags: q1.selectedTags, difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, points: q2.points, display_order: baseOrder + 1 },
+            { name: q1.questionName.trim() || null, question_text: q1.questionText.trim() || null, above_image_text: q1.aboveImageText.trim() || null, question_image_url: q1Images.imageUrl, reference_image_url: null, answers: q1.answers, answer_image_urls: q1Images.answerImageUrls, answer_layout: q1.answerLayout, image_size: q1.imageSize, question_type: q1.questionType, correct_answer: q1.correctAnswer, explanation_text: q1.explanationText, explanation_image_url: q1Images.explanationImageUrl, skills: q1.selectedSkills, tags: q1.selectedTags, difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, points: q1.points, notes: q1.notes.trim() || null, display_order: baseOrder },
+            { name: q2.questionName.trim() || null, question_text: q2.questionText.trim() || null, above_image_text: q2.aboveImageText.trim() || null, question_image_url: q2Images.imageUrl, reference_image_url: null, answers: q2.answers, answer_image_urls: q2Images.answerImageUrls, answer_layout: q2.answerLayout, image_size: q2.imageSize, question_type: q2.questionType, correct_answer: q2.correctAnswer, explanation_text: q2.explanationText, explanation_image_url: q2Images.explanationImageUrl, skills: q2.selectedSkills, tags: q2.selectedTags, difficulty: (q2.difficulty as "easy" | "medium" | "hard") || null, points: q2.points, notes: q2.notes.trim() || null, display_order: baseOrder + 1 },
           ]
         );
         if (result) {
@@ -531,7 +530,7 @@ export default function AdminPage() {
           if (form.explanationImage) explanationImageUrl = await uploadImage("explanation-images", form.explanationImage, `explanations/${Date.now()}-${prefix}-${sanitizeFilename(form.explanationImage.name)}`);
           const answerImageUrls = await Promise.all(form.answerImages.map(async (img, index) => { if (img) return await uploadImage("answer-images", img, `answers/${Date.now()}-${prefix}-${index}-${sanitizeFilename(img.name)}`); return form.answerImagePreviews[index] || null; }));
           const qIndex = questions.findIndex((q) => q.id === qId);
-          return await updateQuestion(qId, { name: form.questionName.trim() || null, question_text: form.questionText.trim() || null, above_image_text: form.aboveImageText.trim() || null, question_image_url: imageUrl || null, reference_image_url: null, answers: form.answers, answer_image_urls: answerImageUrls, answer_layout: form.answerLayout, image_size: form.imageSize, question_type: form.questionType, correct_answer: form.correctAnswer, explanation_text: form.explanationText, explanation_image_url: explanationImageUrl || null, skills: q1.selectedSkills, tags: q1.selectedTags, difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, points: form.points, ...(qIndex !== -1 ? { display_order: qIndex + 1 } : {}) });
+          return await updateQuestion(qId, { name: form.questionName.trim() || null, question_text: form.questionText.trim() || null, above_image_text: form.aboveImageText.trim() || null, question_image_url: imageUrl || null, reference_image_url: null, answers: form.answers, answer_image_urls: answerImageUrls, answer_layout: form.answerLayout, image_size: form.imageSize, question_type: form.questionType, correct_answer: form.correctAnswer, explanation_text: form.explanationText, explanation_image_url: explanationImageUrl || null, skills: form.selectedSkills, tags: form.selectedTags, difficulty: (form.difficulty as "easy" | "medium" | "hard") || null, points: form.points, notes: form.notes.trim() || null, ...(qIndex !== -1 ? { display_order: qIndex + 1 } : {}) });
         };
 
         const q1Result = await uploadAndUpdate(q1, editingId, "q1");
@@ -553,7 +552,7 @@ export default function AdminPage() {
         if (q1.explanationImage) explanationImageUrl = await uploadImage("explanation-images", q1.explanationImage, `explanations/${Date.now()}-${sanitizeFilename(q1.explanationImage.name)}`);
         const answerImageUrls = await Promise.all(q1.answerImages.map(async (img, index) => { if (img) return await uploadImage("answer-images", img, `answers/${Date.now()}-${index}-${sanitizeFilename(img.name)}`); return q1.answerImagePreviews[index] || null; }));
 
-        const questionData: Record<string, unknown> = { name: q1.questionName.trim() || null, question_text: q1.questionText.trim() || null, above_image_text: q1.aboveImageText.trim() || null, question_image_url: questionImageUrl || null, reference_image_url: referenceImageUrl, answers: q1.answers, answer_image_urls: answerImageUrls, answer_layout: q1.answerLayout, image_size: q1.imageSize, question_type: q1.questionType, correct_answer: q1.correctAnswer, explanation_text: q1.explanationText, explanation_image_url: explanationImageUrl, skills: q1.selectedSkills, tags: q1.selectedTags, difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, points: q1.points, passage_id: null };
+        const questionData: Record<string, unknown> = { name: q1.questionName.trim() || null, question_text: q1.questionText.trim() || null, above_image_text: q1.aboveImageText.trim() || null, question_image_url: questionImageUrl || null, reference_image_url: referenceImageUrl, answers: q1.answers, answer_image_urls: answerImageUrls, answer_layout: q1.answerLayout, image_size: q1.imageSize, question_type: q1.questionType, correct_answer: q1.correctAnswer, explanation_text: q1.explanationText, explanation_image_url: explanationImageUrl, skills: q1.selectedSkills, tags: q1.selectedTags, difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, points: q1.points, notes: q1.notes.trim() || null, passage_id: null };
 
         let result;
         let questionId: string;
@@ -582,7 +581,7 @@ export default function AdminPage() {
 
   // ── CSV upload handler ────────────────────────────────────────────────
   const handleCsvUpload = async (csvData: Array<{ question_text: string; answers: string[]; correct_answer: number; points: number; difficulty: "easy" | "medium" | "hard" | null; skills: string[]; tags: string[] }>, testIds: string[]) => {
-    const questionsToCreate = csvData.map((q, index) => ({ name: null, question_text: q.question_text, above_image_text: null, question_image_url: null, reference_image_url: null, answers: q.answers, answer_image_urls: [null, null, null, null], answer_layout: "list" as const, question_type: "multiple-choice" as const, correct_answer: q.correct_answer, explanation_text: "See solution in your notes.", explanation_image_url: null, skills: q.skills, tags: q.tags, difficulty: q.difficulty, points: q.points, passage_id: null, display_order: questions.length + index + 1 }));
+    const questionsToCreate = csvData.map((q, index) => ({ name: null, question_text: q.question_text, above_image_text: null, question_image_url: null, reference_image_url: null, answers: q.answers, answer_image_urls: [null, null, null, null], answer_layout: "list" as const, question_type: "multiple-choice" as const, correct_answer: q.correct_answer, explanation_text: "See solution in your notes.", explanation_image_url: null, skills: q.skills, tags: q.tags, difficulty: q.difficulty, points: q.points, notes: null, passage_id: null, display_order: questions.length + index + 1 }));
     const result = await bulkCreateQuestions(questionsToCreate);
     if (!result.success) throw new Error(result.error || "Failed to create questions");
     if (testIds.length > 0 && result.data) { for (const question of result.data) { await setTestsForQuestion(question.id, testIds); } }
