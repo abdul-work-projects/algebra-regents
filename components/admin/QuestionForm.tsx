@@ -10,10 +10,15 @@ interface QuestionFormProps {
   editingId: string | null;
   q1Form: UseQuestionFormReturn;
   q2Form: UseQuestionFormReturn;
+  additionalForms?: UseQuestionFormReturn[];
   isGroupedQuestion: boolean;
   onToggleGrouped: (grouped: boolean) => void;
-  activeQuestionTab: 1 | 2;
-  onActiveQuestionTabChange: (tab: 1 | 2) => void;
+  passageType: 'grouped' | 'parts';
+  onPassageTypeChange: (type: 'grouped' | 'parts') => void;
+  activeQuestionTab: number;
+  onActiveQuestionTabChange: (tab: number) => void;
+  onAddPart?: () => void;
+  onRemovePart?: (index: number) => void;
   passageAboveText: string;
   onPassageAboveTextChange: (text: string) => void;
   passageText: string;
@@ -38,10 +43,15 @@ export default function QuestionForm({
   editingId,
   q1Form,
   q2Form,
+  additionalForms = [],
   isGroupedQuestion,
   onToggleGrouped,
+  passageType,
+  onPassageTypeChange,
   activeQuestionTab,
   onActiveQuestionTabChange,
+  onAddPart,
+  onRemovePart,
   passageAboveText,
   onPassageAboveTextChange,
   passageText,
@@ -65,7 +75,11 @@ export default function QuestionForm({
   const [draggedOver, setDraggedOver] = useState<string | null>(null);
   const [answerDraggedOver, setAnswerDraggedOver] = useState<number | null>(null);
 
-  const currentForm = isGroupedQuestion && activeQuestionTab === 2 ? q2Form : q1Form;
+  // All forms: q1, q2, plus any additional forms for parts
+  const allForms = [q1Form, q2Form, ...additionalForms];
+  const currentForm = isGroupedQuestion ? (allForms[activeQuestionTab - 1] || q1Form) : q1Form;
+  const isPartsMode = passageType === 'parts';
+  const totalParts = isPartsMode ? 2 + additionalForms.length : 2;
 
   const handleImageSelect = (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -263,18 +277,39 @@ export default function QuestionForm({
       <form onSubmit={onSubmit} className="space-y-3">
         {/* Grouped Question Toggle */}
         {!editingId && (
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-neutral-950 rounded-xl border border-gray-100 dark:border-neutral-800">
-            <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-neutral-300">Grouped Question (Passage-based)</label>
-              <p className="text-xs text-gray-500 dark:text-neutral-400">Create two questions that share a common passage</p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-neutral-950 rounded-xl border border-gray-100 dark:border-neutral-800">
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-neutral-300">Grouped Question (Passage-based)</label>
+                <p className="text-xs text-gray-500 dark:text-neutral-400">Create questions that share a common passage</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onToggleGrouped(!isGroupedQuestion)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isGroupedQuestion ? "bg-black dark:bg-neutral-200" : "bg-gray-300 dark:bg-neutral-700"}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isGroupedQuestion ? "translate-x-6" : "translate-x-1"}`} />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => onToggleGrouped(!isGroupedQuestion)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isGroupedQuestion ? "bg-black dark:bg-neutral-200" : "bg-gray-300 dark:bg-neutral-700"}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isGroupedQuestion ? "translate-x-6" : "translate-x-1"}`} />
-            </button>
+            {isGroupedQuestion && (
+              <div className="flex items-center gap-2 px-3">
+                <span className="text-xs font-medium text-gray-500 dark:text-neutral-400">Type:</span>
+                <button
+                  type="button"
+                  onClick={() => onPassageTypeChange('grouped')}
+                  className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${passageType === 'grouped' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700'}`}
+                >
+                  Grouped (split-pane)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onPassageTypeChange('parts')}
+                  className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${passageType === 'parts' ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700'}`}
+                >
+                  Parts (stacked, 1 question)
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -350,20 +385,43 @@ export default function QuestionForm({
 
         {/* Question Tabs */}
         {isGroupedQuestion && (
-          <div className="flex gap-2">
-            <button type="button" onClick={() => onActiveQuestionTabChange(1)} className={`flex-1 py-2 px-4 text-sm font-medium rounded-full transition-all ${activeQuestionTab === 1 ? "bg-black text-white dark:bg-white dark:text-black" : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"}`}>
-              Question 1
-            </button>
-            <button type="button" onClick={() => onActiveQuestionTabChange(2)} className={`flex-1 py-2 px-4 text-sm font-medium rounded-full transition-all ${activeQuestionTab === 2 ? "bg-black text-white dark:bg-white dark:text-black" : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"}`}>
-              Question 2
-            </button>
+          <div className="flex gap-2 flex-wrap">
+            {Array.from({ length: totalParts }, (_, i) => i + 1).map((tabNum) => (
+              <button
+                key={tabNum}
+                type="button"
+                onClick={() => onActiveQuestionTabChange(tabNum)}
+                className={`flex-1 min-w-[80px] py-2 px-4 text-sm font-medium rounded-full transition-all ${activeQuestionTab === tabNum ? "bg-black text-white dark:bg-white dark:text-black" : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"}`}
+              >
+                {isPartsMode ? `Part ${String.fromCharCode(96 + tabNum)}` : `Question ${tabNum}`}
+              </button>
+            ))}
+            {isPartsMode && onAddPart && (
+              <button
+                type="button"
+                onClick={onAddPart}
+                className="py-2 px-4 text-sm font-medium rounded-full bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-all"
+              >
+                + Add Part
+              </button>
+            )}
+            {isPartsMode && onRemovePart && totalParts > 2 && activeQuestionTab > 2 && (
+              <button
+                type="button"
+                onClick={() => onRemovePart(activeQuestionTab)}
+                className="py-2 px-3 text-sm font-medium rounded-full bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all"
+                title="Remove this part"
+              >
+                Remove
+              </button>
+            )}
           </div>
         )}
 
         {/* Question Name */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
-            {isGroupedQuestion ? `Question ${activeQuestionTab} Name (Optional)` : "Question Name (Optional)"}
+            {isGroupedQuestion ? (isPartsMode ? `Part ${String.fromCharCode(96 + activeQuestionTab)} Name (Optional)` : `Question ${activeQuestionTab} Name (Optional)`) : "Question Name (Optional)"}
           </label>
           <input
             type="text"

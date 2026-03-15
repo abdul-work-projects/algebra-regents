@@ -2,6 +2,7 @@
 
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { QuizResult, Test, Question } from '@/lib/types';
+import { computeGroupingInfo } from '@/lib/questionGrouping';
 import MathPdf from './MathPdf';
 
 const styles = StyleSheet.create({
@@ -263,11 +264,14 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
   };
   const message = getMessage();
 
+  const groupingInfo = computeGroupingInfo(questions);
   const allQuestions = result.questionResults.map((qr, i) => {
     const question = questions.find(q => q.id === qr.questionId);
+    const displayInfo = groupingInfo.questionMap[i];
     return {
       ...qr,
       num: i + 1,
+      displayLabel: displayInfo?.displayLabel || String(i + 1),
       questionText: question?.questionText || '',
     };
   });
@@ -293,7 +297,7 @@ export default function ReportDocument({ result, test, scaledScore, questions }:
 
   const QuestionRow = ({ q }: { q: typeof allQuestions[0] }) => (
     <View style={[styles.questionRow, q.isCorrect ? styles.correctRow : styles.incorrectRow]}>
-      <Text style={styles.qNum}>Q{q.num}</Text>
+      <Text style={styles.qNum}>Q{q.displayLabel}</Text>
       <MathPdf text={q.questionText} fontSize={5} style={styles.qText} />
       <Text style={[styles.qYour, q.isCorrect ? styles.correctText : styles.incorrectText]}>
         ({q.userAnswer !== null ? q.userAnswer : '-'})

@@ -7,6 +7,7 @@ import { loadSession, clearSession } from '@/lib/storage';
 import { calculateResults, getPerformanceLevel, formatTime, getScoreComment, getScaledScore } from '@/lib/results';
 import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById, convertToTestFormat } from '@/lib/supabase';
 import { Question, QuizResult, Test } from '@/lib/types';
+import { computeGroupingInfo } from '@/lib/questionGrouping';
 import MathText from '@/components/MathText';
 import ThemeToggle from '@/components/ThemeToggle';
 import Image from 'next/image';
@@ -365,8 +366,10 @@ export default function ResultsPage() {
               </div>
 
               <div className="space-y-3">
-              {result.questionResults
-                .map((qResult, index) => ({ qResult, index }))
+              {(() => {
+                const groupingInfo = computeGroupingInfo(questions);
+                return result.questionResults
+                .map((qResult, index) => ({ qResult, index, displayInfo: groupingInfo.questionMap[index] }))
                 .filter(({ qResult }) => {
                   switch (questionFilter) {
                     case 'correct':
@@ -383,9 +386,12 @@ export default function ResultsPage() {
                       return true;
                   }
                 })
-                .map(({ qResult, index }) => {
+                .map(({ qResult, index, displayInfo }) => {
                   const question = questions[index];
                   const isExpanded = expandedQuestionId === qResult.questionId;
+                  const questionLabel = displayInfo
+                    ? `Question ${displayInfo.displayLabel}`
+                    : `Question ${index + 1}`;
 
                   return (
                     <div
@@ -402,7 +408,7 @@ export default function ResultsPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <span className="font-bold text-gray-900 dark:text-neutral-100">
-                              Question {index + 1}
+                              {questionLabel}
                             </span>
                             <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-black dark:bg-white text-white dark:text-black">
                               {qResult.isCorrect ? qResult.points : 0}/{qResult.points} pts
@@ -631,7 +637,8 @@ export default function ResultsPage() {
                       </div>
                     </div>
                   );
-                })}
+                })
+              })()}
               </div>
             </div>
           )}

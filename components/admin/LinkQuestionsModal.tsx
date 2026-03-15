@@ -8,7 +8,7 @@ interface LinkQuestionsModalProps {
   onClose: () => void;
   selectedQuestions: string[];
   questions: DatabaseQuestion[];
-  onConfirm: (passageText: string, passageImage: File | null) => Promise<void>;
+  onConfirm: (passageText: string, passageImage: File | null, type: 'grouped' | 'parts') => Promise<void>;
 }
 
 export default function LinkQuestionsModal({
@@ -23,6 +23,7 @@ export default function LinkQuestionsModal({
   const [passageImagePreview, setPassageImagePreview] = useState<string | null>(null);
   const [isLinking, setIsLinking] = useState(false);
   const [draggedOver, setDraggedOver] = useState(false);
+  const [passageType, setPassageType] = useState<'grouped' | 'parts'>('grouped');
 
   if (!isOpen) return null;
 
@@ -30,6 +31,7 @@ export default function LinkQuestionsModal({
     setPassageText("");
     setPassageImage(null);
     setPassageImagePreview(null);
+    setPassageType('grouped');
     onClose();
   };
 
@@ -37,7 +39,7 @@ export default function LinkQuestionsModal({
     if (!passageText.trim() && !passageImage) return;
     setIsLinking(true);
     try {
-      await onConfirm(passageText, passageImage);
+      await onConfirm(passageText, passageImage, passageType);
       setPassageText("");
       setPassageImage(null);
       setPassageImagePreview(null);
@@ -105,6 +107,32 @@ export default function LinkQuestionsModal({
                 );
               })}
             </div>
+          </div>
+
+          {/* Type Selector */}
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-2">Group Type</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPassageType('grouped')}
+                className={`flex-1 py-2 px-3 text-xs font-medium rounded-full transition-all ${passageType === 'grouped' ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700'}`}
+              >
+                Grouped (split-pane)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPassageType('parts')}
+                className={`flex-1 py-2 px-3 text-xs font-medium rounded-full transition-all ${passageType === 'parts' ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700'}`}
+              >
+                Parts (stacked, 1 question)
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+              {passageType === 'grouped'
+                ? 'Each question navigates individually in a split-pane layout.'
+                : 'All parts shown stacked on one page, navigated as a single question.'}
+            </p>
           </div>
 
           {/* Passage Text */}

@@ -1,4 +1,5 @@
 import { Question, QuizSession, QuizResult } from './types';
+import { computeGroupingInfo } from './questionGrouping';
 
 // Default Raw Score to Scaled Score mapping table (fallback if test doesn't have one)
 const defaultRawToScaledScoreMap: { [key: number]: number } = {
@@ -142,9 +143,13 @@ export function calculateResults(
   );
   const averageTime = Math.round(totalTime / questions.length);
 
+  // Compute display question count (part-groups count as 1)
+  const groupingInfo = computeGroupingInfo(questions);
+
   return {
     score: correctCount,
     totalQuestions: questions.length,
+    totalDisplayQuestions: groupingInfo.totalDisplayQuestions,
     earnedPoints,
     totalPoints,
     averageTime,

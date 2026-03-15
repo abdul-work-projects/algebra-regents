@@ -25,7 +25,7 @@ export interface QuestionFormState {
   notes: string;
 }
 
-const initialState: QuestionFormState = {
+export const initialState: QuestionFormState = {
   questionName: "",
   questionText: "",
   aboveImageText: "",
@@ -144,3 +144,71 @@ export function useQuestionForm() {
 }
 
 export type UseQuestionFormReturn = ReturnType<typeof useQuestionForm>;
+
+/** Create a UseQuestionFormReturn-compatible object from external state + setter.
+ *  Useful for dynamically-sized form arrays where hooks can't be called conditionally. */
+export function createFormAccessor(
+  state: QuestionFormState,
+  setState: (updater: (prev: QuestionFormState) => QuestionFormState) => void,
+): UseQuestionFormReturn {
+  return {
+    state,
+    setField: <K extends keyof QuestionFormState>(field: K, value: QuestionFormState[K]) => {
+      setState((prev) => ({ ...prev, [field]: value }));
+    },
+    setAnswer: (index: number, value: string) => {
+      setState((prev) => {
+        const newAnswers = [...prev.answers];
+        newAnswers[index] = value;
+        return { ...prev, answers: newAnswers };
+      });
+    },
+    setAnswerImage: (index: number, file: File | null, preview: string | null) => {
+      setState((prev) => {
+        const newImages = [...prev.answerImages];
+        const newPreviews = [...prev.answerImagePreviews];
+        newImages[index] = file;
+        newPreviews[index] = preview;
+        return { ...prev, answerImages: newImages, answerImagePreviews: newPreviews };
+      });
+    },
+    removeAnswerImage: (index: number) => {
+      setState((prev) => {
+        const newImages = [...prev.answerImages];
+        const newPreviews = [...prev.answerImagePreviews];
+        newImages[index] = null;
+        newPreviews[index] = null;
+        return { ...prev, answerImages: newImages, answerImagePreviews: newPreviews };
+      });
+    },
+    reset: () => {
+      setState(() => ({ ...initialState, answers: ["", "", "", ""], answerImages: [null, null, null, null], answerImagePreviews: [null, null, null, null] }));
+    },
+    loadFromQuestion: (question: Parameters<UseQuestionFormReturn['loadFromQuestion']>[0]) => {
+      setState(() => ({
+        questionName: question.name || "",
+        questionText: question.question_text || "",
+        aboveImageText: question.above_image_text || "",
+        questionImage: null,
+        questionImagePreview: question.question_image_url || null,
+        referenceImage: null,
+        referenceImagePreview: question.reference_image_url || null,
+        explanationImage: null,
+        explanationImagePreview: question.explanation_image_url || null,
+        answers: question.answers,
+        answerImages: [null, null, null, null],
+        answerImagePreviews: question.answer_image_urls || [null, null, null, null],
+        answerLayout: question.answer_layout || "list",
+        imageSize: question.image_size || "large",
+        questionType: (question.question_type as "multiple-choice" | "drag-order") || "multiple-choice",
+        correctAnswer: question.correct_answer,
+        explanationText: question.explanation_text,
+        selectedSkills: question.skills || [],
+        selectedTags: question.tags || [],
+        difficulty: question.difficulty || "",
+        points: question.points || 1,
+        notes: question.notes || "",
+      }));
+    },
+  };
+}

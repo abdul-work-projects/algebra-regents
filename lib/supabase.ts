@@ -38,6 +38,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Type definition for database passage (shared context for grouped questions)
 export interface DatabasePassage {
   id: string;
+  type: 'grouped' | 'parts';
   above_text: string | null;
   passage_text: string | null;
   passage_image_url: string | null;
@@ -318,6 +319,7 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: 
     passageId: dbQuestion.passage_id || undefined,
     passage: dbQuestion.passages ? {
       id: dbQuestion.passages.id,
+      type: dbQuestion.passages.type || 'grouped',
       aboveText: dbQuestion.passages.above_text || undefined,
       passageText: dbQuestion.passages.passage_text || undefined,
       passageImageUrl: dbQuestion.passages.passage_image_url || undefined,
@@ -1377,6 +1379,7 @@ export async function createPassageWithQuestions(
     passage_text?: string | null;
     passage_image_url?: string | null;
     image_size?: string | null;
+    type?: 'grouped' | 'parts';
   },
   questionsData: Omit<DatabaseQuestion, 'id' | 'created_at' | 'updated_at' | 'passage_id'>[]
 ): Promise<{ passage: DatabasePassage; questions: DatabaseQuestion[] } | null> {
@@ -1431,6 +1434,7 @@ export async function linkQuestionsToNewPassage(
     passage_text?: string | null;
     passage_image_url?: string | null;
     image_size?: string | null;
+    type?: 'grouped' | 'parts';
   }
 ): Promise<{ passage: DatabasePassage; updatedCount: number } | null> {
   // Create the passage first

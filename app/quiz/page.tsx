@@ -28,6 +28,7 @@ import BucketOrderAnswer from "@/components/BucketOrderAnswer";
 import ScrollablePassage from "@/components/ScrollablePassage";
 import SplitPane from "@/components/SplitPane";
 import { seededShuffle } from "@/lib/shuffle";
+import { computeGroupingInfo, getGroupFlatIndices, isDisplayGroupAnswered } from "@/lib/questionGrouping";
 import { resolveReferenceImage } from "@/lib/reference";
 import FullscreenDrawingCanvas from "@/components/FullscreenDrawingCanvas";
 import Timer from "@/components/Timer";
@@ -411,6 +412,9 @@ function QuizPageContent() {
     return getScaledScore(snapshotRawScore, scaledScoreTable || undefined);
   }, [snapshotRawScore, scaledScoreTable, isTestPracticeMode, questions.length]);
 
+  // Compute grouping info for parts vs grouped questions (must be before early returns)
+  const groupingInfo = useMemo(() => computeGroupingInfo(questions), [questions]);
+
   // Mode selection screen: testId present but no testMode chosen yet
   if (mounted && !isLoadingQuestions && testIdParam && !testModeParam && !isPracticeMode && !session) {
     return (
@@ -516,14 +520,23 @@ function QuizPageContent() {
 
   const currentQuestion = questions[session.currentQuestionIndex];
 
+  const currentDisplayInfo = groupingInfo.questionMap[session.currentQuestionIndex];
+  const isPartQuestion = currentDisplayInfo?.groupType === 'parts';
+  const partGroupFlatIndices = isPartQuestion
+    ? getGroupFlatIndices(groupingInfo, session.currentQuestionIndex)
+    : [];
+  const partGroupQuestions = isPartQuestion
+    ? partGroupFlatIndices.map((fi) => questions[fi])
+    : [];
+
   // Determine current section (if sections exist)
   const currentSection =
     sections.length > 0 && currentQuestion.sectionId
       ? sections.find((s) => s.id === currentQuestion.sectionId)
       : undefined;
 
-  // Find ALL grouped questions sharing the same passageId
-  const groupedQuestions = currentQuestion.passageId
+  // Find ALL grouped questions sharing the same passageId (for 'grouped' type only)
+  const groupedQuestions = currentQuestion.passageId && !isPartQuestion
     ? questions.filter(
         (q) => q.passageId === currentQuestion.passageId,
       )
@@ -544,8 +557,9 @@ function QuizPageContent() {
     (q) => q.id === currentQuestion.id,
   );
 
-  const progress =
-    ((session.currentQuestionIndex + 1) / questions.length) * 100;
+  const progress = currentDisplayInfo
+    ? (currentDisplayInfo.displayNumber / groupingInfo.totalDisplayQuestions) * 100
+    : ((session.currentQuestionIndex + 1) / questions.length) * 100;
   const selectedAnswer = session.userAnswers[currentQuestion.id] || null;
   const checkedAnswers = session.checkedAnswers[currentQuestion.id] || [];
   const isMarkedForReview = isPracticeMode
@@ -733,8 +747,16 @@ function QuizPageContent() {
       (Date.now() - session.lastQuestionStartTime) / 1000,
     );
 
-    // Each question navigates individually (even grouped ones)
-    const nextIndex = session.currentQuestionIndex + 1;
+    // For part questions, skip to after the last part in the group
+    let nextIndex: number;
+    if (isPartQuestion && currentDisplayInfo) {
+      const groupIndices = getGroupFlatIndices(groupingInfo, session.currentQuestionIndex);
+      const lastInGroup = groupIndices[groupIndices.length - 1];
+      nextIndex = lastInGroup + 1;
+    } else {
+      // Each question navigates individually (even grouped ones)
+      nextIndex = session.currentQuestionIndex + 1;
+    }
 
     if (nextIndex < questions.length) {
       // Check if moving to a new section — show divider if so
@@ -805,7 +827,26 @@ function QuizPageContent() {
         (Date.now() - session.lastQuestionStartTime) / 1000,
       );
 
-      const prevIndex = session.currentQuestionIndex - 1;
+      let prevIndex: number;
+      if (isPartQuestion && currentDisplayInfo) {
+        // Jump to before the first part of the current group
+        const groupIndices = getGroupFlatIndices(groupingInfo, session.currentQuestionIndex);
+        const firstInGroup = groupIndices[0];
+        prevIndex = firstInGroup - 1;
+      } else {
+        prevIndex = session.currentQuestionIndex - 1;
+      }
+
+      // If the previous question is a part question, jump to the first part of that group
+      if (prevIndex >= 0) {
+        const prevInfo = groupingInfo.questionMap[prevIndex];
+        if (prevInfo?.groupType === 'parts') {
+          const prevGroupIndices = getGroupFlatIndices(groupingInfo, prevIndex);
+          prevIndex = prevGroupIndices[0];
+        }
+      }
+
+      if (prevIndex < 0) return;
 
       setSession((prev) => {
         if (!prev) return prev;
@@ -859,13 +900,14 @@ function QuizPageContent() {
     }
   };
 
-  const answeredCount =
-    Object.keys(session.userAnswers).filter(
-      (key) => session.userAnswers[key] !== null,
-    ).length +
-    Object.keys(session.dragOrderAnswers).filter(
-      (key) => session.dragOrderAnswers[key]?.length > 0,
-    ).length;
+  // Compute answered count as display questions (part groups count as 1 when all parts answered)
+  let answeredDisplayCount = 0;
+  for (let d = 1; d <= groupingInfo.totalDisplayQuestions; d++) {
+    if (isDisplayGroupAnswered(groupingInfo, d, session.userAnswers, session.dragOrderAnswers, questions)) {
+      answeredDisplayCount++;
+    }
+  }
+  const answeredCount = answeredDisplayCount;
 
   const isCorrect =
     checkedAnswers.length > 0 &&
@@ -1060,7 +1102,7 @@ function QuizPageContent() {
         </div>
 
         <div
-          className={`mx-auto ${isGroupedQuestion ? "max-w-none px-0 pt-4 h-full flex flex-col" : "max-w-3xl px-4 pt-4"} ${isTestPracticeMode && !isGroupedQuestion ? "lg:pr-16" : ""}`}
+          className={`mx-auto ${isGroupedQuestion ? "max-w-none px-0 pt-4 h-full flex flex-col" : isPartQuestion ? "max-w-3xl px-4 pt-4" : "max-w-3xl px-4 pt-4"} ${isTestPracticeMode && !isGroupedQuestion ? "lg:pr-16" : ""}`}
           style={{ pointerEvents: "auto" }}
         >
           {/* Question Number and Topic Badges Row */}
@@ -1078,7 +1120,7 @@ function QuizPageContent() {
               style={{ pointerEvents: "auto" }}
             >
               <span className="inline-block text-sm font-bold px-4 py-1.5 rounded-full bg-black dark:bg-white text-white dark:text-black">
-                {`Question ${session.currentQuestionIndex + 1}`}
+                {`Question ${currentDisplayInfo?.displayNumber ?? session.currentQuestionIndex + 1}`}
               </span>
               {currentSection && (
                 <span className="inline-block text-xs font-semibold px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
@@ -1419,7 +1461,7 @@ function QuizPageContent() {
 
           {/* GROUPED QUESTIONS - SPLIT PANE LAYOUT */}
           {isGroupedQuestion ? (
-            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden" style={{ pointerEvents: "auto" }}>
               <SplitPane
                 defaultSplit={60}
                 minLeft={30}
@@ -1428,7 +1470,7 @@ function QuizPageContent() {
                 left={
                   <div className="px-4 py-3 pb-16">
                     {/* Passage Header with Drawing Tools */}
-                    <div className="flex items-center justify-between mb-3 flex-wrap gap-y-1">
+                    <div className="flex items-center justify-between mb-3 flex-wrap gap-y-1 relative" style={{ zIndex: 100, transform: "translateZ(0)" }}>
                       <div className="flex items-center gap-2">
                         {(currentQuestion.passage?.passageText || currentQuestion.passage?.aboveText) && (
                           <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">
@@ -1829,6 +1871,255 @@ function QuizPageContent() {
                 }
               />
             </div>
+          ) : isPartQuestion ? (
+            <>
+              {/* PART QUESTION LAYOUT — stacked parts on one page */}
+              {/* Shared Passage at top */}
+              {currentQuestion.passage?.aboveText && (
+                <div
+                  className="mb-2"
+                  style={{
+                    fontFamily: "'Times New Roman', Times, serif",
+                    fontSize: "1.125rem",
+                  }}
+                >
+                  <MathText
+                    text={currentQuestion.passage.aboveText}
+                    className="leading-relaxed dark:text-neutral-200"
+                  />
+                </div>
+              )}
+              {currentQuestion.passage?.passageImageUrl && (
+                <div className="mb-3">
+                  <p className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-1">
+                    Passage
+                  </p>
+                  <img
+                    src={currentQuestion.passage.passageImageUrl}
+                    alt="Passage"
+                    className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
+                  />
+                </div>
+              )}
+              {currentQuestion.passage?.passageText && (
+                <div className="mb-4">
+                  {!currentQuestion.passage.passageImageUrl && (
+                    <p className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-1">
+                      Passage
+                    </p>
+                  )}
+                  <ScrollablePassage
+                    passage={currentQuestion.passage}
+                    highlights={
+                      session.passageHighlights[currentQuestion.passage.id] ||
+                      []
+                    }
+                    onHighlightAdd={(highlight) =>
+                      handleHighlightAdd(currentQuestion.passage!.id, highlight)
+                    }
+                    onHighlightRemove={(highlightId) =>
+                      handleHighlightRemove(
+                        currentQuestion.passage!.id,
+                        highlightId,
+                      )
+                    }
+                    onNoteAdd={(highlightId, note) =>
+                      handleNoteAdd(
+                        currentQuestion.passage!.id,
+                        highlightId,
+                        note,
+                      )
+                    }
+                    showLineNumbers
+                  />
+                </div>
+              )}
+
+              {/* Stacked Parts */}
+              {partGroupQuestions.map((partQ, partIdx) => {
+                const partInfo = groupingInfo.questionMap[partGroupFlatIndices[partIdx]];
+                const partSelectedAnswer = session.userAnswers[partQ.id] || null;
+                const partCheckedAnswers = session.checkedAnswers[partQ.id] || [];
+                const partIsCorrect = partCheckedAnswers.length > 0 && partCheckedAnswers.includes(partQ.correctAnswer);
+                const partAttemptsUsed = partCheckedAnswers.length;
+                const partCanAttempt = !partIsCorrect && partAttemptsUsed < 1;
+                const partHasChecked = partAttemptsUsed > 0;
+                const partIsDragOrder = partQ.questionType === 'drag-order';
+                const partDragOrderAnswer = session.dragOrderAnswers[partQ.id] || [];
+                const partDragOrderChecked = partIsDragOrder && partCheckedAnswers.length > 0;
+                const partDragOrderCorrect = partIsDragOrder && partDragOrderChecked && JSON.stringify(partDragOrderAnswer) === JSON.stringify(partQ.answers);
+
+                return (
+                  <div key={partQ.id} className="mb-6 border-t border-gray-200 dark:border-neutral-700 pt-4 first:border-t-0 first:pt-0">
+                    {/* Part Label */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="inline-block text-sm font-bold px-3 py-1 rounded-full bg-black dark:bg-white text-white dark:text-black">
+                        {partInfo?.partLabel || String.fromCharCode(97 + partIdx)}
+                      </span>
+                      {partQ.points && (
+                        <span className="text-xs text-gray-500 dark:text-neutral-400">
+                          {partQ.points} {partQ.points === 1 ? 'pt' : 'pts'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Part Question Content */}
+                    <div className="mb-3" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: "1.125rem" }}>
+                      {partQ.aboveImageText && (
+                        <div className="mb-2">
+                          <MathText text={partQ.aboveImageText} className="leading-relaxed dark:text-neutral-200" />
+                        </div>
+                      )}
+                      {partQ.imageFilename && (
+                        <div className="w-full mb-2">
+                          <img
+                            src={partQ.imageFilename}
+                            alt="Question"
+                            className={`mx-auto h-auto rounded-lg w-full ${partQ.imageSize === 'small' ? 'max-w-xs' : partQ.imageSize === 'medium' ? 'max-w-lg' : partQ.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
+                          />
+                        </div>
+                      )}
+                      {partQ.questionText && (
+                        <div>
+                          <MathText text={partQ.questionText} className="leading-relaxed dark:text-neutral-200" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Part Answer Choices */}
+                    {partIsDragOrder ? (
+                      <div style={{ pointerEvents: "auto" }}>
+                        <DragOrderAnswer
+                          items={
+                            partDragOrderAnswer.length > 0
+                              ? partDragOrderAnswer
+                              : seededShuffle(
+                                  [...partQ.answers],
+                                  partQ.id + String(session.startTime),
+                                )
+                          }
+                          correctOrder={partQ.answers}
+                          isChecked={partDragOrderChecked}
+                          onOrderChange={(newOrder) => handleDragOrderChange(partQ.id, newOrder)}
+                          onCheck={() => handleDragOrderCheck(partQ.id)}
+                          canAttempt={!partDragOrderChecked}
+                          orientation={dragOrderOrientation}
+                          answerImageUrls={partQ.answerImageUrls}
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className={`relative z-[60] ${
+                          partQ.answerLayout === 'grid'
+                            ? 'grid grid-cols-2 gap-2'
+                            : partQ.answerLayout === 'row'
+                            ? 'grid grid-cols-4 gap-2'
+                            : 'space-y-2'
+                        }`}
+                        style={{ pointerEvents: "auto" }}
+                      >
+                        {partQ.answers.map((answer, ansIdx) => {
+                          const answerNum = ansIdx + 1;
+                          const isChecked = partCheckedAnswers.includes(answerNum);
+                          const isCorrectAnswer = answerNum === partQ.correctAnswer;
+                          const isSelected = partSelectedAnswer === answerNum;
+
+                          let buttonClass = "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 font-medium active:scale-[0.98]";
+                          if (partHasChecked && isCorrectAnswer) {
+                            // Always highlight correct answer green after checking
+                            buttonClass += " bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-900 dark:text-green-300";
+                          } else if (isChecked && !isCorrectAnswer) {
+                            buttonClass += " bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-900 dark:text-rose-300";
+                          } else if (isSelected) {
+                            buttonClass += " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
+                          } else {
+                            buttonClass += " bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800";
+                          }
+
+                          const answerImage = partQ.answerImageUrls?.[ansIdx];
+                          const gridOrder = partQ.answerLayout === 'grid' ? [0, 2, 1, 3][ansIdx] : ansIdx;
+
+                          return (
+                            <div key={ansIdx} className="relative group" style={{ order: gridOrder }}>
+                              <button
+                                onClick={() => {
+                                  const timeSpent = Math.floor((Date.now() - session.lastQuestionStartTime) / 1000);
+                                  setSession((prev) => {
+                                    if (!prev) return prev;
+                                    return {
+                                      ...prev,
+                                      userAnswers: { ...prev.userAnswers, [partQ.id]: answerNum },
+                                      questionTimes: { ...prev.questionTimes, [partQ.id]: (prev.questionTimes[partQ.id] || 0) + timeSpent },
+                                    };
+                                  });
+                                }}
+                                className={buttonClass}
+                              >
+                                <div className="flex items-start gap-3" style={{ fontSize: "1.125rem" }}>
+                                  <span className="font-bold shrink-0 leading-normal" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                                    ({answerNum})
+                                  </span>
+                                  <div className="flex-1 min-w-0 overflow-hidden" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                                    {answer && (
+                                      <div className="break-words overflow-wrap-anywhere">
+                                        <MathText text={answer} className="text-left" />
+                                      </div>
+                                    )}
+                                    {answerImage && (
+                                      <img
+                                        src={answerImage}
+                                        alt={`Answer ${answerNum}`}
+                                        className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-2"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                              </button>
+
+                              {/* CHECK button overlay on selected answer — matches single question style */}
+                              {showCheckButton && isSelected && !partHasChecked && partCanAttempt && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const isCorrectAns = partSelectedAnswer === partQ.correctAnswer;
+                                    if (isPracticeMode && practiceSkill) {
+                                      updateSkillProgress(practiceSkill, partQ.id, isCorrectAns);
+                                    }
+                                    setSession((prev) => {
+                                      if (!prev) return prev;
+                                      const currentChecked = prev.checkedAnswers[partQ.id] || [];
+                                      if (currentChecked.length >= 1) return prev;
+                                      return {
+                                        ...prev,
+                                        checkedAnswers: { ...prev.checkedAnswers, [partQ.id]: [partSelectedAnswer!] },
+                                        firstAttemptAnswers: { ...prev.firstAttemptAnswers, [partQ.id]: partSelectedAnswer },
+                                      };
+                                    });
+                                  }}
+                                  className="absolute right-3 top-3 px-3 py-1.5 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
+                                >
+                                  CHECK
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Notes — matches single question style */}
+                    {partQ.notes && (
+                      <div className="mt-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg" style={{ pointerEvents: "auto", position: "relative", zIndex: 60 }}>
+                        <p className="text-sm text-amber-800 dark:text-amber-300 italic">
+                          <span className="font-semibold not-italic">Note: </span>
+                          {partQ.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </>
           ) : (
             <>
               {/* SINGLE QUESTION LAYOUT (original) */}
@@ -2347,7 +2638,7 @@ function QuizPageContent() {
                   All Questions
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-neutral-400 mt-1">
-                  {answeredCount} of {questions.length} completed
+                  {answeredCount} of {groupingInfo.totalDisplayQuestions} completed
                 </p>
               </div>
               <button
@@ -2372,124 +2663,153 @@ function QuizPageContent() {
 
             {/* Question Grid */}
             <div className="flex flex-wrap gap-2 overflow-y-auto pr-2 flex-1 min-h-0 content-start">
-              {questions.map((q, index) => {
-                // Show section label when section changes
-                const prevQ = index > 0 ? questions[index - 1] : null;
-                const qSection =
-                  sections.length > 0 && q.sectionId
-                    ? sections.find((s) => s.id === q.sectionId)
-                    : null;
-                const showSectionLabel =
-                  qSection && (!prevQ || prevQ.sectionId !== q.sectionId);
-                const userAnswer = session.userAnswers[q.id];
-                const isAnswered =
-                  userAnswer !== null && userAnswer !== undefined;
-                const isCurrent = index === session.currentQuestionIndex;
-                const checkedArray = session.checkedAnswers[q.id] || [];
-                const isChecked = checkedArray.length > 0;
+              {(() => {
+                const renderedDisplayNumbers = new Set<number>();
+                return questions.map((q, index) => {
+                  const displayInfo = groupingInfo.questionMap[index];
+                  if (!displayInfo) return null;
 
-                // Check if this question is part of a group
-                const hasPassage = !!q.passageId;
-                const siblingQ = hasPassage
-                  ? questions.find(
-                      (sq) => sq.id !== q.id && sq.passageId === q.passageId,
-                    )
-                  : null;
-                const siblingIdx = siblingQ
-                  ? questions.findIndex((sq) => sq.id === siblingQ.id)
-                  : -1;
-                const isFirstInPair = siblingIdx > index;
-                const isPartOfCurrentGroup =
-                  siblingQ &&
-                  (index === session.currentQuestionIndex ||
-                    siblingIdx === session.currentQuestionIndex);
-
-                // In practice mode, mark based on selection; in test practice mode, after check; in test mode, no feedback
-                const isCorrectAnswer = userAnswer === q.correctAnswer;
-                const shouldShowResult = isPracticeMode
-                  ? isAnswered
-                  : showCheckButton ? isChecked : false;
-                const isCorrect = isPracticeMode
-                  ? isCorrectAnswer
-                  : isChecked &&
-                    checkedArray[checkedArray.length - 1] === q.correctAnswer;
-                const isMarked = isPracticeMode
-                  ? practiceMarkedQuestions.has(q.id)
-                  : session.markedForReview[q.id] || false;
-
-                let bgClass =
-                  "bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300";
-                if (isCurrent || isPartOfCurrentGroup) {
-                  bgClass =
-                    "bg-slate-700 dark:bg-slate-600 border-slate-700 dark:border-slate-600 text-white";
-                } else if (shouldShowResult) {
-                  if (isCorrect) {
-                    bgClass =
-                      "bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-700 dark:text-green-400";
-                  } else {
-                    bgClass =
-                      "bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-700 dark:text-rose-400";
+                  // For part questions, only render on the first part
+                  if (displayInfo.groupType === 'parts' && !displayInfo.isFirstInGroup) {
+                    return null;
                   }
-                } else if (isAnswered) {
-                  bgClass =
-                    "bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-neutral-400";
-                }
+                  // Avoid duplicate renders
+                  if (renderedDisplayNumbers.has(displayInfo.displayNumber)) return null;
+                  renderedDisplayNumbers.add(displayInfo.displayNumber);
 
-                // Navigate directly to the clicked question
-                const targetIndex = index;
+                  const displayIdx = displayInfo.displayNumber - 1;
+                  const flatIndices = groupingInfo.displayToFlatIndices[displayIdx];
+                  const isPartGroup = displayInfo.groupType === 'parts' && flatIndices.length > 1;
 
-                return (
-                  <React.Fragment key={q.id}>
-                    {showSectionLabel && (
-                      <div className="w-full text-[10px] font-semibold text-gray-400 dark:text-neutral-500 uppercase tracking-wide pt-2 pb-0.5 first:pt-0">
-                        {qSection!.name}
-                      </div>
-                    )}
-                    <button
-                      onClick={() => {
-                        const timeSpent = Math.floor(
-                          (Date.now() - session.lastQuestionStartTime) / 1000,
-                        );
-                        setSession((prev) => {
-                          if (!prev) return prev;
-                          return {
-                            ...prev,
-                            currentQuestionIndex: targetIndex,
-                            lastQuestionStartTime: Date.now(),
-                            questionTimes: {
-                              ...prev.questionTimes,
-                              [currentQuestion.id]:
-                                (prev.questionTimes[currentQuestion.id] || 0) +
-                                timeSpent,
-                            },
-                          };
-                        });
-                        setShowAllQuestions(false);
-                      }}
-                      className={`relative w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass} ${hasPassage ? 'ring-2 ring-purple-300 dark:ring-purple-700 ring-offset-1 dark:ring-offset-neutral-900' : ''}`}
-                      title={`Question ${index + 1}${hasPassage ? " (Grouped)" : ""}${
-                        isMarked ? " (Marked for review)" : ""
-                      }`}
-                    >
-                      {index + 1}
-                      {isMarked && (
-                        <svg
-                          className="absolute -top-1 -right-1 w-4 h-4 text-yellow-500"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                          />
-                        </svg>
+                  // Show section label when section changes
+                  const prevQ = index > 0 ? questions[index - 1] : null;
+                  const qSection =
+                    sections.length > 0 && q.sectionId
+                      ? sections.find((s) => s.id === q.sectionId)
+                      : null;
+                  const showSectionLabel =
+                    qSection && (!prevQ || prevQ.sectionId !== q.sectionId);
+
+                  // For part groups, check if ANY part is current
+                  const isCurrent = flatIndices.some((fi) => fi === session.currentQuestionIndex);
+
+                  // Check answered state
+                  const allAnswered = flatIndices.every((fi) => {
+                    const fq = questions[fi];
+                    if (!fq) return false;
+                    if (fq.questionType === 'drag-order') return (session.dragOrderAnswers[fq.id]?.length || 0) > 0;
+                    return session.userAnswers[fq.id] !== null && session.userAnswers[fq.id] !== undefined;
+                  });
+
+                  // Check if this question is part of a grouped pair (not parts)
+                  const hasPassage = !!q.passageId && displayInfo.groupType !== 'parts';
+                  const siblingQ = hasPassage
+                    ? questions.find(
+                        (sq) => sq.id !== q.id && sq.passageId === q.passageId,
+                      )
+                    : null;
+                  const siblingIdx = siblingQ
+                    ? questions.findIndex((sq) => sq.id === siblingQ.id)
+                    : -1;
+                  const isPartOfCurrentGroup =
+                    siblingQ &&
+                    (index === session.currentQuestionIndex ||
+                      siblingIdx === session.currentQuestionIndex);
+
+                  // Result display
+                  const checkedArray = session.checkedAnswers[q.id] || [];
+                  const isChecked = checkedArray.length > 0;
+                  const userAnswer = session.userAnswers[q.id];
+                  const isAnswered = userAnswer !== null && userAnswer !== undefined;
+                  const isCorrectAnswer = userAnswer === q.correctAnswer;
+                  const shouldShowResult = isPracticeMode
+                    ? isAnswered
+                    : showCheckButton ? isChecked : false;
+                  const isCorrect = isPracticeMode
+                    ? isCorrectAnswer
+                    : isChecked &&
+                      checkedArray[checkedArray.length - 1] === q.correctAnswer;
+                  const isMarked = isPracticeMode
+                    ? practiceMarkedQuestions.has(q.id)
+                    : session.markedForReview[q.id] || false;
+
+                  let bgClass =
+                    "bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300";
+                  if (isCurrent || isPartOfCurrentGroup) {
+                    bgClass =
+                      "bg-slate-700 dark:bg-slate-600 border-slate-700 dark:border-slate-600 text-white";
+                  } else if (shouldShowResult) {
+                    if (isCorrect) {
+                      bgClass =
+                        "bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-700 dark:text-green-400";
+                    } else {
+                      bgClass =
+                        "bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-700 dark:text-rose-400";
+                    }
+                  } else if (isPartGroup ? allAnswered : isAnswered) {
+                    bgClass =
+                      "bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-neutral-400";
+                  }
+
+                  // Navigate to first part of group
+                  const targetIndex = flatIndices[0];
+
+                  return (
+                    <React.Fragment key={q.id}>
+                      {showSectionLabel && (
+                        <div className="w-full text-[10px] font-semibold text-gray-400 dark:text-neutral-500 uppercase tracking-wide pt-2 pb-0.5 first:pt-0">
+                          {qSection!.name}
+                        </div>
                       )}
-                    </button>
-                  </React.Fragment>
-                );
-              })}
+                      <button
+                        onClick={() => {
+                          const timeSpent = Math.floor(
+                            (Date.now() - session.lastQuestionStartTime) / 1000,
+                          );
+                          setSession((prev) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              currentQuestionIndex: targetIndex,
+                              lastQuestionStartTime: Date.now(),
+                              questionTimes: {
+                                ...prev.questionTimes,
+                                [currentQuestion.id]:
+                                  (prev.questionTimes[currentQuestion.id] || 0) +
+                                  timeSpent,
+                              },
+                            };
+                          });
+                          setShowAllQuestions(false);
+                        }}
+                        className={`relative ${isPartGroup ? 'min-w-[3.5rem] px-2' : 'w-10'} h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass} ${hasPassage ? 'ring-2 ring-purple-300 dark:ring-purple-700 ring-offset-1 dark:ring-offset-neutral-900' : ''}`}
+                        title={`Question ${displayInfo.displayNumber}${isPartGroup ? ` (${flatIndices.length} parts)` : ''}${hasPassage ? " (Grouped)" : ""}${
+                          isMarked ? " (Marked for review)" : ""
+                        }`}
+                      >
+                        <span>{displayInfo.displayNumber}</span>
+                        {isPartGroup && (
+                          <span className="ml-0.5 text-[10px] opacity-70">({flatIndices.length})</span>
+                        )}
+                        {isMarked && (
+                          <svg
+                            className="absolute -top-1 -right-1 w-4 h-4 text-yellow-500"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </React.Fragment>
+                  );
+                });
+              })()}
             </div>
 
             {/* Legend at bottom */}
@@ -2542,7 +2862,7 @@ function QuizPageContent() {
                 className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-neutral-800 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 active:scale-95 transition-all flex items-center gap-1.5"
               >
                 <span>
-                  {session.currentQuestionIndex + 1}/{questions.length}
+                  {currentDisplayInfo?.displayNumber ?? session.currentQuestionIndex + 1}/{groupingInfo.totalDisplayQuestions}
                 </span>
                 <svg
                   className="w-3 h-3 md:w-3.5 md:h-3.5"
@@ -2583,7 +2903,9 @@ function QuizPageContent() {
                 <button
                   onClick={handleNext}
                   disabled={
-                    session.currentQuestionIndex === questions.length - 1
+                    isPartQuestion
+                      ? (getGroupFlatIndices(groupingInfo, session.currentQuestionIndex).slice(-1)[0] ?? session.currentQuestionIndex) >= questions.length - 1
+                      : session.currentQuestionIndex === questions.length - 1
                   }
                   className="p-1.5 md:p-2 rounded-full border border-gray-300 dark:border-neutral-600 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                 >
@@ -2606,7 +2928,7 @@ function QuizPageContent() {
 
             {/* Right: Explanation + Next Button */}
             <div className="flex items-center gap-2">
-              {session.testMode !== 'test' && (
+              {session.testMode !== 'test' && !isPartQuestion && (
                 <button
                   onClick={() => setShowExplanation(true)}
                   className="px-3 py-1.5 md:px-5 md:py-2.5 text-xs md:text-sm font-bold text-gray-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-600 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-800 active:scale-95 rounded-full transition-all"
@@ -2614,7 +2936,10 @@ function QuizPageContent() {
                   EXPLANATION
                 </button>
               )}
-              {session.currentQuestionIndex === questions.length - 1 ? (
+              {(isPartQuestion
+                ? (getGroupFlatIndices(groupingInfo, session.currentQuestionIndex).slice(-1)[0] ?? session.currentQuestionIndex) >= questions.length - 1
+                : session.currentQuestionIndex === questions.length - 1
+              ) ? (
                 isPracticeMode ? (
                   <button
                     onClick={() => router.push("/?tab=question-bank")}

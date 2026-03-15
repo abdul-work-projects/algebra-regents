@@ -290,10 +290,12 @@ export default function QuestionList({
       return 0;
     });
 
-  // Build original position map
+  // Build original position map — parts-type passages share a number (Q1a, Q1b)
   const originalIndexMap = new Map<string, number>();
+  const partLabelMap = new Map<string, string>(); // questionId -> "a", "b", etc.
   let origIdx = 0;
   const origProcessedPassages = new Set<string>();
+  const PART_LABELS = 'abcdefghijklmnopqrstuvwxyz';
   testFilteredQuestions.forEach((q) => {
     if (q.passage_id) {
       if (!origProcessedPassages.has(q.passage_id)) {
@@ -301,10 +303,21 @@ export default function QuestionList({
         const grouped = testFilteredQuestions.filter(
           (gq) => gq.passage_id === q.passage_id,
         );
-        grouped.forEach((gq) => {
+        const isPartsType = grouped[0]?.passages?.type === 'parts';
+        if (isPartsType) {
+          // All parts share the same display number
           origIdx++;
-          originalIndexMap.set(gq.id, origIdx);
-        });
+          grouped.forEach((gq, pi) => {
+            originalIndexMap.set(gq.id, origIdx);
+            partLabelMap.set(gq.id, PART_LABELS[pi] || String(pi + 1));
+          });
+        } else {
+          // Grouped type: each gets its own number
+          grouped.forEach((gq) => {
+            origIdx++;
+            originalIndexMap.set(gq.id, origIdx);
+          });
+        }
       }
     } else {
       origIdx++;
@@ -366,7 +379,13 @@ export default function QuestionList({
     isGrouped: boolean,
     groupPosition?: "first" | "last" | "middle",
     ungroupInfo?: { passageId: string; questionIds: string[] },
-  ) => (
+  ) => {
+    const isPartsType = question.passages?.type === 'parts';
+    const partLabel = partLabelMap.get(question.id);
+    const displayNum = partLabel ? `Q${index}${partLabel}` : `Q${index}`;
+    const badgeLabel = isPartsType && partLabel ? `Part ${partLabel}` : isGrouped ? 'Grouped' : null;
+
+    return (
     <div
       key={question.id}
       draggable={!isGrouped}
@@ -413,21 +432,27 @@ export default function QuestionList({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <p className="text-xs font-semibold text-gray-900 dark:text-neutral-100 truncate">
-                  {question.name || `Q${index}`}
+                  {question.name || displayNum}
                 </p>
-                {isGrouped && (
+                {isGrouped && badgeLabel && (
                   <span
-                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-[10px] font-medium flex-shrink-0"
-                    title="Grouped question (shares a passage)"
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${
+                      isPartsType
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                        : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                    }`}
+                    title={isPartsType ? "Part of a multi-part question" : "Grouped question (shares a passage)"}
                   >
-                    <svg
-                      className="w-2.5 h-2.5"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
-                    </svg>
-                    Grouped
+                    {!isPartsType && (
+                      <svg
+                        className="w-2.5 h-2.5"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                      </svg>
+                    )}
+                    {badgeLabel}
                   </span>
                 )}
                 {filterTestId !== "all" &&
@@ -442,7 +467,7 @@ export default function QuestionList({
               </div>
               {question.name && (
                 <p className="text-[10px] text-gray-400 dark:text-neutral-500">
-                  Q{index}
+                  {displayNum}
                 </p>
               )}
               <p className="text-xs text-gray-600 dark:text-neutral-400 truncate">
@@ -555,6 +580,7 @@ export default function QuestionList({
       </div>
     </div>
   );
+  };
 
   return (
     <div className="lg:col-span-1 flex flex-col max-h-[calc(100vh-80px)]">

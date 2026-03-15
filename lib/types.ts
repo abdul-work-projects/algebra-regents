@@ -1,5 +1,6 @@
 export interface Passage {
   id: string;
+  type?: 'grouped' | 'parts';
   aboveText?: string;
   passageText?: string;
   passageImageUrl?: string;
@@ -118,6 +119,7 @@ export interface QuizSession {
 export interface QuizResult {
   score: number;
   totalQuestions: number;
+  totalDisplayQuestions: number; // Logical count where part-groups = 1
   earnedPoints: number;
   totalPoints: number;
   averageTime: number;

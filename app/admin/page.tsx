@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { useQuestionForm } from "@/hooks/useQuestionForm";
+import { useQuestionForm, createFormAccessor, initialState as formInitialState, QuestionFormState } from "@/hooks/useQuestionForm";
 import {
   uploadImage,
   createQuestion,
@@ -110,14 +110,45 @@ export default function AdminPage() {
 
   // Grouped question state
   const [isGroupedQuestion, setIsGroupedQuestion] = useState(false);
+  const [passageType, setPassageType] = useState<'grouped' | 'parts'>('grouped');
   const [passageAboveText, setPassageAboveText] = useState("");
   const [passageText, setPassageText] = useState("");
   const [passageImage, setPassageImage] = useState<File | null>(null);
   const [passageImagePreview, setPassageImagePreview] = useState<string | null>(null);
   const [passageImageSize, setPassageImageSize] = useState<"small" | "medium" | "large" | "extra-large">("large");
-  const [activeQuestionTab, setActiveQuestionTab] = useState<1 | 2>(1);
+  const [activeQuestionTab, setActiveQuestionTab] = useState<number>(1);
   const [editingQ2Id, setEditingQ2Id] = useState<string | null>(null);
   const [editingPassageId, setEditingPassageId] = useState<string | null>(null);
+
+  // Additional part forms (beyond q1 and q2) for parts-type questions
+  const [extraPartStates, setExtraPartStates] = useState<QuestionFormState[]>([]);
+  const [editingExtraPartIds, setEditingExtraPartIds] = useState<string[]>([]);
+
+  // Build UseQuestionFormReturn-compatible accessors for extra parts
+  const extraPartForms = extraPartStates.map((state, idx) =>
+    createFormAccessor(state, (updater) => {
+      setExtraPartStates((prev) => {
+        const next = [...prev];
+        next[idx] = updater(next[idx]);
+        return next;
+      });
+    })
+  );
+
+  const handleAddPart = () => {
+    setExtraPartStates((prev) => [...prev, { ...formInitialState, answers: ["", "", "", ""], answerImages: [null, null, null, null], answerImagePreviews: [null, null, null, null] }]);
+    setActiveQuestionTab(3 + extraPartStates.length); // Switch to new tab
+  };
+
+  const handleRemovePart = (tabNumber: number) => {
+    // tabNumber is 1-based. Tab 3+ maps to extraPartStates index = tabNumber - 3
+    const removeIdx = tabNumber - 3;
+    if (removeIdx < 0 || removeIdx >= extraPartStates.length) return;
+    setExtraPartStates((prev) => prev.filter((_, i) => i !== removeIdx));
+    setEditingExtraPartIds((prev) => prev.filter((_, i) => i !== removeIdx));
+    // Switch to previous tab
+    setActiveQuestionTab(Math.max(1, tabNumber - 1));
+  };
 
   // Link questions state
   const [selectedForGrouping, setSelectedForGrouping] = useState<string[]>([]);
@@ -382,6 +413,9 @@ export default function AdminPage() {
     q2Form.reset();
     setSelectedTestIds(filterTestId !== "all" ? [filterTestId] : []);
     setIsGroupedQuestion(false);
+    setPassageType('grouped');
+    setExtraPartStates([]);
+    setEditingExtraPartIds([]);
     setPassageAboveText("");
     setPassageText("");
     setPassageImage(null);
@@ -405,14 +439,14 @@ export default function AdminPage() {
     setShowLinkModal(true);
   };
 
-  const confirmLinkQuestions = async (linkPassageText: string, linkPassageImage: File | null) => {
+  const confirmLinkQuestions = async (linkPassageText: string, linkPassageImage: File | null, type: 'grouped' | 'parts' = 'grouped') => {
     if (selectedForGrouping.length < 2) return;
     let passageImageUrl: string | null = null;
     if (linkPassageImage) {
       const sanitizedName = linkPassageImage.name.replace(/[^a-zA-Z0-9.-]/g, "_");
       passageImageUrl = await uploadImage("question-images", linkPassageImage, `passages/${Date.now()}-${sanitizedName}`);
     }
-    const result = await linkQuestionsToNewPassage(selectedForGrouping, { passage_text: linkPassageText.trim() || null, passage_image_url: passageImageUrl });
+    const result = await linkQuestionsToNewPassage(selectedForGrouping, { passage_text: linkPassageText.trim() || null, passage_image_url: passageImageUrl, type });
     if (result && result.updatedCount === selectedForGrouping.length) {
       setNotification({ type: "success", message: "Questions linked successfully!" });
       setShowLinkModal(false);
@@ -430,27 +464,80 @@ export default function AdminPage() {
 
   const loadQuestionForEdit = async (question: QuestionWithPassage) => {
     if (question.passage_id) {
-      const siblingQuestion = questions.find((q) => q.id !== question.id && q.passage_id === question.passage_id);
-      if (siblingQuestion) {
-        const questionsOrdered = [question, siblingQuestion].sort((a, b) => {
+      // Find ALL questions sharing this passage
+      const allGrouped = questions
+        .filter((q) => q.passage_id === question.passage_id)
+        .sort((a, b) => {
           if (a.display_order !== undefined && b.display_order !== undefined) return a.display_order - b.display_order;
           return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         });
-        const [q1, q2] = questionsOrdered;
-        setEditingId(q1.id);
-        setEditingQ2Id(q2.id);
+
+      if (allGrouped.length >= 2) {
+        const loadFormData = (dbQ: QuestionWithPassage) => ({
+          name: dbQ.name, question_text: dbQ.question_text, above_image_text: dbQ.above_image_text,
+          question_image_url: dbQ.question_image_url, reference_image_url: dbQ.reference_image_url,
+          explanation_image_url: dbQ.explanation_image_url, answers: dbQ.answers,
+          answer_image_urls: dbQ.answer_image_urls, answer_layout: dbQ.answer_layout,
+          image_size: dbQ.image_size, question_type: dbQ.question_type, correct_answer: dbQ.correct_answer,
+          explanation_text: dbQ.explanation_text, skills: dbQ.skills || [], tags: dbQ.tags || [],
+          difficulty: dbQ.difficulty, points: dbQ.points, notes: dbQ.notes,
+        });
+
+        setEditingId(allGrouped[0].id);
+        setEditingQ2Id(allGrouped[1].id);
         setEditingPassageId(question.passage_id);
         setIsGroupedQuestion(true);
-        setActiveQuestionTab(question.id === q2.id ? 2 : 1);
+        setPassageType((question.passages?.type as 'grouped' | 'parts') || 'grouped');
+
+        // Determine which tab the clicked question maps to
+        const clickedIdx = allGrouped.findIndex((q) => q.id === question.id);
+        setActiveQuestionTab(clickedIdx >= 0 ? clickedIdx + 1 : 1);
+
         const passage = question.passages;
         setPassageAboveText(passage?.above_text || "");
         setPassageText(passage?.passage_text || "");
         setPassageImagePreview(passage?.passage_image_url || null);
         setPassageImage(null);
         setPassageImageSize((passage?.image_size as "small" | "medium" | "large" | "extra-large") || "large");
-        q1Form.loadFromQuestion({ name: q1.name, question_text: q1.question_text, above_image_text: q1.above_image_text, question_image_url: q1.question_image_url, reference_image_url: q1.reference_image_url, explanation_image_url: q1.explanation_image_url, answers: q1.answers, answer_image_urls: q1.answer_image_urls, answer_layout: q1.answer_layout, image_size: q1.image_size, question_type: q1.question_type, correct_answer: q1.correct_answer, explanation_text: q1.explanation_text, skills: q1.skills || [], tags: q1.tags || [], difficulty: q1.difficulty, points: q1.points, notes: q1.notes });
-        q2Form.loadFromQuestion({ name: q2.name, question_text: q2.question_text, above_image_text: q2.above_image_text, question_image_url: q2.question_image_url, reference_image_url: q2.reference_image_url, explanation_image_url: q2.explanation_image_url, answers: q2.answers, answer_image_urls: q2.answer_image_urls, answer_layout: q2.answer_layout, image_size: q2.image_size, question_type: q2.question_type, correct_answer: q2.correct_answer, explanation_text: q2.explanation_text, skills: q2.skills || [], tags: q2.tags || [], difficulty: q2.difficulty, points: q2.points, notes: q2.notes });
-        const questionTestIds = await getTestsForQuestion(q1.id);
+
+        // Load first two into hook-based forms
+        q1Form.loadFromQuestion(loadFormData(allGrouped[0]));
+        q2Form.loadFromQuestion(loadFormData(allGrouped[1]));
+
+        // Load any additional parts (index 2+) into extra part states
+        if (allGrouped.length > 2) {
+          const extras: QuestionFormState[] = allGrouped.slice(2).map((dbQ) => ({
+            questionName: dbQ.name || "",
+            questionText: dbQ.question_text || "",
+            aboveImageText: dbQ.above_image_text || "",
+            questionImage: null,
+            questionImagePreview: dbQ.question_image_url || null,
+            referenceImage: null,
+            referenceImagePreview: dbQ.reference_image_url || null,
+            explanationImage: null,
+            explanationImagePreview: dbQ.explanation_image_url || null,
+            answers: dbQ.answers,
+            answerImages: [null, null, null, null],
+            answerImagePreviews: dbQ.answer_image_urls || [null, null, null, null],
+            answerLayout: dbQ.answer_layout || "list",
+            imageSize: dbQ.image_size || "large",
+            questionType: (dbQ.question_type as "multiple-choice" | "drag-order") || "multiple-choice",
+            correctAnswer: dbQ.correct_answer,
+            explanationText: dbQ.explanation_text,
+            selectedSkills: dbQ.skills || [],
+            selectedTags: dbQ.tags || [],
+            difficulty: dbQ.difficulty || "",
+            points: dbQ.points || 1,
+            notes: dbQ.notes || "",
+          }));
+          setExtraPartStates(extras);
+          setEditingExtraPartIds(allGrouped.slice(2).map((q) => q.id));
+        } else {
+          setExtraPartStates([]);
+          setEditingExtraPartIds([]);
+        }
+
+        const questionTestIds = await getTestsForQuestion(allGrouped[0].id);
         setSelectedTestIds(questionTestIds);
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
@@ -491,16 +578,23 @@ export default function AdminPage() {
     if (selectedTestIds.length === 0) { setNotification({ type: "error", message: "Question must be assigned to at least one test" }); return; }
 
     if (isGroupedQuestion) {
-      if (!passageText.trim() && !passageImage && !passageImagePreview) { setNotification({ type: "error", message: "Grouped questions must have a passage (text or image)" }); return; }
-      const hasQ2Text = q2.questionText.trim() || q2.aboveImageText.trim();
-      const hasQ2Image = q2.questionImage || q2.questionImagePreview;
-      if (!hasQ2Text && !hasQ2Image) { setNotification({ type: "error", message: "Question 2 must have text (above or below) or an image" }); return; }
-      for (let i = 0; i < 4; i++) {
-        const hasText = q2.answers[i]?.trim();
-        const hasImage = q2.answerImages[i] || q2.answerImagePreviews[i];
-        if (!hasText && !hasImage) { setNotification({ type: "error", message: `Question 2 Answer ${i + 1} must have either text or image (or both)` }); return; }
+      if (!passageText.trim() && !passageAboveText.trim() && !passageImage && !passageImagePreview) { setNotification({ type: "error", message: "Grouped questions must have a passage (text or image)" }); return; }
+      // Validate all secondary forms (q2 + extra parts)
+      const secondaryForms = [q2, ...extraPartStates];
+      const isPartsMode = passageType === 'parts';
+      for (let fi = 0; fi < secondaryForms.length; fi++) {
+        const form = secondaryForms[fi];
+        const label = isPartsMode ? `Part ${String.fromCharCode(98 + fi)}` : `Question ${fi + 2}`;
+        const hasFormText = form.questionText.trim() || form.aboveImageText.trim();
+        const hasFormImage = form.questionImage || form.questionImagePreview;
+        if (!hasFormText && !hasFormImage) { setNotification({ type: "error", message: `${label} must have text (above or below) or an image` }); return; }
+        for (let i = 0; i < 4; i++) {
+          const hasText = form.answers[i]?.trim();
+          const hasImage = form.answerImages[i] || form.answerImagePreviews[i];
+          if (!hasText && !hasImage) { setNotification({ type: "error", message: `${label} Answer ${i + 1} must have either text or image (or both)` }); return; }
+        }
+        if (!form.explanationText.trim()) { setNotification({ type: "error", message: `${label} explanation text is required` }); return; }
       }
-      if (!q2.explanationText.trim()) { setNotification({ type: "error", message: "Question 2 explanation text is required" }); return; }
     }
 
     setIsSubmitting(true);
@@ -520,20 +614,44 @@ export default function AdminPage() {
           return { imageUrl, explanationImageUrl, answerImageUrls };
         };
 
-        const q1Images = await uploadQuestionImages(q1, "q1");
-        const q2Images = await uploadQuestionImages(q2, "q2");
+        // Build all forms: q1, q2, + any extra parts
+        const allFormStates = [q1, q2, ...extraPartStates];
+        const allImages: { imageUrl: string | null; explanationImageUrl: string | null; answerImageUrls: (string | null)[] }[] = [];
+        for (let fi = 0; fi < allFormStates.length; fi++) {
+          allImages.push(await uploadQuestionImages(allFormStates[fi], `q${fi + 1}`));
+        }
 
         const baseOrder = questions.length + 1;
+        const questionsToCreate = allFormStates.map((form, fi) => ({
+          name: form.questionName.trim() || null,
+          question_text: form.questionText.trim() || null,
+          above_image_text: form.aboveImageText.trim() || null,
+          question_image_url: allImages[fi].imageUrl,
+          reference_image_url: null,
+          answers: form.answers,
+          answer_image_urls: allImages[fi].answerImageUrls,
+          answer_layout: form.answerLayout,
+          image_size: form.imageSize,
+          question_type: form.questionType,
+          correct_answer: form.correctAnswer,
+          explanation_text: form.explanationText,
+          explanation_image_url: allImages[fi].explanationImageUrl,
+          skills: form.selectedSkills,
+          tags: form.selectedTags,
+          difficulty: (form.difficulty as "easy" | "medium" | "hard") || null,
+          points: form.points,
+          notes: form.notes.trim() || null,
+          display_order: baseOrder + fi,
+        }));
+
         const result = await createPassageWithQuestions(
-          { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: passageImageUrl, image_size: passageImageSize },
-          [
-            { name: q1.questionName.trim() || null, question_text: q1.questionText.trim() || null, above_image_text: q1.aboveImageText.trim() || null, question_image_url: q1Images.imageUrl, reference_image_url: null, answers: q1.answers, answer_image_urls: q1Images.answerImageUrls, answer_layout: q1.answerLayout, image_size: q1.imageSize, question_type: q1.questionType, correct_answer: q1.correctAnswer, explanation_text: q1.explanationText, explanation_image_url: q1Images.explanationImageUrl, skills: q1.selectedSkills, tags: q1.selectedTags, difficulty: (q1.difficulty as "easy" | "medium" | "hard") || null, points: q1.points, notes: q1.notes.trim() || null, display_order: baseOrder },
-            { name: q2.questionName.trim() || null, question_text: q2.questionText.trim() || null, above_image_text: q2.aboveImageText.trim() || null, question_image_url: q2Images.imageUrl, reference_image_url: null, answers: q2.answers, answer_image_urls: q2Images.answerImageUrls, answer_layout: q2.answerLayout, image_size: q2.imageSize, question_type: q2.questionType, correct_answer: q2.correctAnswer, explanation_text: q2.explanationText, explanation_image_url: q2Images.explanationImageUrl, skills: q2.selectedSkills, tags: q2.selectedTags, difficulty: (q2.difficulty as "easy" | "medium" | "hard") || null, points: q2.points, notes: q2.notes.trim() || null, display_order: baseOrder + 1 },
-          ]
+          { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: passageImageUrl, image_size: passageImageSize, type: passageType },
+          questionsToCreate
         );
         if (result) {
           for (const question of result.questions) { await setTestsForQuestion(question.id, selectedTestIds); }
-          setNotification({ type: "success", message: "Grouped questions created successfully!" });
+          const label = passageType === 'parts' ? 'Part questions' : 'Grouped questions';
+          setNotification({ type: "success", message: `${label} created successfully!` });
           resetForm(); loadQuestions(); loadTestsData();
           setTimeout(() => setNotification(null), 3000);
         } else throw new Error("Failed to create grouped questions");
@@ -541,8 +659,17 @@ export default function AdminPage() {
       } else if (isGroupedQuestion && editingId && editingQ2Id && editingPassageId) {
         let pImageUrl: string | null = passageImagePreview;
         if (passageImage) pImageUrl = await uploadImage("question-images", passageImage, `passages/${Date.now()}-${sanitizeFilename(passageImage.name)}`);
-        const passageResult = await updatePassage(editingPassageId, { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: pImageUrl, image_size: passageImageSize });
+        const passageResult = await updatePassage(editingPassageId, { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: pImageUrl, image_size: passageImageSize, type: passageType });
         if (!passageResult) throw new Error("Failed to update passage");
+
+        const uploadQuestionImages = async (form: typeof q1, prefix: string) => {
+          let imageUrl: string | null = form.questionImagePreview;
+          if (form.questionImage) imageUrl = await uploadImage("question-images", form.questionImage, `questions/${Date.now()}-${prefix}-${sanitizeFilename(form.questionImage.name)}`);
+          let explanationImageUrl: string | null = form.explanationImagePreview;
+          if (form.explanationImage) explanationImageUrl = await uploadImage("explanation-images", form.explanationImage, `explanations/${Date.now()}-${prefix}-${sanitizeFilename(form.explanationImage.name)}`);
+          const answerImageUrls = await Promise.all(form.answerImages.map(async (img, index) => { if (img) return await uploadImage("answer-images", img, `answers/${Date.now()}-${prefix}-${index}-${sanitizeFilename(img.name)}`); return form.answerImagePreviews[index] || null; }));
+          return { imageUrl, explanationImageUrl, answerImageUrls };
+        };
 
         const uploadAndUpdate = async (form: typeof q1, qId: string, prefix: string) => {
           let imageUrl = form.questionImagePreview;
@@ -556,13 +683,51 @@ export default function AdminPage() {
 
         const q1Result = await uploadAndUpdate(q1, editingId, "q1");
         const q2Result = await uploadAndUpdate(q2, editingQ2Id, "q2");
-        if (q1Result && q2Result) {
-          await setTestsForQuestion(editingId, selectedTestIds);
-          await setTestsForQuestion(editingQ2Id, selectedTestIds);
-          setNotification({ type: "success", message: "Grouped questions updated successfully!" });
-          resetForm(); loadQuestions(); loadTestsData();
-          setTimeout(() => setNotification(null), 3000);
-        } else throw new Error("Failed to update grouped questions");
+        if (!q1Result || !q2Result) throw new Error("Failed to update grouped questions");
+
+        // Update extra parts
+        for (let ei = 0; ei < extraPartStates.length; ei++) {
+          const extraForm = extraPartStates[ei];
+          const extraId = editingExtraPartIds[ei];
+          if (extraId) {
+            // Existing extra part — update it
+            await uploadAndUpdate(extraForm, extraId, `q${ei + 3}`);
+          } else {
+            // New extra part — create it and link to passage
+            const imgs = await uploadQuestionImages(extraForm, `q${ei + 3}`);
+            const newQ = await createQuestion({
+              name: extraForm.questionName.trim() || null,
+              question_text: extraForm.questionText.trim() || null,
+              above_image_text: extraForm.aboveImageText.trim() || null,
+              question_image_url: imgs.imageUrl,
+              reference_image_url: null,
+              answers: extraForm.answers,
+              answer_image_urls: imgs.answerImageUrls,
+              answer_layout: extraForm.answerLayout,
+              image_size: extraForm.imageSize,
+              question_type: extraForm.questionType,
+              correct_answer: extraForm.correctAnswer,
+              explanation_text: extraForm.explanationText,
+              explanation_image_url: imgs.explanationImageUrl,
+              skills: extraForm.selectedSkills,
+              tags: extraForm.selectedTags,
+              difficulty: (extraForm.difficulty as "easy" | "medium" | "hard") || null,
+              points: extraForm.points,
+              notes: extraForm.notes.trim() || null,
+              passage_id: editingPassageId,
+              display_order: questions.length + ei + 1,
+            } as Omit<DatabaseQuestion, 'id' | 'created_at' | 'updated_at'>);
+            if (!newQ) throw new Error(`Failed to create extra part ${ei + 3}`);
+            await setTestsForQuestion(newQ.id, selectedTestIds);
+          }
+        }
+
+        await setTestsForQuestion(editingId, selectedTestIds);
+        await setTestsForQuestion(editingQ2Id, selectedTestIds);
+        const label = passageType === 'parts' ? 'Part questions' : 'Grouped questions';
+        setNotification({ type: "success", message: `${label} updated successfully!` });
+        resetForm(); loadQuestions(); loadTestsData();
+        setTimeout(() => setNotification(null), 3000);
 
       } else {
         let questionImageUrl = q1.questionImagePreview;
@@ -816,8 +981,13 @@ export default function AdminPage() {
               q2Form={q2Form}
               isGroupedQuestion={isGroupedQuestion}
               onToggleGrouped={setIsGroupedQuestion}
+              additionalForms={extraPartForms}
+              passageType={passageType}
+              onPassageTypeChange={setPassageType}
               activeQuestionTab={activeQuestionTab}
               onActiveQuestionTabChange={setActiveQuestionTab}
+              onAddPart={handleAddPart}
+              onRemovePart={handleRemovePart}
               passageAboveText={passageAboveText}
               onPassageAboveTextChange={setPassageAboveText}
               passageText={passageText}
