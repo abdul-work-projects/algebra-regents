@@ -383,7 +383,7 @@ export default function QuestionList({
     const isPartsType = question.passages?.type === 'parts';
     const partLabel = partLabelMap.get(question.id);
     const displayNum = partLabel ? `Q${index}${partLabel}` : `Q${index}`;
-    const badgeLabel = isPartsType && partLabel ? `Part ${partLabel}` : isGrouped ? 'Grouped' : null;
+    const badgeLabel = isPartsType ? null : isGrouped ? 'Grouped' : null;
 
     return (
     <div
@@ -432,7 +432,7 @@ export default function QuestionList({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <p className="text-xs font-semibold text-gray-900 dark:text-neutral-100 truncate">
-                  {question.name || displayNum}
+                  {isPartsType ? displayNum : (question.name || displayNum)}
                 </p>
                 {isGrouped && badgeLabel && (
                   <span
@@ -467,7 +467,7 @@ export default function QuestionList({
               </div>
               {question.name && (
                 <p className="text-[10px] text-gray-400 dark:text-neutral-500">
-                  {displayNum}
+                  {isPartsType ? question.name : displayNum}
                 </p>
               )}
               <p className="text-xs text-gray-600 dark:text-neutral-400 truncate">
