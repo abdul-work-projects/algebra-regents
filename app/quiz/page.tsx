@@ -2458,15 +2458,17 @@ function QuizPageContent() {
                 <div
                   className={`mb-6 relative ${
                     currentQuestion.answerLayout === "grid"
-                      ? "grid grid-cols-2 gap-2"
+                      ? "grid grid-cols-2 gap-x-4 gap-y-1"
                       : currentQuestion.answerLayout === "row"
-                      ? "grid grid-cols-4 gap-2"
-                      : "space-y-2"
+                      ? "grid grid-cols-4 gap-x-2 gap-y-1"
+                      : "space-y-1"
                   }`}
                   style={{
                     zIndex: 100,
                     transform: "translateZ(0)",
                     pointerEvents: "none",
+                    fontFamily: "'Times New Roman', Times, serif",
+                    fontSize: "1.125rem",
                   }}
                 >
                   {currentQuestion.answers.map((answer, index) => {
@@ -2476,23 +2478,19 @@ function QuizPageContent() {
                       answerNum === currentQuestion.correctAnswer;
                     const isSelected = selectedAnswer === answerNum;
 
-                    let buttonClass =
-                      "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 font-medium active:scale-[0.98]";
-
+                    let textColor = "text-gray-900 dark:text-neutral-100";
+                    let bgClass = "hover:bg-gray-100 dark:hover:bg-neutral-800";
                     if (isChecked) {
                       if (isCorrectAnswer) {
-                        buttonClass +=
-                          " bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-900 dark:text-green-300";
+                        textColor = "text-green-700 dark:text-green-300";
+                        bgClass = "bg-green-50 dark:bg-green-900/30";
                       } else {
-                        buttonClass +=
-                          " bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-900 dark:text-rose-300";
+                        textColor = "text-rose-700 dark:text-rose-300";
+                        bgClass = "bg-rose-50 dark:bg-rose-900/30";
                       }
                     } else if (isSelected) {
-                      buttonClass +=
-                        " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
-                    } else {
-                      buttonClass +=
-                        " bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800";
+                      textColor = "text-sky-700 dark:text-sky-300";
+                      bgClass = "bg-sky-50 dark:bg-sky-900/30";
                     }
 
                     const answerImage =
@@ -2505,31 +2503,16 @@ function QuizPageContent() {
                     return (
                       <div
                         key={index}
-                        className="relative group"
+                        className="relative"
                         style={{ pointerEvents: "auto", order: gridOrder }}
                       >
                         <button
                           onClick={() => handleAnswerSelect(answerNum)}
-                          className={buttonClass}
+                          className={`w-full text-left rounded-lg px-2 py-1 transition-all active:scale-[0.98] ${textColor} ${bgClass}`}
                         >
-                          <div
-                            className="flex items-start gap-3"
-                            style={{ fontSize: "1.125rem" }}
-                          >
-                            <span
-                              className="font-bold shrink-0 leading-normal"
-                              style={{
-                                fontFamily: "'Times New Roman', Times, serif",
-                              }}
-                            >
-                              ({answerNum})
-                            </span>
-                            <div
-                              className="flex-1 min-w-0 overflow-hidden"
-                              style={{
-                                fontFamily: "'Times New Roman', Times, serif",
-                              }}
-                            >
+                          <div className="flex items-start gap-1.5 min-w-0 w-full">
+                            <span className="shrink-0">({answerNum})</span>
+                            <div className="flex-1 min-w-0 overflow-hidden">
                               {answer && (
                                 <div className="break-words overflow-wrap-anywhere">
                                   <MathText
@@ -2542,7 +2525,8 @@ function QuizPageContent() {
                                 <img
                                   src={answerImage}
                                   alt={`Answer ${answerNum}`}
-                                  className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-2"
+                                  className="h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1"
+                                  style={{ maxWidth: '100%', display: 'block' }}
                                 />
                               )}
                             </div>
@@ -2555,7 +2539,7 @@ function QuizPageContent() {
                               e.stopPropagation();
                               handleCheckAnswer(answerNum);
                             }}
-                            className="absolute right-3 top-3 px-3 py-1.5 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
+                            className="absolute right-2 top-1 px-2.5 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
                           >
                             CHECK
                           </button>
