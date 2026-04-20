@@ -16,6 +16,7 @@ import {
   loadMarkedForReview,
   toggleMarkedForReview,
 } from "@/lib/storage";
+import { loadAttempts, syncSessionToAttempts, AttemptsStore } from "@/lib/attempts";
 import {
   fetchQuestionsForQuiz,
   fetchQuestionsForTestQuiz,
@@ -95,6 +96,7 @@ function QuizPageContent() {
     return "vertical";
   });
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [priorAttempts, setPriorAttempts] = useState<AttemptsStore>({});
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [testName, setTestName] = useState<string | undefined>(undefined);
   const [sections, setSections] = useState<TestSection[]>([]);
@@ -217,6 +219,10 @@ function QuizPageContent() {
     // Load marked for review questions for practice mode
     const markedQuestions = loadMarkedForReview();
     setPracticeMarkedQuestions(markedQuestions);
+
+    // Snapshot prior attempts so the nav popup shows last-attempt markers
+    // (current session state takes precedence as the user answers).
+    setPriorAttempts(loadAttempts());
 
     const testIdFromUrl = searchParams.get("testId");
     const testModeFromUrl = searchParams.get("testMode") as 'practice' | 'test' | null;
@@ -397,6 +403,13 @@ function QuizPageContent() {
       saveSession(session);
     }
   }, [session, isPracticeMode]);
+
+  // Mirror session answer state into the persistent per-question attempts store,
+  // so later sessions can show prior correct/incorrect markers in the question popup.
+  useEffect(() => {
+    if (!session || questions.length === 0) return;
+    syncSessionToAttempts(session, questions);
+  }, [session, questions]);
 
   // Score snapshot — only updates when user clicks Next
   const [snapshotRawScore, setSnapshotRawScore] = useState(0);
@@ -2745,19 +2758,26 @@ function QuizPageContent() {
                     (index === session.currentQuestionIndex ||
                       siblingIdx === session.currentQuestionIndex);
 
-                  // Result display
+                  // Result display — session state wins; fall back to prior-attempt snapshot so
+                  // the popup still shows last-attempt markers before the user re-answers.
                   const checkedArray = session.checkedAnswers[q.id] || [];
                   const isChecked = checkedArray.length > 0;
                   const userAnswer = session.userAnswers[q.id];
                   const isAnswered = userAnswer !== null && userAnswer !== undefined;
                   const isCorrectAnswer = userAnswer === q.correctAnswer;
+                  const hasSessionState =
+                    isAnswered ||
+                    isChecked ||
+                    (session.dragOrderAnswers[q.id]?.length ?? 0) > 0;
+                  const priorAttempt = hasSessionState ? null : priorAttempts[q.id];
                   const shouldShowResult = isPracticeMode
-                    ? isAnswered
-                    : showCheckButton ? isChecked : false;
+                    ? isAnswered || !!priorAttempt
+                    : showCheckButton ? (isChecked || !!priorAttempt) : false;
                   const isCorrect = isPracticeMode
-                    ? isCorrectAnswer
-                    : isChecked &&
-                      checkedArray[checkedArray.length - 1] === q.correctAnswer;
+                    ? (isAnswered ? isCorrectAnswer : !!priorAttempt?.isCorrect)
+                    : isChecked
+                      ? checkedArray[checkedArray.length - 1] === q.correctAnswer
+                      : !!priorAttempt?.isCorrect;
                   const isMarked = isPracticeMode
                     ? practiceMarkedQuestions.has(q.id)
                     : session.markedForReview[q.id] || false;

@@ -1,12 +1,13 @@
 'use client';
 
 import { loadSession, clearSession, loadMarkedForReview, loadSkillProgress, AllSkillProgress } from '@/lib/storage';
+import { loadAttempts, AttemptsStore } from '@/lib/attempts';
 import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchAllDashboardData, DashboardQuestion } from '@/lib/supabase';
 import { Test, Subject } from '@/lib/types';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ThemeToggle from '@/components/ThemeToggle';
-import Image from 'next/image';
+import DashboardSidebar from '@/components/DashboardSidebar';
 import Link from 'next/link';
 
 type Tab = 'question-bank' | 'full-length-tests';
@@ -36,6 +37,7 @@ function HomeContent() {
   const [subjectQuestionsData, setSubjectQuestionsData] = useState<SubjectQuestionsData[]>([]);
   const [markedQuestions, setMarkedQuestions] = useState<Set<string>>(new Set());
   const [skillProgress, setSkillProgress] = useState<AllSkillProgress>({});
+  const [attempts, setAttempts] = useState<AttemptsStore>({});
   const [isLoading, setIsLoading] = useState(true);
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -81,6 +83,7 @@ function HomeContent() {
         const loadedSkillProgress = loadSkillProgress();
         setMarkedQuestions(loadedMarkedQuestions);
         setSkillProgress(loadedSkillProgress);
+        setAttempts(loadAttempts());
 
         const subjectData = formattedSubjects.map(subject => ({
           subject,
@@ -174,8 +177,11 @@ function HomeContent() {
       .map(([skillName, questionIdSet]) => {
         const questionIds = Array.from(questionIdSet);
         const markedCount = questionIds.filter(id => markedQuestions.has(id)).length;
+        // Prefer per-question attempt tracking (counts any question answered correctly,
+        // regardless of whether the user clicked CHECK). Falls back to legacy skillProgress.
+        const attemptCorrectCount = questionIds.filter(id => attempts[id]?.isCorrect).length;
         const progress = skillProgress[skillName];
-        const correctCount = progress?.correct || 0;
+        const correctCount = attemptCorrectCount > 0 ? attemptCorrectCount : (progress?.correct || 0);
 
         return {
           name: skillName,
@@ -230,98 +236,14 @@ function HomeContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 flex">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 w-64 bg-white dark:bg-neutral-900 border-r border-gray-100 dark:border-neutral-800 transform transition-transform duration-300 lg:transform-none lg:h-screen lg:shrink-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
-      >
-        <div className="flex flex-col h-full">
-          {/* Logo/Title */}
-          <div className="p-6 border-b border-gray-100 dark:border-neutral-800 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2.5">
-              <Image
-                src="/beaver-images/logo.png"
-                alt="Regents Ready"
-                width={36}
-                height={36}
-                className="rounded-lg"
-              />
-              <span className="text-lg font-bold text-gray-900 dark:text-neutral-100 tracking-tight">
-                Regents Ready
-              </span>
-            </Link>
-            <ThemeToggle />
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 p-4">
-            <ul className="space-y-2">
-              <li>
-                <button
-                  onClick={() => {
-                    handleTabChange('full-length-tests');
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                    activeTab === 'full-length-tests'
-                      ? 'bg-black dark:bg-white text-white dark:text-black'
-                      : 'text-gray-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800'
-                  }`}
-                >
-                  <svg width="20" height="20" className="flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span>Full-length Tests</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => {
-                    handleTabChange('question-bank');
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                    activeTab === 'question-bank'
-                      ? 'bg-black dark:bg-white text-white dark:text-black'
-                      : 'text-gray-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800'
-                  }`}
-                >
-                  <svg width="20" height="20" className="flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                  <span>Question Bank</span>
-                </button>
-              </li>
-            </ul>
-          </nav>
-
-          {/* Continue Session - in sidebar */}
-          {existingTest && (
-            <div className="p-4 border-t border-gray-100 dark:border-neutral-800">
-              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl p-3">
-                <p className="text-blue-800 dark:text-blue-300 text-xs font-bold mb-2 truncate">
-                  Continue: {existingTest.name}
-                </p>
-                <button
-                  onClick={handleContinueTest}
-                  className="w-full px-3 py-2 text-xs font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full transition-all"
-                >
-                  RESUME
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </aside>
+      <DashboardSidebar
+        activeItem={activeTab}
+        sidebarOpen={sidebarOpen}
+        onSidebarClose={() => setSidebarOpen(false)}
+        existingTest={existingTest}
+        onTabNavigate={(tab) => handleTabChange(tab)}
+        onContinueTest={handleContinueTest}
+      />
 
       {/* Main Content */}
       <main className="flex-1 min-h-screen">
