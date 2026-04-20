@@ -40,6 +40,7 @@ import MathText from "@/components/MathText";
 import BugReportModal from "@/components/BugReport/BugReportModal";
 import { getScaledScore } from "@/lib/results";
 import LiveScoreBeaver from "@/components/LiveScoreBeaver";
+import PracticeProgressBar from "@/components/PracticeProgressBar";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/components/ThemeProvider";
 import { GraphData, DEFAULT_GRAPH_DATA } from "@/components/GraphingTool/types";
@@ -97,6 +98,7 @@ function QuizPageContent() {
   });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [priorAttempts, setPriorAttempts] = useState<AttemptsStore>({});
+  const [revealedQuestionIds, setRevealedQuestionIds] = useState<Set<string>>(new Set());
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [testName, setTestName] = useState<string | undefined>(undefined);
   const [sections, setSections] = useState<TestSection[]>([]);
@@ -429,6 +431,16 @@ function QuizPageContent() {
   // Compute grouping info for parts vs grouped questions (must be before early returns)
   const groupingInfo = useMemo(() => computeGroupingInfo(questions), [questions]);
 
+  // Keyboard shortcuts listener — installed once. The actual handler is swapped in on every
+  // render via a ref assignment further down, after all closures are in scope. This keeps the
+  // hook call order stable even when the component early-returns before handlers are defined.
+  const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => keyHandlerRef.current(e);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Mode selection screen: testId present but no testMode chosen yet
   if (mounted && !isLoadingQuestions && testIdParam && !testModeParam && !isPracticeMode && !session) {
     return (
@@ -757,6 +769,23 @@ function QuizPageContent() {
       prevSnapshotRef.current = newRaw;
     }
 
+    // Reveal the current question (or all parts if it's a part group) on the practice progress bar.
+    if (isPracticeMode) {
+      setRevealedQuestionIds((prev) => {
+        const next = new Set(prev);
+        if (isPartQuestion) {
+          const groupIndices = getGroupFlatIndices(groupingInfo, session.currentQuestionIndex);
+          for (const i of groupIndices) {
+            const pq = questions[i];
+            if (pq) next.add(pq.id);
+          }
+        } else {
+          next.add(currentQuestion.id);
+        }
+        return next;
+      });
+    }
+
     const timeSpent = Math.floor(
       (Date.now() - session.lastQuestionStartTime) / 1000,
     );
@@ -914,6 +943,38 @@ function QuizPageContent() {
     }
   };
 
+  // Latest keybinding logic — assigned every render so the installed listener (registered once
+  // at the top of the component) always calls the freshest handler with current closures.
+  keyHandlerRef.current = (e: KeyboardEvent) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    const target = e.target as HTMLElement | null;
+    if (target) {
+      const tag = target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (target.isContentEditable) return;
+    }
+
+    if (showExplanation || showAllQuestions || showBugReport) return;
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleNext();
+      return;
+    }
+
+    if (isPartQuestion) return;
+    if (currentQuestion.questionType === 'drag-order') return;
+
+    if (e.key >= '1' && e.key <= '4') {
+      const n = parseInt(e.key, 10);
+      if (n >= 1 && n <= currentQuestion.answers.length) {
+        e.preventDefault();
+        handleAnswerSelect(n);
+      }
+    }
+  };
+
   // Compute answered count as display questions (part groups count as 1 when all parts answered)
   let answeredDisplayCount = 0;
   for (let d = 1; d <= groupingInfo.totalDisplayQuestions; d++) {
@@ -943,7 +1004,7 @@ function QuizPageContent() {
   return (
     <>
       <div
-        className={`${isGroupedQuestion ? 'h-screen overflow-hidden' : 'min-h-screen'} pb-16 transition-all duration-300 relative ${
+        className={`${isGroupedQuestion ? 'h-screen overflow-hidden' : ''} pb-16 transition-all duration-300 relative ${
           showCalculator ? "md:mr-[420px]" : ""
         }`}
         style={{ backgroundColor: "transparent", pointerEvents: "none" }}
@@ -2884,13 +2945,22 @@ function QuizPageContent() {
         </>
       )}
 
-      {/* Live Score Beaver — practice mode only */}
+      {/* Live Score Beaver — test-practice mode only */}
       {isTestPracticeMode && questions.length > 0 && session && (
         <LiveScoreBeaver
           scaledScore={snapshotScaledScore}
           rawScore={snapshotRawScore}
           totalPoints={liveTotalPoints}
           pointsGained={lastPointsGained}
+        />
+      )}
+
+      {/* Question-bank practice — per-question tick/cross progress bar */}
+      {isPracticeMode && questions.length > 0 && session && (
+        <PracticeProgressBar
+          questions={questions}
+          session={session}
+          revealedIds={revealedQuestionIds}
         />
       )}
 

@@ -95,8 +95,14 @@ export default function FullscreenDrawingCanvas({
 
     window.addEventListener('resize', handleResize);
 
+    // Also observe the container so the canvas re-fits when the surrounding
+    // content shrinks/grows (e.g. navigating between a long and short question).
+    const observer = new ResizeObserver(() => handleResize());
+    observer.observe(container);
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      observer.disconnect();
     };
   }, []);
 
@@ -216,7 +222,7 @@ export default function FullscreenDrawingCanvas({
   };
 
   return (
-    <div ref={containerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 50, minHeight: '100vh' }}>
+    <div ref={containerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 50 }}>
       {/* Drawing canvas - for user drawings */}
       <canvas
         ref={canvasRef}
