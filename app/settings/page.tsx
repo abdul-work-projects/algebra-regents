@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { clearAllAttempts, getAttemptCount } from '@/lib/attempts';
+import { clearAllTestAttempts, getTestAttemptCount } from '@/lib/testAttempts';
 import { clearSession, loadSession } from '@/lib/storage';
 import { fetchActiveTests, convertToTestFormat } from '@/lib/supabase';
 import { Test } from '@/lib/types';
@@ -11,6 +12,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
+  const [testAttemptCount, setTestAttemptCount] = useState(0);
   const [confirming, setConfirming] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -19,6 +21,7 @@ export default function SettingsPage() {
   useEffect(() => {
     setMounted(true);
     setAttemptCount(getAttemptCount());
+    setTestAttemptCount(getTestAttemptCount());
 
     (async () => {
       const session = loadSession();
@@ -31,8 +34,10 @@ export default function SettingsPage() {
 
   const handleClear = () => {
     clearAllAttempts();
+    clearAllTestAttempts();
     clearSession();
     setAttemptCount(0);
+    setTestAttemptCount(0);
     setExistingTest(null);
     setConfirming(false);
     setNotice('Practice history cleared.');
@@ -88,8 +93,8 @@ export default function SettingsPage() {
               Your answers are saved in this browser so the question navigation popup shows last-attempt markers. Clearing wipes saved answers and any resumable test session — start fresh next time.
             </p>
 
-            <div className="flex items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-800 rounded-xl">
-              <div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="p-4 bg-gray-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-800 rounded-xl">
                 <div className="text-2xl font-bold text-gray-900 dark:text-neutral-100">
                   {attemptCount}
                 </div>
@@ -97,11 +102,21 @@ export default function SettingsPage() {
                   Questions attempted
                 </div>
               </div>
+              <div className="p-4 bg-gray-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-800 rounded-xl">
+                <div className="text-2xl font-bold text-gray-900 dark:text-neutral-100">
+                  {testAttemptCount}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-neutral-400 uppercase tracking-wide mt-0.5">
+                  Tests completed
+                </div>
+              </div>
+            </div>
 
+            <div className="flex items-center justify-end gap-2">
               {!confirming ? (
                 <button
                   onClick={() => setConfirming(true)}
-                  disabled={attemptCount === 0}
+                  disabled={attemptCount === 0 && testAttemptCount === 0}
                   className="px-4 py-2 text-sm font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed rounded-full transition-all"
                 >
                   Clear all

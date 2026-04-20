@@ -2,6 +2,8 @@
 
 import { loadSession, clearSession, loadMarkedForReview, loadSkillProgress, AllSkillProgress } from '@/lib/storage';
 import { loadAttempts, AttemptsStore } from '@/lib/attempts';
+import { loadTestAttempts, TestAttempt } from '@/lib/testAttempts';
+import TestAttemptHistoryModal from '@/components/TestAttemptHistoryModal';
 import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchAllDashboardData, DashboardQuestion } from '@/lib/supabase';
 import { Test, Subject } from '@/lib/types';
 import { useEffect, useState, Suspense } from 'react';
@@ -42,6 +44,8 @@ function HomeContent() {
   const [markedQuestions, setMarkedQuestions] = useState<Set<string>>(new Set());
   const [skillProgress, setSkillProgress] = useState<AllSkillProgress>({});
   const [attempts, setAttempts] = useState<AttemptsStore>({});
+  const [testAttempts, setTestAttempts] = useState<TestAttempt[]>([]);
+  const [historyTestId, setHistoryTestId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -90,6 +94,7 @@ function HomeContent() {
         setMarkedQuestions(loadedMarkedQuestions);
         setSkillProgress(loadedSkillProgress);
         setAttempts(loadAttempts());
+        setTestAttempts(loadTestAttempts());
 
         const subjectData = formattedSubjects.map(subject => ({
           subject,
@@ -215,6 +220,18 @@ function HomeContent() {
       totalQuestions: filteredQuestions.length,
     };
   }).filter(subjectData => subjectData.totalQuestions > 0); // Remove subjects with no matching questions
+
+  // Per-test attempt lookup (sorted newest-first) for the Full-length Tests tab.
+  const attemptsByTest = (() => {
+    const map = new Map<string, TestAttempt[]>();
+    for (const a of testAttempts) {
+      const list = map.get(a.testId) || [];
+      list.push(a);
+      map.set(a.testId, list);
+    }
+    for (const list of map.values()) list.sort((a, b) => b.completedAt - a.completedAt);
+    return map;
+  })();
 
   // Overview stats: total attempts, accuracy, and per-skill breakdown for weak-area suggestions.
   const overview = (() => {
@@ -421,6 +438,85 @@ function HomeContent() {
                   ))}
                 </ul>
               )}
+            </div>
+
+            {/* Tests taken */}
+            <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-6 mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Tests taken</h3>
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
+                    Full-length tests you&apos;ve completed
+                  </p>
+                </div>
+              </div>
+
+              {(() => {
+                const summaries = Array.from(attemptsByTest.entries()).map(([testId, list]) => {
+                  const best = list.reduce((m, a) => Math.max(m, a.scaledScore), 0);
+                  const latest = list[0]; // list is sorted newest-first
+                  return {
+                    testId,
+                    testName: latest.testName,
+                    count: list.length,
+                    best,
+                    latestAt: latest.completedAt,
+                    latestScaled: latest.scaledScore,
+                  };
+                }).sort((a, b) => b.latestAt - a.latestAt);
+
+                if (summaries.length === 0) {
+                  return (
+                    <div className="py-8 text-center">
+                      <p className="text-sm text-gray-500 dark:text-neutral-400 mb-4">
+                        You haven&apos;t completed any full-length tests yet.
+                      </p>
+                      <button
+                        onClick={() => handleTabChange('full-length-tests')}
+                        className="px-4 py-2 text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full transition-all"
+                      >
+                        Browse tests
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <ul className="divide-y divide-gray-100 dark:divide-neutral-800">
+                    {summaries.map((s) => {
+                      const badgeClass =
+                        s.best >= 85 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : s.best >= 65 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                          : s.best >= 50 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                          : 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400';
+                      const latestDate = new Date(s.latestAt).toLocaleDateString(undefined, {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                      });
+                      return (
+                        <li key={s.testId} className="py-3 flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate">
+                              {s.testName}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
+                              {s.count} {s.count === 1 ? 'attempt' : 'attempts'} · last {latestDate}
+                            </div>
+                          </div>
+                          <div className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-bold ${badgeClass}`}>
+                            Best {s.best}
+                          </div>
+                          <button
+                            onClick={() => setHistoryTestId(s.testId)}
+                            className="shrink-0 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-neutral-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-full transition-all"
+                          >
+                            History
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                );
+              })()}
             </div>
           </div>
         ) : activeTab === 'question-bank' ? (
@@ -984,16 +1080,36 @@ function HomeContent() {
                         {/* Tests List */}
                         <div className="p-4">
                           <div className="space-y-0.5">
-                            {subjectTests.map((test) => (
-                              <div
-                                key={test.id}
-                                onClick={() => handleStartTest(test.id)}
-                                className="group/item flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
-                              >
-                                <span className="text-gray-700 dark:text-neutral-300 group-hover/item:underline">{test.name}</span>
-                                <span className="text-gray-400 dark:text-neutral-500 text-sm">{test.questionCount || 0} questions</span>
-                              </div>
-                            ))}
+                            {subjectTests.map((test) => {
+                              const myAttempts = attemptsByTest.get(test.id) || [];
+                              const best = myAttempts.reduce((m, a) => Math.max(m, a.scaledScore), 0);
+                              return (
+                                <div
+                                  key={test.id}
+                                  onClick={() => handleStartTest(test.id)}
+                                  className="group/item flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
+                                >
+                                  <span className="text-gray-700 dark:text-neutral-300 group-hover/item:underline truncate">{test.name}</span>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    {myAttempts.length > 0 && (
+                                      <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
+                                        Best {best}
+                                      </span>
+                                    )}
+                                    {myAttempts.length > 0 && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setHistoryTestId(test.id); }}
+                                        className="px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-neutral-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-full transition-all"
+                                        title="View attempt history"
+                                      >
+                                        {myAttempts.length}× history
+                                      </button>
+                                    )}
+                                    <span className="text-gray-400 dark:text-neutral-500 text-sm">{test.questionCount || 0} questions</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
@@ -1028,6 +1144,14 @@ function HomeContent() {
         )}
         </div>
       </main>
+
+      {historyTestId && (
+        <TestAttemptHistoryModal
+          testName={tests.find((t) => t.id === historyTestId)?.name || 'Test'}
+          attempts={attemptsByTest.get(historyTestId) || []}
+          onClose={() => setHistoryTestId(null)}
+        />
+      )}
     </div>
   );
 }

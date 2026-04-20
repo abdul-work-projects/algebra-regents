@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { loadSession, clearSession } from '@/lib/storage';
 import { calculateResults, getPerformanceLevel, formatTime, getScoreComment, getScaledScore } from '@/lib/results';
+import { saveTestAttempt } from '@/lib/testAttempts';
 import { fetchQuestionsForQuiz, fetchQuestionsForTestQuiz, fetchTestById, convertToTestFormat } from '@/lib/supabase';
 import { Question, QuizResult, Test } from '@/lib/types';
 import { computeGroupingInfo } from '@/lib/questionGrouping';
@@ -64,6 +65,31 @@ export default function ResultsPage() {
 
         const calculatedResult = calculateResults(dbQuestions, session);
         setResult(calculatedResult);
+
+        // Persist this test attempt to local history (idempotent — keyed by session start time).
+        if (session.testId && currentTest) {
+          const rawScore = calculatedResult.earnedPoints;
+          const scaledScore = getScaledScore(rawScore, currentTest.scaledScoreTable);
+          const correctCount = calculatedResult.questionResults.filter((r) => r.isCorrect).length;
+          const timeSpent = Math.max(0, Math.floor((Date.now() - session.startTime) / 1000));
+          saveTestAttempt({
+            id: `${session.testId}-${session.startTime}`,
+            testId: session.testId,
+            testName: currentTest.name,
+            completedAt: Date.now(),
+            rawScore,
+            scaledScore,
+            earnedPoints: calculatedResult.earnedPoints,
+            totalPoints: calculatedResult.totalPoints,
+            correctCount,
+            totalQuestions: calculatedResult.totalDisplayQuestions || calculatedResult.totalQuestions,
+            accuracyPercent: calculatedResult.totalQuestions > 0
+              ? Math.round((correctCount / calculatedResult.totalQuestions) * 100)
+              : 0,
+            timeSpentSeconds: timeSpent,
+            testMode: session.testMode,
+          });
+        }
       } catch (error) {
         console.error('Error fetching questions:', error);
         router.push('/dashboard');
