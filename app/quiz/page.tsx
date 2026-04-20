@@ -26,6 +26,7 @@ import {
 import DragOrderAnswer from "@/components/DragOrderAnswer";
 import BucketOrderAnswer from "@/components/BucketOrderAnswer";
 import ScrollablePassage from "@/components/ScrollablePassage";
+import PassageIframe from "@/components/PassageIframe";
 import SplitPane from "@/components/SplitPane";
 import { seededShuffle } from "@/lib/shuffle";
 import { computeGroupingInfo, getGroupFlatIndices, isDisplayGroupAnswered } from "@/lib/questionGrouping";
@@ -1468,7 +1469,7 @@ function QuizPageContent() {
                 minRight={25}
                 className="h-full"
                 left={
-                  <div className="px-4 py-3 pb-16">
+                  <div className="px-4 py-3 pb-16 h-full flex flex-col">
                     {/* Passage Header with Drawing Tools */}
                     <div className="flex items-center justify-between mb-3 flex-wrap gap-y-1 relative" style={{ zIndex: 100, transform: "translateZ(0)" }}>
                       <div className="flex items-center gap-2">
@@ -1675,6 +1676,20 @@ function QuizPageContent() {
                           src={currentQuestion.passage.passageImageUrl}
                           alt="Passage"
                           className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
+                        />
+                      </div>
+                    )}
+
+                    {/* Passage Iframe (external copyrighted content) */}
+                    {currentQuestion.passage?.iframeUrl && (
+                      <div
+                        className={`mb-3 ${currentQuestion.passage.passageText ? 'h-[60vh] shrink-0' : 'flex-1 min-h-[400px]'}`}
+                        style={{ zIndex: 60, pointerEvents: "auto", position: "relative" }}
+                      >
+                        <PassageIframe
+                          url={currentQuestion.passage.iframeUrl}
+                          page={currentQuestion.passage.iframePage}
+                          className="h-full"
                         />
                       </div>
                     )}
@@ -1898,6 +1913,20 @@ function QuizPageContent() {
                     src={currentQuestion.passage.passageImageUrl}
                     alt="Passage"
                     className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
+                  />
+                </div>
+              )}
+              {currentQuestion.passage?.iframeUrl && (
+                <div className="mb-4">
+                  {!currentQuestion.passage.passageImageUrl && (
+                    <p className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-1">
+                      Passage
+                    </p>
+                  )}
+                  <PassageIframe
+                    url={currentQuestion.passage.iframeUrl}
+                    page={currentQuestion.passage.iframePage}
+                    className="h-[70vh]"
                   />
                 </div>
               )}
@@ -2149,6 +2178,22 @@ function QuizPageContent() {
                     src={currentQuestion.passage.passageImageUrl}
                     alt="Passage"
                     className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
+                  />
+                </div>
+              )}
+
+              {/* Passage Iframe (external copyrighted content) */}
+              {currentQuestion.passage?.iframeUrl && (
+                <div className="mb-4" style={{ zIndex: 60, pointerEvents: "auto", position: "relative" }}>
+                  {!currentQuestion.passage.passageImageUrl && (
+                    <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">
+                      Passage
+                    </div>
+                  )}
+                  <PassageIframe
+                    url={currentQuestion.passage.iframeUrl}
+                    page={currentQuestion.passage.iframePage}
+                    className="h-[70vh]"
                   />
                 </div>
               )}

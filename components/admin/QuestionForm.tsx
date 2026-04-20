@@ -23,6 +23,10 @@ interface QuestionFormProps {
   onPassageAboveTextChange: (text: string) => void;
   passageText: string;
   onPassageTextChange: (text: string) => void;
+  passageIframeUrl: string;
+  onPassageIframeUrlChange: (url: string) => void;
+  passageIframePage: number | "";
+  onPassageIframePageChange: (page: number | "") => void;
   passageImage: File | null;
   passageImagePreview: string | null;
   onPassageImageChange: (file: File | null, preview: string | null) => void;
@@ -56,6 +60,10 @@ export default function QuestionForm({
   onPassageAboveTextChange,
   passageText,
   onPassageTextChange,
+  passageIframeUrl,
+  onPassageIframeUrlChange,
+  passageIframePage,
+  onPassageIframePageChange,
   passageImage,
   passageImagePreview,
   onPassageImageChange,
@@ -380,6 +388,34 @@ export default function QuestionForm({
               rows={12}
               inputClassName="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
             />
+            <div>
+              <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">
+                Iframe URL (for copyrighted content)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={passageIframeUrl}
+                  onChange={(e) => onPassageIframeUrlChange(e.target.value)}
+                  placeholder="https://www.nysedregents.org/.../exam.pdf"
+                  className="flex-1 px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  value={passageIframePage}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    onPassageIframePageChange(v === "" ? "" : Math.max(1, parseInt(v, 10) || 1));
+                  }}
+                  placeholder="Page"
+                  className="w-24 px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+                />
+              </div>
+              <p className="text-[11px] text-blue-700 dark:text-blue-400 mt-1">
+                Embeds the URL in a scrollable iframe. Optional start page number for PDFs.
+              </p>
+            </div>
           </div>
         )}
 

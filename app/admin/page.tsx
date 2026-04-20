@@ -113,6 +113,8 @@ export default function AdminPage() {
   const [passageType, setPassageType] = useState<'grouped' | 'parts'>('grouped');
   const [passageAboveText, setPassageAboveText] = useState("");
   const [passageText, setPassageText] = useState("");
+  const [passageIframeUrl, setPassageIframeUrl] = useState("");
+  const [passageIframePage, setPassageIframePage] = useState<number | "">("");
   const [passageImage, setPassageImage] = useState<File | null>(null);
   const [passageImagePreview, setPassageImagePreview] = useState<string | null>(null);
   const [passageImageSize, setPassageImageSize] = useState<"small" | "medium" | "large" | "extra-large">("large");
@@ -418,6 +420,8 @@ export default function AdminPage() {
     setEditingExtraPartIds([]);
     setPassageAboveText("");
     setPassageText("");
+    setPassageIframeUrl("");
+    setPassageIframePage("");
     setPassageImage(null);
     setPassageImagePreview(null);
     setPassageImageSize("large");
@@ -496,6 +500,8 @@ export default function AdminPage() {
         const passage = question.passages;
         setPassageAboveText(passage?.above_text || "");
         setPassageText(passage?.passage_text || "");
+        setPassageIframeUrl(passage?.iframe_url || "");
+        setPassageIframePage(passage?.iframe_page ?? "");
         setPassageImagePreview(passage?.passage_image_url || null);
         setPassageImage(null);
         setPassageImageSize((passage?.image_size as "small" | "medium" | "large" | "extra-large") || "large");
@@ -578,7 +584,7 @@ export default function AdminPage() {
     if (selectedTestIds.length === 0) { setNotification({ type: "error", message: "Question must be assigned to at least one test" }); return; }
 
     if (isGroupedQuestion) {
-      if (!passageText.trim() && !passageAboveText.trim() && !passageImage && !passageImagePreview) { setNotification({ type: "error", message: "Grouped questions must have a passage (text or image)" }); return; }
+      if (!passageText.trim() && !passageAboveText.trim() && !passageImage && !passageImagePreview && !passageIframeUrl.trim()) { setNotification({ type: "error", message: "Grouped questions must have a passage (text, image, or iframe URL)" }); return; }
       // Validate all secondary forms (q2 + extra parts)
       const secondaryForms = [q2, ...extraPartStates];
       const isPartsMode = passageType === 'parts';
@@ -645,7 +651,7 @@ export default function AdminPage() {
         }));
 
         const result = await createPassageWithQuestions(
-          { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: passageImageUrl, image_size: passageImageSize, type: passageType },
+          { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: passageImageUrl, iframe_url: passageIframeUrl.trim() || null, iframe_page: passageIframePage === "" ? null : Number(passageIframePage), image_size: passageImageSize, type: passageType },
           questionsToCreate
         );
         if (result) {
@@ -659,7 +665,7 @@ export default function AdminPage() {
       } else if (isGroupedQuestion && editingId && editingQ2Id && editingPassageId) {
         let pImageUrl: string | null = passageImagePreview;
         if (passageImage) pImageUrl = await uploadImage("question-images", passageImage, `passages/${Date.now()}-${sanitizeFilename(passageImage.name)}`);
-        const passageResult = await updatePassage(editingPassageId, { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: pImageUrl, image_size: passageImageSize, type: passageType });
+        const passageResult = await updatePassage(editingPassageId, { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: pImageUrl, iframe_url: passageIframeUrl.trim() || null, iframe_page: passageIframePage === "" ? null : Number(passageIframePage), image_size: passageImageSize, type: passageType });
         if (!passageResult) throw new Error("Failed to update passage");
 
         const uploadQuestionImages = async (form: typeof q1, prefix: string) => {
@@ -992,6 +998,10 @@ export default function AdminPage() {
               onPassageAboveTextChange={setPassageAboveText}
               passageText={passageText}
               onPassageTextChange={setPassageText}
+              passageIframeUrl={passageIframeUrl}
+              onPassageIframeUrlChange={setPassageIframeUrl}
+              passageIframePage={passageIframePage}
+              onPassageIframePageChange={setPassageIframePage}
               passageImage={passageImage}
               passageImagePreview={passageImagePreview}
               onPassageImageChange={(file, preview) => { setPassageImage(file); setPassageImagePreview(preview); }}

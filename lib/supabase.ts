@@ -42,6 +42,8 @@ export interface DatabasePassage {
   above_text: string | null;
   passage_text: string | null;
   passage_image_url: string | null;
+  iframe_url: string | null;
+  iframe_page: number | null;
   image_size: 'small' | 'medium' | 'large' | 'extra-large' | null;
   created_at: string;
   updated_at: string;
@@ -323,6 +325,8 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: 
       aboveText: dbQuestion.passages.above_text || undefined,
       passageText: dbQuestion.passages.passage_text || undefined,
       passageImageUrl: dbQuestion.passages.passage_image_url || undefined,
+      iframeUrl: dbQuestion.passages.iframe_url || undefined,
+      iframePage: dbQuestion.passages.iframe_page || undefined,
       imageSize: dbQuestion.passages.image_size || 'large',
     } : undefined,
     sectionId: sectionInfo?.sectionId,
@@ -1278,6 +1282,8 @@ export function convertToPassageFormat(dbPassage: DatabasePassage): Passage {
     aboveText: dbPassage.above_text || undefined,
     passageText: dbPassage.passage_text || undefined,
     passageImageUrl: dbPassage.passage_image_url || undefined,
+    iframeUrl: dbPassage.iframe_url || undefined,
+    iframePage: dbPassage.iframe_page || undefined,
     imageSize: dbPassage.image_size || 'large',
     createdAt: dbPassage.created_at,
     updatedAt: dbPassage.updated_at,
@@ -1289,6 +1295,8 @@ export async function createPassage(passage: {
   above_text?: string | null;
   passage_text?: string | null;
   passage_image_url?: string | null;
+  iframe_url?: string | null;
+  iframe_page?: number | null;
   image_size?: string | null;
 }): Promise<DatabasePassage | null> {
   const { data, error } = await supabase
@@ -1378,6 +1386,8 @@ export async function createPassageWithQuestions(
     above_text?: string | null;
     passage_text?: string | null;
     passage_image_url?: string | null;
+    iframe_url?: string | null;
+    iframe_page?: number | null;
     image_size?: string | null;
     type?: 'grouped' | 'parts';
   },
@@ -1433,6 +1443,8 @@ export async function linkQuestionsToNewPassage(
     above_text?: string | null;
     passage_text?: string | null;
     passage_image_url?: string | null;
+    iframe_url?: string | null;
+    iframe_page?: number | null;
     image_size?: string | null;
     type?: 'grouped' | 'parts';
   }

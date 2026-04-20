@@ -4,6 +4,8 @@ export interface Passage {
   aboveText?: string;
   passageText?: string;
   passageImageUrl?: string;
+  iframeUrl?: string;
+  iframePage?: number;
   imageSize?: 'small' | 'medium' | 'large' | 'extra-large';
   createdAt?: string;
   updatedAt?: string;
