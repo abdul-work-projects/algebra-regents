@@ -6,14 +6,16 @@ import { useRouter } from 'next/navigation';
 import ThemeToggle from './ThemeToggle';
 import { Test } from '@/lib/types';
 
-export type SidebarItem = 'full-length-tests' | 'question-bank' | 'settings';
+export type SidebarItem = 'overview' | 'full-length-tests' | 'question-bank' | 'settings';
+
+type NavTab = 'overview' | 'full-length-tests' | 'question-bank';
 
 interface DashboardSidebarProps {
   activeItem: SidebarItem;
   sidebarOpen: boolean;
   onSidebarClose: () => void;
   existingTest?: Test | null;
-  onTabNavigate?: (tab: 'full-length-tests' | 'question-bank') => void;
+  onTabNavigate?: (tab: NavTab) => void;
   onContinueTest?: () => void;
 }
 
@@ -27,7 +29,7 @@ export default function DashboardSidebar({
 }: DashboardSidebarProps) {
   const router = useRouter();
 
-  const handleTab = (tab: 'full-length-tests' | 'question-bank') => {
+  const handleTab = (tab: NavTab) => {
     if (onTabNavigate) {
       onTabNavigate(tab);
     } else {
@@ -87,6 +89,14 @@ export default function DashboardSidebar({
           {/* Navigation */}
           <nav className="flex-1 p-4">
             <ul className="space-y-2">
+              <li>
+                <button onClick={() => handleTab('overview')} className={tabButtonClass('overview')}>
+                  <svg width="20" height="20" className="flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  <span>Overview</span>
+                </button>
+              </li>
               <li>
                 <button onClick={() => handleTab('full-length-tests')} className={tabButtonClass('full-length-tests')}>
                   <svg width="20" height="20" className="flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

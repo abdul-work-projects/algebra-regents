@@ -10,7 +10,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import Link from 'next/link';
 
-type Tab = 'question-bank' | 'full-length-tests';
+type Tab = 'overview' | 'question-bank' | 'full-length-tests';
 
 interface SkillInfo {
   name: string;
@@ -31,7 +31,11 @@ function HomeContent() {
   const tabParam = searchParams.get('tab');
 
   const [activeTab, setActiveTab] = useState<Tab>(
-    tabParam === 'question-bank' ? 'question-bank' : 'full-length-tests'
+    tabParam === 'question-bank'
+      ? 'question-bank'
+      : tabParam === 'full-length-tests'
+      ? 'full-length-tests'
+      : 'overview'
   );
   const [tests, setTests] = useState<Test[]>([]);
   const [subjectQuestionsData, setSubjectQuestionsData] = useState<SubjectQuestionsData[]>([]);
@@ -55,6 +59,8 @@ function HomeContent() {
       setActiveTab('question-bank');
     } else if (tabParam === 'full-length-tests') {
       setActiveTab('full-length-tests');
+    } else if (tabParam === 'overview' || !tabParam) {
+      setActiveTab('overview');
     }
   }, [tabParam]);
 
@@ -210,6 +216,62 @@ function HomeContent() {
     };
   }).filter(subjectData => subjectData.totalQuestions > 0); // Remove subjects with no matching questions
 
+  // Overview stats: total attempts, accuracy, and per-skill breakdown for weak-area suggestions.
+  const overview = (() => {
+    const attemptedIds = Object.keys(attempts);
+    const totalAttempted = attemptedIds.length;
+    const totalCorrect = attemptedIds.reduce((n, id) => n + (attempts[id].isCorrect ? 1 : 0), 0);
+    const totalIncorrect = totalAttempted - totalCorrect;
+    const accuracyPercent = totalAttempted > 0 ? Math.round((totalCorrect / totalAttempted) * 100) : 0;
+
+    // Aggregate per-skill stats across all subjects.
+    // Map: skillName -> { attempted, correct, subjectId (primary = subject with most questions for this skill) }
+    const skillAgg = new Map<string, { attempted: number; correct: number; subjectCounts: Map<string, number>; totalQuestions: number }>();
+    subjectQuestionsData.forEach(({ subject, questions }) => {
+      questions.forEach((q) => {
+        (q.skills || []).forEach((skill) => {
+          let entry = skillAgg.get(skill);
+          if (!entry) {
+            entry = { attempted: 0, correct: 0, subjectCounts: new Map(), totalQuestions: 0 };
+            skillAgg.set(skill, entry);
+          }
+          entry.totalQuestions++;
+          entry.subjectCounts.set(subject.id, (entry.subjectCounts.get(subject.id) || 0) + 1);
+          const a = attempts[q.id];
+          if (a) {
+            entry.attempted++;
+            if (a.isCorrect) entry.correct++;
+          }
+        });
+      });
+    });
+
+    const skillStats = Array.from(skillAgg.entries()).map(([name, e]) => {
+      // Pick the subject where this skill is most represented so Practice deep-link is sensible.
+      let primarySubjectId = '';
+      let max = -1;
+      for (const [sid, count] of e.subjectCounts) {
+        if (count > max) { max = count; primarySubjectId = sid; }
+      }
+      return {
+        name,
+        subjectId: primarySubjectId,
+        attempted: e.attempted,
+        correct: e.correct,
+        incorrect: e.attempted - e.correct,
+        totalQuestions: e.totalQuestions,
+        accuracy: e.attempted > 0 ? Math.round((e.correct / e.attempted) * 100) : 0,
+      };
+    });
+
+    const weakSkills = skillStats
+      .filter((s) => s.attempted >= 2 && s.accuracy < 70)
+      .sort((a, b) => a.accuracy - b.accuracy)
+      .slice(0, 10);
+
+    return { totalAttempted, totalCorrect, totalIncorrect, accuracyPercent, weakSkills };
+  })();
+
   // Helper to toggle tag selection
   const toggleTag = (tagName: string) => {
     setSelectedTags(prev =>
@@ -258,7 +320,7 @@ function HomeContent() {
             </svg>
           </button>
           <h1 className="text-lg font-bold text-gray-900 dark:text-neutral-100 tracking-tight">
-            {activeTab === 'question-bank' ? 'Question Bank' : 'Full-length Tests'}
+            {activeTab === 'overview' ? 'Overview' : activeTab === 'question-bank' ? 'Question Bank' : 'Full-length Tests'}
           </h1>
           <div className="ml-auto">
             <ThemeToggle />
@@ -267,7 +329,101 @@ function HomeContent() {
 
         {/* Content Area */}
         <div className="max-w-7xl mx-auto px-6 py-8">
-        {activeTab === 'question-bank' ? (
+        {activeTab === 'overview' ? (
+          <div>
+            <div className="mb-6 hidden lg:block">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-neutral-100 tracking-tight">Overview</h2>
+              <p className="text-gray-600 dark:text-neutral-400 mt-1">Your progress and areas to focus on</p>
+            </div>
+
+            {/* Stat tiles */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-5">
+                <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">Attempted</div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-neutral-100 mt-1.5">{overview.totalAttempted}</div>
+              </div>
+              <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-5">
+                <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">Accuracy</div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-neutral-100 mt-1.5">{overview.accuracyPercent}%</div>
+              </div>
+              <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-5">
+                <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">Correct</div>
+                <div className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1.5">{overview.totalCorrect}</div>
+              </div>
+              <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-5">
+                <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">Incorrect</div>
+                <div className="text-3xl font-bold text-rose-600 dark:text-rose-400 mt-1.5">{overview.totalIncorrect}</div>
+              </div>
+            </div>
+
+            {/* Areas to improve */}
+            <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Areas to improve</h3>
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
+                    Skills where your accuracy is below 70% (at least 2 attempts)
+                  </p>
+                </div>
+              </div>
+
+              {overview.totalAttempted === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-gray-500 dark:text-neutral-400 mb-4">
+                    You haven&apos;t attempted any questions yet.
+                  </p>
+                  <button
+                    onClick={() => handleTabChange('question-bank')}
+                    className="px-4 py-2 text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full transition-all"
+                  >
+                    Browse question bank
+                  </button>
+                </div>
+              ) : overview.weakSkills.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-gray-500 dark:text-neutral-400">
+                    Nothing to flag yet. Keep practicing and we&apos;ll surface weak spots here.
+                  </p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-gray-100 dark:divide-neutral-800">
+                  {overview.weakSkills.map((skill) => (
+                    <li key={skill.name} className="py-3 flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate">
+                            {skill.name}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-neutral-400 shrink-0">
+                            {skill.correct}/{skill.attempted} correct · {skill.accuracy}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-gray-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              skill.accuracy < 40
+                                ? 'bg-rose-500'
+                                : skill.accuracy < 60
+                                ? 'bg-orange-500'
+                                : 'bg-yellow-500'
+                            }`}
+                            style={{ width: `${Math.max(skill.accuracy, 4)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handlePracticeSkill(skill.name, skill.subjectId)}
+                        className="shrink-0 px-3 py-1.5 text-xs font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full transition-all"
+                      >
+                        Practice
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'question-bank' ? (
           <div>
             {/* Header + Filters */}
             <div className="mb-6">
