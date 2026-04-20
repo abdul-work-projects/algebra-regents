@@ -222,15 +222,14 @@ export default function DragOrderAnswer({
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      setOrderedItems(prev => {
-        const oldIndex = prev.findIndex(item => item.id === active.id);
-        const newIndex = prev.findIndex(item => item.id === over.id);
-        const newArr = arrayMove(prev, oldIndex, newIndex);
-        const newTexts = newArr.map(item => item.text);
-        lastEmittedRef.current = newTexts;
-        onOrderChange(newTexts);
-        return newArr;
-      });
+      const oldIndex = orderedItems.findIndex(item => item.id === active.id);
+      const newIndex = orderedItems.findIndex(item => item.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const newArr = arrayMove(orderedItems, oldIndex, newIndex);
+      const newTexts = newArr.map(item => item.text);
+      lastEmittedRef.current = newTexts;
+      setOrderedItems(newArr);
+      onOrderChange(newTexts);
     }
   };
 

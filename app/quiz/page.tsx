@@ -2971,7 +2971,7 @@ function QuizPageContent() {
               ) ? (
                 isPracticeMode ? (
                   <button
-                    onClick={() => router.push("/?tab=question-bank")}
+                    onClick={() => router.push("/dashboard?tab=question-bank")}
                     className="px-4 py-1.5 md:px-6 md:py-2.5 text-xs md:text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full shadow-md transition-all"
                   >
                     DONE
