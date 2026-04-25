@@ -2,11 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { TestSection } from '@/lib/types';
+import DocumentsEditor, { DocumentDraft, newDocId } from '@/components/admin/DocumentsEditor';
+import { docsToDrafts } from '@/hooks/useQuestionForm';
 
 interface SectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: { name: string; description: string; referenceImageUrl: string; referenceImageFile?: File | null }) => void | Promise<void>;
+  onSave: (data: {
+    name: string;
+    description: string;
+    referenceImageUrl: string;
+    referenceImageFile?: File | null;
+    referenceDocuments: DocumentDraft[];
+  }) => void | Promise<void>;
   section?: TestSection | null;
   title?: string;
 }
@@ -17,6 +25,7 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
   const [referenceImageUrl, setReferenceImageUrl] = useState('');
   const [referenceImageFile, setReferenceImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [referenceDocuments, setReferenceDocuments] = useState<DocumentDraft[]>([]);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -26,11 +35,20 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
       setDescription(section.description || '');
       setReferenceImageUrl(section.referenceImageUrl || '');
       setPreviewUrl(section.referenceImageUrl || null);
+      const existing = section.referenceDocuments;
+      if (existing && existing.length > 0) {
+        setReferenceDocuments(docsToDrafts(existing));
+      } else if (section.referenceImageUrl) {
+        setReferenceDocuments([{ id: newDocId(), type: 'image', file: null, url: section.referenceImageUrl }]);
+      } else {
+        setReferenceDocuments([]);
+      }
     } else {
       setName('');
       setDescription('');
       setReferenceImageUrl('');
       setPreviewUrl(null);
+      setReferenceDocuments([]);
     }
     setReferenceImageFile(null);
   }, [section, isOpen]);
@@ -82,6 +100,7 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
         description: description.trim(),
         referenceImageUrl: referenceImageFile ? '' : referenceImageUrl.trim(),
         referenceImageFile: referenceImageFile,
+        referenceDocuments,
       });
     } finally {
       setSaving(false);
@@ -187,9 +206,16 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
                 className="w-full text-sm text-gray-700 dark:text-neutral-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-gray-700 dark:file:bg-neutral-800 dark:file:text-neutral-300 hover:file:bg-gray-200 dark:hover:file:bg-neutral-700 file:cursor-pointer cursor-pointer"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-neutral-400">
-                Students in this section will see this reference sheet. Leave empty to use the default.
+                Legacy single-image upload. Use the Documents list below for multiple images / PDFs.
               </p>
             </div>
+
+            <DocumentsEditor
+              title="Reference Documents"
+              value={referenceDocuments}
+              onChange={setReferenceDocuments}
+              emptyHint="Add reference images or PDFs (multi-doc with thumbnail switcher)."
+            />
           </div>
 
           {/* Footer */}

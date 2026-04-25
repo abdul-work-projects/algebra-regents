@@ -1,11 +1,25 @@
+export type DocumentType = 'image' | 'pdf';
+
+export type DocumentSize = 'small' | 'medium' | 'large' | 'extra-large';
+
+export interface QuestionDocument {
+  type: DocumentType;
+  url: string;
+  page?: number;          // PDF only
+  label?: string;         // optional human label, e.g. for reference modal thumbnails
+  position?: 'above' | 'below'; // for question_documents / passage_documents
+  size?: DocumentSize;    // image-size class hint, falls back to parent default when absent
+}
+
 export interface Passage {
   id: string;
   type?: 'grouped' | 'parts';
   aboveText?: string;
   passageText?: string;
-  passageImageUrl?: string;
-  iframeUrl?: string;
+  passageImageUrl?: string;       // legacy single image — prefer passageDocuments
+  iframeUrl?: string;             // legacy single PDF — prefer passageDocuments
   iframePage?: number;
+  passageDocuments?: QuestionDocument[];
   imageSize?: 'small' | 'medium' | 'large' | 'extra-large';
   createdAt?: string;
   updatedAt?: string;
@@ -15,8 +29,10 @@ export interface Question {
   id: string;
   questionText?: string; // Optional question text (can have text, image, or both)
   aboveImageText?: string; // Text displayed above the question image
-  imageFilename?: string; // Optional question image (can have text, image, or both)
-  referenceImageUrl?: string; // Reference image URL
+  imageFilename?: string; // Legacy single question image — prefer questionDocuments
+  referenceImageUrl?: string; // Legacy single reference image — prefer referenceDocuments
+  questionDocuments?: QuestionDocument[];   // Multi-doc embedded in question body
+  referenceDocuments?: QuestionDocument[];  // Multi-doc reference materials
   answers: string[];
   answerImageUrls?: (string | undefined)[]; // Optional image URLs for each answer (1-4), can be undefined to preserve indices
   answerLayout?: 'grid' | 'list' | 'row'; // 'grid' = 2x2, 'list' = 1x4 (default), 'row' = 4x1
@@ -41,7 +57,8 @@ export interface TestSection {
   testId: string;
   name: string;
   description?: string;
-  referenceImageUrl?: string; // Section-specific reference sheet
+  referenceImageUrl?: string; // Legacy single reference image — prefer referenceDocuments
+  referenceDocuments?: QuestionDocument[];
   displayOrder: number;
   questionCount?: number; // computed field
 }

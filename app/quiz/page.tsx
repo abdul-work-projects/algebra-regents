@@ -31,16 +31,17 @@ import PassageIframe from "@/components/PassageIframe";
 import SplitPane from "@/components/SplitPane";
 import { seededShuffle } from "@/lib/shuffle";
 import { computeGroupingInfo, getGroupFlatIndices, isDisplayGroupAnswered } from "@/lib/questionGrouping";
-import { resolveReferenceImage } from "@/lib/reference";
+import { resolveReferenceDocs } from "@/lib/reference";
 import FullscreenDrawingCanvas from "@/components/FullscreenDrawingCanvas";
 import Timer from "@/components/Timer";
 import ExplanationSlider from "@/components/ExplanationSlider";
-import ReferenceImageModal from "@/components/ReferenceImageModal";
+import ReferenceDocsModal from "@/components/ReferenceDocsModal";
 import MathText from "@/components/MathText";
 import BugReportModal from "@/components/BugReport/BugReportModal";
 import { getScaledScore } from "@/lib/results";
 import LiveScoreBeaver from "@/components/LiveScoreBeaver";
 import PracticeProgressBar from "@/components/PracticeProgressBar";
+import DocsList from "@/components/DocsList";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/components/ThemeProvider";
 import { GraphData, DEFAULT_GRAPH_DATA } from "@/components/GraphingTool/types";
@@ -1543,7 +1544,7 @@ function QuizPageContent() {
                 minRight={25}
                 className="h-full"
                 left={
-                  <div className="px-4 py-3 pb-16 h-full flex flex-col">
+                  <div className="px-4 py-3 pb-16 min-h-full flex flex-col">
                     {/* Passage Header with Drawing Tools */}
                     <div className="flex items-center justify-between mb-3 flex-wrap gap-y-1 relative" style={{ zIndex: 100, transform: "translateZ(0)" }}>
                       <div className="flex items-center gap-2">
@@ -1743,26 +1744,16 @@ function QuizPageContent() {
                       </div>
                     )}
 
-                    {/* Passage Image */}
-                    {currentQuestion.passage?.passageImageUrl && (
-                      <div className="mb-3 shrink-0">
-                        <img
-                          src={currentQuestion.passage.passageImageUrl}
-                          alt="Passage"
-                          className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
-                        />
-                      </div>
-                    )}
-
-                    {/* Passage Iframe (external copyrighted content) */}
-                    {currentQuestion.passage?.iframeUrl && (
+                    {/* Passage Documents (images / PDFs) */}
+                    {currentQuestion.passage?.passageDocuments && currentQuestion.passage.passageDocuments.length > 0 && (
                       <div
-                        className={`mb-3 ${currentQuestion.passage.passageText ? 'h-[60vh] shrink-0' : 'flex-1 min-h-[400px]'}`}
+                        className={`mb-3 ${currentQuestion.passage.passageText ? 'shrink-0' : 'flex-1 min-h-[400px]'}`}
                         style={{ zIndex: 60, pointerEvents: "auto", position: "relative" }}
                       >
-                        <PassageIframe
-                          url={currentQuestion.passage.iframeUrl}
-                          page={currentQuestion.passage.iframePage}
+                        <DocsList
+                          docs={currentQuestion.passage.passageDocuments}
+                          pdfHeight={currentQuestion.passage.passageText ? '60vh' : '100%'}
+                          imageMaxWidthClass={currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
                           className="h-full"
                         />
                       </div>
@@ -1810,12 +1801,12 @@ function QuizPageContent() {
                             />
                           </div>
                         )}
-                        {currentQuestion.imageFilename && (
+                        {currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position !== 'below').length > 0 && (
                           <div className="w-full mb-2">
-                            <img
-                              src={currentQuestion.imageFilename}
-                              alt="Question"
-                              className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
+                            <DocsList
+                              docs={currentQuestion.questionDocuments.filter((d) => d.position !== 'below')}
+                              pdfHeight="50vh"
+                              imageMaxWidthClass={currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
                             />
                           </div>
                         )}
@@ -1824,6 +1815,15 @@ function QuizPageContent() {
                             <MathText
                               text={currentQuestion.questionText}
                               className="leading-relaxed dark:text-neutral-200"
+                            />
+                          </div>
+                        )}
+                        {currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position === 'below').length > 0 && (
+                          <div className="w-full mt-2">
+                            <DocsList
+                              docs={currentQuestion.questionDocuments.filter((d) => d.position === 'below')}
+                              pdfHeight="50vh"
+                              imageMaxWidthClass={currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
                             />
                           </div>
                         )}
@@ -1978,35 +1978,21 @@ function QuizPageContent() {
                   />
                 </div>
               )}
-              {currentQuestion.passage?.passageImageUrl && (
+              {currentQuestion.passage?.passageDocuments && currentQuestion.passage.passageDocuments.length > 0 && (
                 <div className="mb-3">
                   <p className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-1">
                     Passage
                   </p>
-                  <img
-                    src={currentQuestion.passage.passageImageUrl}
-                    alt="Passage"
-                    className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
-                  />
-                </div>
-              )}
-              {currentQuestion.passage?.iframeUrl && (
-                <div className="mb-4">
-                  {!currentQuestion.passage.passageImageUrl && (
-                    <p className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-1">
-                      Passage
-                    </p>
-                  )}
-                  <PassageIframe
-                    url={currentQuestion.passage.iframeUrl}
-                    page={currentQuestion.passage.iframePage}
-                    className="h-[70vh]"
+                  <DocsList
+                    docs={currentQuestion.passage.passageDocuments}
+                    pdfHeight="70vh"
+                    imageMaxWidthClass={currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
                   />
                 </div>
               )}
               {currentQuestion.passage?.passageText && (
                 <div className="mb-4">
-                  {!currentQuestion.passage.passageImageUrl && (
+                  {(!currentQuestion.passage.passageDocuments || currentQuestion.passage.passageDocuments.length === 0) && (
                     <p className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-1">
                       Passage
                     </p>
@@ -2073,18 +2059,27 @@ function QuizPageContent() {
                           <MathText text={partQ.aboveImageText} className="leading-relaxed dark:text-neutral-200" />
                         </div>
                       )}
-                      {partQ.imageFilename && (
+                      {partQ.questionDocuments && partQ.questionDocuments.filter((d) => d.position !== 'below').length > 0 && (
                         <div className="w-full mb-2">
-                          <img
-                            src={partQ.imageFilename}
-                            alt="Question"
-                            className={`mx-auto h-auto rounded-lg w-full ${partQ.imageSize === 'small' ? 'max-w-xs' : partQ.imageSize === 'medium' ? 'max-w-lg' : partQ.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
+                          <DocsList
+                            docs={partQ.questionDocuments.filter((d) => d.position !== 'below')}
+                            pdfHeight="50vh"
+                            imageMaxWidthClass={partQ.imageSize === 'small' ? 'max-w-xs' : partQ.imageSize === 'medium' ? 'max-w-lg' : partQ.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
                           />
                         </div>
                       )}
                       {partQ.questionText && (
                         <div>
                           <MathText text={partQ.questionText} className="leading-relaxed dark:text-neutral-200" />
+                        </div>
+                      )}
+                      {partQ.questionDocuments && partQ.questionDocuments.filter((d) => d.position === 'below').length > 0 && (
+                        <div className="w-full mt-2">
+                          <DocsList
+                            docs={partQ.questionDocuments.filter((d) => d.position === 'below')}
+                            pdfHeight="50vh"
+                            imageMaxWidthClass={partQ.imageSize === 'small' ? 'max-w-xs' : partQ.imageSize === 'medium' ? 'max-w-lg' : partQ.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
+                          />
                         </div>
                       )}
                     </div>
@@ -2242,32 +2237,16 @@ function QuizPageContent() {
                 </div>
               )}
 
-              {/* Passage Image (drawable — stays under canvas) */}
-              {currentQuestion.passage?.passageImageUrl && (
-                <div className="mb-4">
+              {/* Passage Documents (images / PDFs) */}
+              {currentQuestion.passage?.passageDocuments && currentQuestion.passage.passageDocuments.length > 0 && (
+                <div className="mb-4" style={{ zIndex: 60, pointerEvents: "auto", position: "relative" }}>
                   <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">
                     Passage
                   </div>
-                  <img
-                    src={currentQuestion.passage.passageImageUrl}
-                    alt="Passage"
-                    className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
-                  />
-                </div>
-              )}
-
-              {/* Passage Iframe (external copyrighted content) */}
-              {currentQuestion.passage?.iframeUrl && (
-                <div className="mb-4" style={{ zIndex: 60, pointerEvents: "auto", position: "relative" }}>
-                  {!currentQuestion.passage.passageImageUrl && (
-                    <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">
-                      Passage
-                    </div>
-                  )}
-                  <PassageIframe
-                    url={currentQuestion.passage.iframeUrl}
-                    page={currentQuestion.passage.iframePage}
-                    className="h-[70vh]"
+                  <DocsList
+                    docs={currentQuestion.passage.passageDocuments}
+                    pdfHeight="70vh"
+                    imageMaxWidthClass={currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
                   />
                 </div>
               )}
@@ -2278,7 +2257,7 @@ function QuizPageContent() {
                   className="mb-4 relative"
                   style={{ zIndex: 60, pointerEvents: "auto" }}
                 >
-                  {!currentQuestion.passage.passageImageUrl && (
+                  {(!currentQuestion.passage.passageDocuments || currentQuestion.passage.passageDocuments.length === 0) && (
                     <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">
                       Passage
                     </div>
@@ -2309,8 +2288,8 @@ function QuizPageContent() {
                 </div>
               )}
 
-              {/* Question Card - Above Image Text, Image, and/or Question Text */}
-              {(currentQuestion.imageFilename ||
+              {/* Question Card - Above Image Text, Documents, and/or Question Text */}
+              {((currentQuestion.questionDocuments && currentQuestion.questionDocuments.length > 0) ||
                 currentQuestion.questionText ||
                 currentQuestion.aboveImageText) && (
                 <div className="mb-3">
@@ -2328,18 +2307,18 @@ function QuizPageContent() {
                       />
                     </div>
                   )}
-                  {currentQuestion.imageFilename && (
+                  {currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position !== 'below').length > 0 && (
                     <div className="w-full">
-                      <img
-                        src={currentQuestion.imageFilename}
-                        alt="Question"
-                        className={`mx-auto h-auto rounded-lg w-full ${currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}`}
+                      <DocsList
+                        docs={currentQuestion.questionDocuments.filter((d) => d.position !== 'below')}
+                        pdfHeight="50vh"
+                        imageMaxWidthClass={currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
                       />
                     </div>
                   )}
                   {currentQuestion.questionText && (
                     <div
-                      className={currentQuestion.imageFilename ? "mt-4" : ""}
+                      className={(currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position !== 'below').length > 0) ? "mt-4" : ""}
                       style={{
                         fontFamily: "'Times New Roman', Times, serif",
                         fontSize: "1.125rem",
@@ -2348,6 +2327,15 @@ function QuizPageContent() {
                       <MathText
                         text={currentQuestion.questionText}
                         className="leading-relaxed dark:text-neutral-200"
+                      />
+                    </div>
+                  )}
+                  {currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position === 'below').length > 0 && (
+                    <div className="w-full mt-4">
+                      <DocsList
+                        docs={currentQuestion.questionDocuments.filter((d) => d.position === 'below')}
+                        pdfHeight="50vh"
+                        imageMaxWidthClass={currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
                       />
                     </div>
                   )}
@@ -3111,11 +3099,12 @@ function QuizPageContent() {
         hasAnswered={checkedAnswers.length > 0}
       />
 
-      {/* Reference Image Modal - Shows default PDF if no specific reference */}
-      <ReferenceImageModal
+      {/* Reference Docs Modal — shows multi-doc references with thumbnail switcher;
+          falls back to the default reference sheet when none are configured. */}
+      <ReferenceDocsModal
         isOpen={showReferenceImage}
         onClose={() => setShowReferenceImage(false)}
-        imageUrl={resolveReferenceImage(currentQuestion, currentSection)}
+        docs={resolveReferenceDocs(currentQuestion, currentSection)}
       />
 
       {/* Bug Report Modal */}

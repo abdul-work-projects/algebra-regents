@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Question, Test, TestSection, Subject, Passage } from './types';
+import { Question, Test, TestSection, Subject, Passage, QuestionDocument } from './types';
 
 // Supabase client configuration
 // Make sure to set these environment variables in .env.local
@@ -44,6 +44,7 @@ export interface DatabasePassage {
   passage_image_url: string | null;
   iframe_url: string | null;
   iframe_page: number | null;
+  passage_documents?: QuestionDocument[] | null;
   image_size: 'small' | 'medium' | 'large' | 'extra-large' | null;
   created_at: string;
   updated_at: string;
@@ -55,8 +56,10 @@ export interface DatabaseQuestion {
   name: string | null;
   question_text: string | null;
   above_image_text: string | null; // Text displayed above the question image
-  question_image_url: string | null;
-  reference_image_url: string | null;
+  question_image_url: string | null;        // legacy
+  reference_image_url: string | null;       // legacy
+  question_documents?: QuestionDocument[] | null;
+  reference_documents?: QuestionDocument[] | null;
   answers: string[]; // Array of answer choices
   answer_image_urls?: (string | null)[]; // Optional array of image URLs for answers
   answer_layout?: 'grid' | 'list' | 'row'; // 'grid' = 2x2, 'list' = 1x4 (default), 'row' = 4x1
@@ -82,7 +85,8 @@ export interface DatabaseTestSection {
   test_id: string;
   name: string;
   description: string | null;
-  reference_image_url: string | null;
+  reference_image_url: string | null;       // legacy
+  reference_documents?: QuestionDocument[] | null;
   display_order: number;
   created_at: string;
   updated_at: string;
@@ -298,6 +302,43 @@ export async function updateTestQuestionOrders(testId: string, orders: { questio
 }
 
 // Convert DatabaseQuestion to Question format for the quiz
+// Coerce a stored docs array (may be undefined / null / non-array from older rows) into a typed array.
+function coerceDocs(value: unknown): QuestionDocument[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((d): d is QuestionDocument =>
+    !!d && typeof d === 'object' &&
+    typeof (d as QuestionDocument).type === 'string' &&
+    typeof (d as QuestionDocument).url === 'string'
+  );
+}
+
+// Use new `*_documents` array when present, otherwise synthesise a single-entry array
+// from the legacy single-URL column so existing rows keep rendering.
+function questionDocsOrLegacy(dbQuestion: DatabaseQuestion): QuestionDocument[] {
+  const docs = coerceDocs(dbQuestion.question_documents);
+  if (docs.length > 0) return docs;
+  if (dbQuestion.question_image_url) {
+    return [{ type: 'image', url: dbQuestion.question_image_url, position: 'above' }];
+  }
+  return [];
+}
+
+function referenceDocsOrLegacy(legacyUrl: string | null | undefined, docs: unknown): QuestionDocument[] {
+  const arr = coerceDocs(docs);
+  if (arr.length > 0) return arr;
+  if (legacyUrl) return [{ type: 'image', url: legacyUrl }];
+  return [];
+}
+
+function passageDocsOrLegacy(p: DatabasePassage): QuestionDocument[] {
+  const docs = coerceDocs(p.passage_documents);
+  if (docs.length > 0) return docs;
+  const out: QuestionDocument[] = [];
+  if (p.passage_image_url) out.push({ type: 'image', url: p.passage_image_url, position: 'above' });
+  if (p.iframe_url) out.push({ type: 'pdf', url: p.iframe_url, page: p.iframe_page ?? undefined, position: 'above' });
+  return out;
+}
+
 export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: DatabasePassage | null }, sectionInfo?: { sectionId?: string; sectionName?: string }): Question {
   return {
     id: dbQuestion.id,
@@ -305,6 +346,8 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: 
     aboveImageText: dbQuestion.above_image_text || undefined,
     imageFilename: dbQuestion.question_image_url || undefined,
     referenceImageUrl: dbQuestion.reference_image_url || undefined,
+    questionDocuments: questionDocsOrLegacy(dbQuestion),
+    referenceDocuments: referenceDocsOrLegacy(dbQuestion.reference_image_url, dbQuestion.reference_documents),
     answers: dbQuestion.answers,
     answerImageUrls: dbQuestion.answer_image_urls?.map(url => url || undefined),
     answerLayout: dbQuestion.answer_layout || 'list',
@@ -327,6 +370,7 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: 
       passageImageUrl: dbQuestion.passages.passage_image_url || undefined,
       iframeUrl: dbQuestion.passages.iframe_url || undefined,
       iframePage: dbQuestion.passages.iframe_page || undefined,
+      passageDocuments: passageDocsOrLegacy(dbQuestion.passages),
       imageSize: dbQuestion.passages.image_size || 'large',
     } : undefined,
     sectionId: sectionInfo?.sectionId,
@@ -624,7 +668,7 @@ export async function fetchQuestionsForTest(testId: string): Promise<(DatabaseQu
     .select(`
       display_order,
       section_id,
-      test_sections (id, name, description, display_order, reference_image_url),
+      test_sections (id, name, description, display_order, reference_image_url, reference_documents),
       questions (
         *,
         passages (*)
@@ -1284,6 +1328,7 @@ export function convertToPassageFormat(dbPassage: DatabasePassage): Passage {
     passageImageUrl: dbPassage.passage_image_url || undefined,
     iframeUrl: dbPassage.iframe_url || undefined,
     iframePage: dbPassage.iframe_page || undefined,
+    passageDocuments: passageDocsOrLegacy(dbPassage),
     imageSize: dbPassage.image_size || 'large',
     createdAt: dbPassage.created_at,
     updatedAt: dbPassage.updated_at,
@@ -1297,6 +1342,7 @@ export async function createPassage(passage: {
   passage_image_url?: string | null;
   iframe_url?: string | null;
   iframe_page?: number | null;
+  passage_documents?: QuestionDocument[];
   image_size?: string | null;
 }): Promise<DatabasePassage | null> {
   const { data, error } = await supabase
@@ -1388,6 +1434,7 @@ export async function createPassageWithQuestions(
     passage_image_url?: string | null;
     iframe_url?: string | null;
     iframe_page?: number | null;
+    passage_documents?: QuestionDocument[];
     image_size?: string | null;
     type?: 'grouped' | 'parts';
   },
@@ -1445,6 +1492,7 @@ export async function linkQuestionsToNewPassage(
     passage_image_url?: string | null;
     iframe_url?: string | null;
     iframe_page?: number | null;
+    passage_documents?: QuestionDocument[];
     image_size?: string | null;
     type?: 'grouped' | 'parts';
   }
@@ -1505,6 +1553,7 @@ export function convertToSectionFormat(dbSection: DatabaseTestSection & { questi
     name: dbSection.name,
     description: dbSection.description || undefined,
     referenceImageUrl: dbSection.reference_image_url || undefined,
+    referenceDocuments: referenceDocsOrLegacy(dbSection.reference_image_url, dbSection.reference_documents),
     displayOrder: dbSection.display_order,
     questionCount: dbSection.question_count,
   };
@@ -1554,6 +1603,7 @@ export async function createTestSection(section: {
   name: string;
   description?: string;
   reference_image_url?: string;
+  reference_documents?: QuestionDocument[];
   display_order?: number;
 }): Promise<DatabaseTestSection | null> {
   // If no display order provided, get the max and add 1
@@ -1576,6 +1626,7 @@ export async function createTestSection(section: {
       name: section.name,
       description: section.description || null,
       reference_image_url: section.reference_image_url || null,
+      reference_documents: section.reference_documents ?? [],
       display_order: order,
     }])
     .select()
@@ -1596,6 +1647,7 @@ export async function updateTestSection(
     name: string;
     description: string | null;
     reference_image_url: string | null;
+    reference_documents: QuestionDocument[];
     display_order: number;
   }>
 ): Promise<DatabaseTestSection | null> {

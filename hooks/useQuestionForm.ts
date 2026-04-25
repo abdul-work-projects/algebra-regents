@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { DocumentDraft, newDocId } from "@/components/admin/DocumentsEditor";
+import { QuestionDocument } from "@/lib/types";
 
 export interface QuestionFormState {
   questionName: string;
@@ -23,6 +25,24 @@ export interface QuestionFormState {
   difficulty: string; // 'easy' | 'medium' | 'hard' | '' (empty = none)
   points: number;
   notes: string;
+  questionDocuments: DocumentDraft[];
+  referenceDocuments: DocumentDraft[];
+}
+
+// Convert a stored doc array into editable drafts. Image docs keep `file: null` until the
+// admin re-uploads a replacement.
+export function docsToDrafts(docs: QuestionDocument[] | undefined | null): DocumentDraft[] {
+  if (!Array.isArray(docs)) return [];
+  return docs.map((d) => ({
+    id: newDocId(),
+    type: d.type,
+    file: d.type === 'image' ? null : undefined,
+    url: d.url,
+    page: d.page,
+    label: d.label,
+    position: d.position,
+    size: d.size,
+  }));
 }
 
 export const initialState: QuestionFormState = {
@@ -48,6 +68,8 @@ export const initialState: QuestionFormState = {
   difficulty: "",
   points: 1,
   notes: "",
+  questionDocuments: [],
+  referenceDocuments: [],
 };
 
 export function useQuestionForm() {
@@ -105,6 +127,8 @@ export function useQuestionForm() {
     difficulty?: 'easy' | 'medium' | 'hard' | null;
     points?: number;
     notes?: string | null;
+    question_documents?: QuestionDocument[] | null;
+    reference_documents?: QuestionDocument[] | null;
   }) => {
     setState({
       questionName: question.name || "",
@@ -129,6 +153,23 @@ export function useQuestionForm() {
       difficulty: question.difficulty || "",
       points: question.points || 1,
       notes: question.notes || "",
+      questionDocuments: docsToDrafts(question.question_documents)
+        .concat(
+          // Backfill from legacy single image if new array is empty.
+          (Array.isArray(question.question_documents) && question.question_documents.length > 0)
+            ? []
+            : (question.question_image_url
+                ? [{ id: newDocId(), type: 'image' as const, file: null, url: question.question_image_url, position: 'above' as const }]
+                : [])
+        ),
+      referenceDocuments: docsToDrafts(question.reference_documents)
+        .concat(
+          (Array.isArray(question.reference_documents) && question.reference_documents.length > 0)
+            ? []
+            : (question.reference_image_url
+                ? [{ id: newDocId(), type: 'image' as const, file: null, url: question.reference_image_url }]
+                : [])
+        ),
     });
   };
 
@@ -182,7 +223,7 @@ export function createFormAccessor(
       });
     },
     reset: () => {
-      setState(() => ({ ...initialState, answers: ["", "", "", ""], answerImages: [null, null, null, null], answerImagePreviews: [null, null, null, null] }));
+      setState(() => ({ ...initialState, answers: ["", "", "", ""], answerImages: [null, null, null, null], answerImagePreviews: [null, null, null, null], questionDocuments: [], referenceDocuments: [] }));
     },
     loadFromQuestion: (question: Parameters<UseQuestionFormReturn['loadFromQuestion']>[0]) => {
       setState(() => ({
@@ -208,6 +249,22 @@ export function createFormAccessor(
         difficulty: question.difficulty || "",
         points: question.points || 1,
         notes: question.notes || "",
+        questionDocuments: docsToDrafts(question.question_documents)
+          .concat(
+            (Array.isArray(question.question_documents) && question.question_documents.length > 0)
+              ? []
+              : (question.question_image_url
+                  ? [{ id: newDocId(), type: 'image' as const, file: null, url: question.question_image_url, position: 'above' as const }]
+                  : [])
+          ),
+        referenceDocuments: docsToDrafts(question.reference_documents)
+          .concat(
+            (Array.isArray(question.reference_documents) && question.reference_documents.length > 0)
+              ? []
+              : (question.reference_image_url
+                  ? [{ id: newDocId(), type: 'image' as const, file: null, url: question.reference_image_url }]
+                  : [])
+          ),
       }));
     },
   };

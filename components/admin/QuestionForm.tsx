@@ -5,6 +5,7 @@ import TagInput from "@/components/TagInput";
 import TestMultiSelect from "@/components/TestMultiSelect";
 import MathText from "@/components/MathText";
 import PassageTextEditor from "@/components/admin/PassageTextEditor";
+import DocumentsEditor from "@/components/admin/DocumentsEditor";
 
 interface QuestionFormProps {
   editingId: string | null;
@@ -32,6 +33,8 @@ interface QuestionFormProps {
   onPassageImageChange: (file: File | null, preview: string | null) => void;
   passageImageSize: "small" | "medium" | "large" | "extra-large";
   onPassageImageSizeChange: (size: "small" | "medium" | "large" | "extra-large") => void;
+  passageDocuments: import("@/components/admin/DocumentsEditor").DocumentDraft[];
+  onPassageDocumentsChange: (next: import("@/components/admin/DocumentsEditor").DocumentDraft[]) => void;
   selectedTestIds: string[];
   onSelectedTestIdsChange: (ids: string[]) => void;
   tests: Test[];
@@ -69,6 +72,8 @@ export default function QuestionForm({
   onPassageImageChange,
   passageImageSize,
   onPassageImageSizeChange,
+  passageDocuments,
+  onPassageDocumentsChange,
   selectedTestIds,
   onSelectedTestIdsChange,
   tests,
@@ -334,51 +339,12 @@ export default function QuestionForm({
               rows={3}
               inputClassName="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
             />
-            <div>
-              <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">Passage Image (Optional)</label>
-              <input type="file" accept="image/*" onChange={(e) => handleImageSelect(e, (f) => onPassageImageChange(f, passageImagePreview), (p) => onPassageImageChange(passageImage, p))} className="hidden" id="passage-image" />
-              <label
-                htmlFor="passage-image"
-                className="cursor-pointer block"
-                onDragOver={(e) => handleDragOver(e, "passage")}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, (f) => onPassageImageChange(f, passageImagePreview), (p) => onPassageImageChange(passageImage, p))}
-              >
-                {passageImagePreview ? (
-                  <div className={`relative w-full h-32 rounded-xl border overflow-hidden transition-all ${draggedOver === "passage" ? "border-blue-500 ring-2 ring-blue-200" : "border-blue-300"}`}>
-                    <img src={passageImagePreview} alt="Passage" className="w-full h-full object-contain bg-white" />
-                    {draggedOver === "passage" && (
-                      <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
-                        <span className="text-xs font-bold text-blue-700">Drop to replace</span>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPassageImageChange(null, null); }}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ) : (
-                  <div className={`w-full h-20 rounded-xl border-2 border-dashed flex items-center justify-center transition-colors ${draggedOver === "passage" ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30" : "border-blue-300 dark:border-blue-700 bg-white dark:bg-neutral-800 hover:bg-blue-50 dark:hover:bg-blue-900/30"}`}>
-                    <span className="text-xs text-blue-600 dark:text-blue-400">Click or drag image</span>
-                  </div>
-                )}
-              </label>
-              {passageImagePreview && (
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-blue-800 dark:text-blue-400">Size:</span>
-                  {(["small", "medium", "large", "extra-large"] as const).map((size) => (
-                    <button key={size} type="button" onClick={() => onPassageImageSizeChange(size)} className={`px-2 py-0.5 text-xs rounded-full transition-all ${passageImageSize === size ? "bg-blue-600 text-white" : "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50"}`}>
-                      {size === 'extra-large' ? 'Extra Large' : size.charAt(0).toUpperCase() + size.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <DocumentsEditor
+              title="Passage Documents"
+              value={passageDocuments}
+              onChange={onPassageDocumentsChange}
+              emptyHint="Add images or PDFs that appear with the passage."
+            />
             <PassageTextEditor
               value={passageText}
               onChange={onPassageTextChange}
@@ -388,34 +354,6 @@ export default function QuestionForm({
               rows={12}
               inputClassName="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
             />
-            <div>
-              <label className="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1">
-                Iframe URL (for copyrighted content)
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={passageIframeUrl}
-                  onChange={(e) => onPassageIframeUrlChange(e.target.value)}
-                  placeholder="https://www.nysedregents.org/.../exam.pdf"
-                  className="flex-1 px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
-                />
-                <input
-                  type="number"
-                  min={1}
-                  value={passageIframePage}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    onPassageIframePageChange(v === "" ? "" : Math.max(1, parseInt(v, 10) || 1));
-                  }}
-                  placeholder="Page"
-                  className="w-24 px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
-                />
-              </div>
-              <p className="text-[11px] text-blue-700 dark:text-blue-400 mt-1">
-                Embeds the URL in a scrollable iframe. Optional start page number for PDFs.
-              </p>
-            </div>
           </div>
         )}
 
@@ -483,45 +421,14 @@ export default function QuestionForm({
           />
         </div>
 
-        {/* Question Image */}
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">
-            Question Image <span className="text-gray-500">(text or image required)</span>
-          </label>
-          <input type="file" accept="image/*" onChange={(e) => handleImageSelect(e, (file) => currentForm.setField("questionImage", file), (preview) => currentForm.setField("questionImagePreview", preview))} className="hidden" id="question-image" />
-          <label
-            htmlFor="question-image"
-            className="cursor-pointer block"
-            onDragOver={(e) => handleDragOver(e, "question")}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, (file) => currentForm.setField("questionImage", file), (preview) => currentForm.setField("questionImagePreview", preview))}
-          >
-            {currentForm.state.questionImagePreview ? (
-              <div className={`relative group w-full h-24 rounded-xl border overflow-hidden transition-all ${draggedOver === "question" ? "border-blue-500 ring-2 ring-blue-200" : "border-gray-200 dark:border-neutral-700"}`}>
-                <img src={currentForm.state.questionImagePreview} alt="Question" className="w-full h-full object-cover" />
-                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); currentForm.setField("questionImage", null); currentForm.setField("questionImagePreview", null); }} className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm" title="Remove image">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-                {draggedOver === "question" && <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center"><span className="text-xs font-bold text-blue-700">Drop to replace</span></div>}
-              </div>
-            ) : (
-              <div className={`w-full h-24 border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-gray-400 transition-colors ${draggedOver === "question" ? "border-blue-500 bg-blue-50" : "border-gray-200 dark:border-neutral-700 hover:border-blue-500"}`}>
-                <span className="text-xs font-medium text-gray-400 dark:text-neutral-500">Drop image</span>
-                <span className="text-xs text-gray-400 dark:text-neutral-500">or click</span>
-              </div>
-            )}
-          </label>
-          {currentForm.state.questionImagePreview && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-gray-500 dark:text-neutral-400">Size:</span>
-              {(["small", "medium", "large", "extra-large"] as const).map((size) => (
-                <button key={size} type="button" onClick={() => currentForm.setField("imageSize", size)} className={`px-2 py-0.5 text-xs rounded-full transition-all ${currentForm.state.imageSize === size ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700"}`}>
-                  {size === 'extra-large' ? 'Extra Large' : size.charAt(0).toUpperCase() + size.slice(1)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Question Documents (images / PDFs, above or below the question text) */}
+        <DocumentsEditor
+          title="Question Documents"
+          showPosition
+          value={currentForm.state.questionDocuments}
+          onChange={(next) => currentForm.setField("questionDocuments", next)}
+          emptyHint="Add images or PDFs that appear with the question."
+        />
 
         {/* Question Text (Below Image) */}
         <div>
@@ -540,10 +447,17 @@ export default function QuestionForm({
           </p>
         </div>
 
-        {/* Reference & Explanation Image Uploads */}
+        {/* Reference Documents (multiple images / PDFs available via Reference button) */}
+        <DocumentsEditor
+          title="Reference Documents"
+          value={currentForm.state.referenceDocuments}
+          onChange={(next) => currentForm.setField("referenceDocuments", next)}
+          emptyHint="Add reference images or PDFs students can open during this question."
+        />
+
+        {/* Explanation image (single, kept as-is) */}
         <div className="grid grid-cols-2 gap-2">
-          {renderImageUpload("reference-image", "Reference (Optional)", currentForm.state.referenceImagePreview, "reference", (file) => currentForm.setField("referenceImage", file), (preview) => currentForm.setField("referenceImagePreview", preview))}
-          {renderImageUpload("explanation-image", "Explanation (Optional)", currentForm.state.explanationImagePreview, "explanation", (file) => currentForm.setField("explanationImage", file), (preview) => currentForm.setField("explanationImagePreview", preview))}
+          {renderImageUpload("explanation-image", "Explanation Image (Optional)", currentForm.state.explanationImagePreview, "explanation", (file) => currentForm.setField("explanationImage", file), (preview) => currentForm.setField("explanationImagePreview", preview))}
         </div>
 
         {/* Question Type */}
