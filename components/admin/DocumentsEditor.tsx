@@ -275,7 +275,7 @@ export default function DocumentsEditor({
                               : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700'
                           }`}
                         >
-                          {s === 'extra-large' ? 'Extra Large' : s.charAt(0).toUpperCase() + s.slice(1)}
+                          {s === 'extra-large' ? 'Full Width' : s.charAt(0).toUpperCase() + s.slice(1)}
                         </button>
                       );
                     })}

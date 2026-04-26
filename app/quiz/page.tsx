@@ -1151,7 +1151,7 @@ function QuizPageContent() {
         </div>
 
         <div
-          className={`mx-auto ${isGroupedQuestion ? "max-w-none px-0 pt-4 h-full flex flex-col" : isPartQuestion ? "max-w-3xl px-4 pt-4" : "max-w-3xl px-4 pt-4"} ${isTestPracticeMode && !isGroupedQuestion ? "lg:pr-16" : ""}`}
+          className={`mx-auto ${isGroupedQuestion ? "max-w-none px-0 pt-4 h-full flex flex-col" : isPartQuestion ? "max-w-5xl px-4 pt-4" : "max-w-5xl px-4 pt-4"} ${isTestPracticeMode && !isGroupedQuestion ? "lg:pr-16" : ""}`}
           style={{ pointerEvents: "auto" }}
         >
           {/* Question Number and Topic Badges Row */}

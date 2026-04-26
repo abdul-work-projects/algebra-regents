@@ -15,7 +15,9 @@ const SIZE_TO_CLASS: Record<DocumentSize, string> = {
   'small': 'max-w-xs',
   'medium': 'max-w-lg',
   'large': 'max-w-2xl',
-  'extra-large': 'max-w-full',
+  // "Full width" — almost full column width with a small inset on each side so the image
+  // aligns with the question/answer text instead of running flush to the column edge.
+  'extra-large': 'max-w-[calc(100%-5rem)]',
 };
 
 export default function DocsList({
