@@ -501,48 +501,32 @@ function HomeContent() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-6">
                   {overview.weakSkillsBySubject.map((group) => (
-                    <div
-                      key={group.subjectId}
-                      className="rounded-xl border-l-4 pl-4 pr-3 py-3"
-                      style={{
-                        borderLeftColor: group.subjectColor,
-                        backgroundColor: `${group.subjectColor}14`, // ~8% alpha tint
-                      }}
-                    >
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-neutral-100 mb-2 flex items-center gap-2">
-                        <span
-                          className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-gray-900"
-                          style={{ backgroundColor: group.subjectColor }}
-                        >
+                    <div key={group.subjectId}>
+                      <h4 className="mb-3 flex items-center gap-2">
+                        <span className="text-base font-bold text-gray-900 dark:text-neutral-100">
                           {group.subjectName}
                         </span>
                         <span className="text-xs font-normal text-gray-500 dark:text-neutral-400">
                           · {group.skills.length} {group.skills.length === 1 ? 'skill' : 'skills'}
                         </span>
                       </h4>
-                      <ul className="divide-y divide-gray-100 dark:divide-neutral-800/60">
+                      <ul className="space-y-3">
                         {group.skills.map((skill) => (
-                          <li key={skill.name} className="py-3 flex items-center gap-4">
+                          <li key={skill.name} className="flex items-center gap-4">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2 mb-1.5">
-                                <span className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate">
+                                <span className="text-sm text-gray-900 dark:text-neutral-100 truncate">
                                   {skill.name}
                                 </span>
                                 <span className="text-xs text-gray-500 dark:text-neutral-400 shrink-0">
                                   {skill.correct}/{skill.attempted} correct · {skill.accuracy}%
                                 </span>
                               </div>
-                              <div className="h-1.5 w-full bg-white/60 dark:bg-neutral-800 rounded-full overflow-hidden">
+                              <div className="h-1.5 w-full bg-gray-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                                 <div
-                                  className={`h-full rounded-full ${
-                                    skill.accuracy < 40
-                                      ? 'bg-rose-500'
-                                      : skill.accuracy < 60
-                                      ? 'bg-orange-500'
-                                      : 'bg-yellow-500'
-                                  }`}
+                                  className="h-full rounded-full bg-gray-900 dark:bg-neutral-100"
                                   style={{ width: `${Math.max(skill.accuracy, 4)}%` }}
                                 />
                               </div>
