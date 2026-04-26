@@ -15,6 +15,8 @@ import {
   updateSkillProgress,
   loadMarkedForReview,
   toggleMarkedForReview,
+  loadGraphPaperDrawings,
+  saveGraphPaperDrawings,
 } from "@/lib/storage";
 import { loadAttempts, syncSessionToAttempts, AttemptsStore } from "@/lib/attempts";
 import {
@@ -42,25 +44,9 @@ import { getScaledScore } from "@/lib/results";
 import LiveScoreBeaver from "@/components/LiveScoreBeaver";
 import PracticeProgressBar from "@/components/PracticeProgressBar";
 import DocsList from "@/components/DocsList";
+import GraphPaperCanvas from "@/components/GraphPaperCanvas";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/components/ThemeProvider";
-import { GraphData, DEFAULT_GRAPH_DATA } from "@/components/GraphingTool/types";
-import dynamic from "next/dynamic";
-
-// Dynamic import to avoid SSR issues with JSXGraph
-const GraphingTool = dynamic(
-  () => import("@/components/GraphingTool/GraphingTool"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-64 flex items-center justify-center bg-gray-50 dark:bg-neutral-950 rounded-lg border border-gray-200 dark:border-neutral-700">
-        <div className="text-gray-500 dark:text-neutral-400 text-sm">
-          Loading graph...
-        </div>
-      </div>
-    ),
-  },
-);
 
 function QuizPageContent() {
   const router = useRouter();
@@ -73,10 +59,10 @@ function QuizPageContent() {
   const [showReferenceImage, setShowReferenceImage] = useState(false);
   const [showAllQuestions, setShowAllQuestions] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showGraphPaper, setShowGraphPaper] = useState(false);
+  const [graphPaperDrawings, setGraphPaperDrawings] = useState<{ [questionId: string]: string }>({});
   const [showBugReport, setShowBugReport] = useState(false);
   const [scratchWorkIndex, setScratchWorkIndex] = useState<number | null>(null);
-  const [showGraphingTool, setShowGraphingTool] = useState(false);
-  const [graphClearKey, setGraphClearKey] = useState(0);
   const [dragOrderView, setDragOrderView] = useState<"list" | "slots">(() => {
     if (typeof window !== "undefined") {
       return (
@@ -226,6 +212,7 @@ function QuizPageContent() {
     // Snapshot prior attempts so the nav popup shows last-attempt markers
     // (current session state takes precedence as the user answers).
     setPriorAttempts(loadAttempts());
+    setGraphPaperDrawings(loadGraphPaperDrawings());
 
     const testIdFromUrl = searchParams.get("testId");
     const testModeFromUrl = searchParams.get("testMode") as 'practice' | 'test' | null;
@@ -1006,7 +993,7 @@ function QuizPageContent() {
     <>
       <div
         className={`${isGroupedQuestion ? 'h-screen overflow-hidden' : ''} pb-16 transition-all duration-300 relative ${
-          showCalculator ? "md:mr-[420px]" : ""
+          showGraphPaper ? "md:mr-[520px]" : showCalculator ? "md:mr-[420px]" : ""
         }`}
         style={{ backgroundColor: "transparent", pointerEvents: "none" }}
       >
@@ -1116,35 +1103,21 @@ function QuizPageContent() {
               </button>
 
               <button
-                onClick={() => setShowGraphingTool(!showGraphingTool)}
+                onClick={() => setShowGraphPaper(!showGraphPaper)}
                 className={`flex flex-col items-center gap-0.5 active:scale-95 transition-all rounded-lg p-1 ${
-                  showGraphingTool
+                  showGraphPaper
                     ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                    : session.graphs?.[currentQuestion.id]
+                    : graphPaperDrawings[currentQuestion.id]
                       ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
                       : "hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-neutral-400"
                 }`}
-                title="Graphing Tool"
+                title="Graph Paper"
               >
-                <svg
-                  className="w-5 h-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M3 3v18h18"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M7 14l4-4 4 4 5-5"
-                  />
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <rect x="3" y="3" width="18" height="18" rx="1.5" />
+                  <path strokeLinecap="round" d="M3 9h18M3 15h18M9 3v18M15 3v18" strokeWidth={1} />
                 </svg>
-                <span className="hidden md:block text-[9px] font-medium">Graph</span>
+                <span className="hidden md:block text-[9px] font-medium">Graph Paper</span>
               </button>
 
               <button
@@ -1830,58 +1803,6 @@ function QuizPageContent() {
                       </div>
                     </div>
 
-                    {/* Graphing Tool */}
-                    {showGraphingTool && (
-                      <div
-                        className="mb-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl overflow-hidden bg-white dark:bg-neutral-900 shrink-0"
-                        style={{ zIndex: 100, pointerEvents: "auto", transform: "translateZ(0)" }}
-                      >
-                        <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-700">
-                          <span className="text-xs font-bold text-blue-900 dark:text-blue-300">Graph</span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setSession((prev) => {
-                                  if (!prev) return prev;
-                                  const newGraphs = { ...prev.graphs };
-                                  delete newGraphs[currentQuestion.id];
-                                  return { ...prev, graphs: newGraphs };
-                                });
-                                setGraphClearKey((prev) => prev + 1);
-                              }}
-                              className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 active:scale-95 transition-all"
-                              title="Clear graph"
-                            >
-                              <svg className="w-4 h-4 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => setShowGraphingTool(false)}
-                              className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-                              title="Close graph"
-                            >
-                              <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                        <div style={{ height: "340px" }}>
-                          <GraphingTool
-                            key={`grouped-${currentQuestion.id}-${graphClearKey}`}
-                            initialData={session.graphs?.[currentQuestion.id] || DEFAULT_GRAPH_DATA}
-                            onChange={(data: GraphData) => {
-                              setSession((prev) => {
-                                if (!prev) return prev;
-                                return { ...prev, graphs: { ...prev.graphs, [currentQuestion.id]: data } };
-                              });
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
                     {/* Answer Options - Regents style (1),(2),(3),(4) */}
                     <div
                       className="space-y-1 relative z-[60] mt-auto w-full max-w-full pl-8"
@@ -1980,9 +1901,11 @@ function QuizPageContent() {
               )}
               {currentQuestion.passage?.passageDocuments && currentQuestion.passage.passageDocuments.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-1">
-                    Passage
-                  </p>
+                  {currentQuestion.passage.passageText && (
+                    <p className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-1">
+                      Passage
+                    </p>
+                  )}
                   <DocsList
                     docs={currentQuestion.passage.passageDocuments}
                     pdfHeight="70vh"
@@ -2240,9 +2163,11 @@ function QuizPageContent() {
               {/* Passage Documents (images / PDFs) */}
               {currentQuestion.passage?.passageDocuments && currentQuestion.passage.passageDocuments.length > 0 && (
                 <div className="mb-4" style={{ zIndex: 60, pointerEvents: "auto", position: "relative" }}>
-                  <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">
-                    Passage
-                  </div>
+                  {currentQuestion.passage.passageText && (
+                    <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">
+                      Passage
+                    </div>
+                  )}
                   <DocsList
                     docs={currentQuestion.passage.passageDocuments}
                     pdfHeight="70vh"
@@ -2361,93 +2286,6 @@ function QuizPageContent() {
                 <div className="h-[300px] rounded-xl border-2 border-dashed border-gray-200 dark:border-neutral-700" />
               </div>
 
-              {/* Embedded Graphing Tool */}
-              {showGraphingTool && (
-                <div
-                  className="mb-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl overflow-hidden bg-white dark:bg-neutral-900 max-w-md mx-auto relative"
-                  style={{
-                    zIndex: 100,
-                    pointerEvents: "auto",
-                    transform: "translateZ(0)",
-                  }}
-                >
-                  {/* Graph Header */}
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-700">
-                    <span className="text-xs font-bold text-blue-900 dark:text-blue-300">
-                      Graph
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setSession((prev) => {
-                            if (!prev) return prev;
-                            const newGraphs = { ...prev.graphs };
-                            delete newGraphs[currentQuestion.id];
-                            return { ...prev, graphs: newGraphs };
-                          });
-                          setGraphClearKey((prev) => prev + 1);
-                        }}
-                        className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 active:scale-95 transition-all"
-                        title="Clear graph"
-                      >
-                        <svg
-                          className="w-4 h-4 text-red-500 dark:text-red-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => setShowGraphingTool(false)}
-                        className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-                        title="Close graph"
-                      >
-                        <svg
-                          className="w-4 h-4 text-blue-600 dark:text-blue-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ height: "380px" }}>
-                    <GraphingTool
-                      key={`${currentQuestion.id}-${graphClearKey}`}
-                      initialData={
-                        session.graphs?.[currentQuestion.id] ||
-                        DEFAULT_GRAPH_DATA
-                      }
-                      onChange={(data: GraphData) => {
-                        setSession((prev) => {
-                          if (!prev) return prev;
-                          return {
-                            ...prev,
-                            graphs: {
-                              ...prev.graphs,
-                              [currentQuestion.id]: data,
-                            },
-                          };
-                        });
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
 
               {/* Answer Area */}
               {isDragOrder ? (
@@ -2955,7 +2793,7 @@ function QuizPageContent() {
       {/* Fixed Bottom Section - Duolingo Style */}
       <div
         className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 border-t border-gray-100 dark:border-neutral-800 z-[100] transition-all duration-300 ${
-          showCalculator ? "md:right-[420px]" : "md:right-0"
+          showGraphPaper ? "md:right-[520px]" : showCalculator ? "md:right-[420px]" : "md:right-0"
         }`}
         style={{ pointerEvents: "auto" }}
       >
@@ -3134,6 +2972,74 @@ function QuizPageContent() {
           />
         </div>
       </div>
+
+      {/* Graph Paper Panel - desktop right slide-out */}
+      <div
+        className={`hidden md:flex flex-col fixed top-0 right-0 w-[520px] h-screen bg-white dark:bg-neutral-900 border-l-2 border-gray-200 dark:border-neutral-700 shadow-2xl z-[101] transition-transform duration-300 ${
+          showGraphPaper ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-neutral-100">Graph Paper</h3>
+          <button
+            onClick={() => setShowGraphPaper(false)}
+            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all"
+            aria-label="Close graph paper"
+          >
+            <svg className="w-5 h-5 text-gray-700 dark:text-neutral-300" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 min-h-0">
+          <GraphPaperCanvas
+            key={currentQuestion.id}
+            initialDrawing={graphPaperDrawings[currentQuestion.id]}
+            onChange={(dataUrl) => {
+              setGraphPaperDrawings((prev) => {
+                const next = { ...prev };
+                if (dataUrl) next[currentQuestion.id] = dataUrl;
+                else delete next[currentQuestion.id];
+                saveGraphPaperDrawings(next);
+                return next;
+              });
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Graph Paper Panel - mobile inline below content */}
+      {showGraphPaper && (
+        <div className="md:hidden fixed inset-0 bg-white dark:bg-neutral-900 z-[120] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-neutral-100">Graph Paper</h3>
+            <button
+              onClick={() => setShowGraphPaper(false)}
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all"
+              aria-label="Close graph paper"
+            >
+              <svg className="w-5 h-5 text-gray-700 dark:text-neutral-300" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 min-h-0">
+            <GraphPaperCanvas
+              key={currentQuestion.id}
+              initialDrawing={graphPaperDrawings[currentQuestion.id]}
+              onChange={(dataUrl) => {
+                setGraphPaperDrawings((prev) => {
+                  const next = { ...prev };
+                  if (dataUrl) next[currentQuestion.id] = dataUrl;
+                  else delete next[currentQuestion.id];
+                  saveGraphPaperDrawings(next);
+                  return next;
+                });
+              }}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }

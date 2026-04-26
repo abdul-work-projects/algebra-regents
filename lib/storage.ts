@@ -4,6 +4,28 @@ const STORAGE_KEY = 'algebra-regents-quiz-session';
 const SKILL_PROGRESS_KEY = 'algebra-regents-skill-progress';
 const MARKED_FOR_REVIEW_KEY = 'algebra-regents-marked-for-review';
 const SELECTED_SUBJECT_KEY = 'algebra-regents-selected-subject';
+const GRAPH_PAPER_KEY = 'algebra-regents-graph-paper';
+
+// Per-question graph paper drawings (base64 data URLs).
+export const loadGraphPaperDrawings = (): { [questionId: string]: string } => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(GRAPH_PAPER_KEY);
+    return raw ? (JSON.parse(raw) as { [questionId: string]: string }) : {};
+  } catch (error) {
+    console.error('Error loading graph paper drawings:', error);
+    return {};
+  }
+};
+
+export const saveGraphPaperDrawings = (drawings: { [questionId: string]: string }): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(GRAPH_PAPER_KEY, JSON.stringify(drawings));
+  } catch (error) {
+    console.error('Error saving graph paper drawings:', error);
+  }
+};
 
 // Skill progress tracking
 export interface SkillProgress {
