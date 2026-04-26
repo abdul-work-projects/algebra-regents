@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Question, Test, TestSection, Subject, Passage, QuestionDocument } from './types';
+import { Question, Test, TestSection, Subject, SubjectGroup, Passage, QuestionDocument } from './types';
 
 // Supabase client configuration
 // Make sure to set these environment variables in .env.local
@@ -411,6 +411,7 @@ export interface DatabaseTest {
   scaled_score_table: { [key: string]: number } | null;
   is_active: boolean;
   subject_id: string;
+  display_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -428,6 +429,16 @@ export interface DatabaseSubject {
   description: string | null;
   color: string;
   is_active: boolean;
+  display_order: number;
+  group_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Database type for subject groups
+export interface DatabaseSubjectGroup {
+  id: string;
+  name: string;
   display_order: number;
   created_at: string;
   updated_at: string;
@@ -471,13 +482,21 @@ async function fetchDisplayQuestionCountsByTest(): Promise<Record<string, number
 
 // Fetch all tests
 export async function fetchTests(): Promise<DatabaseTestWithCount[]> {
-  const [testsResult, countMap] = await Promise.all([
-    supabase
+  let testsResult = await supabase
+    .from('tests')
+    .select(`*, subjects (name)`)
+    .order('display_order', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  // Fallback when the display_order migration hasn't been applied yet
+  if (testsResult.error) {
+    testsResult = await supabase
       .from('tests')
       .select(`*, subjects (name)`)
-      .order('created_at', { ascending: true }),
-    fetchDisplayQuestionCountsByTest(),
-  ]);
+      .order('created_at', { ascending: true });
+  }
+
+  const countMap = await fetchDisplayQuestionCountsByTest();
 
   if (testsResult.error) {
     console.error('Error fetching tests:', testsResult.error);
@@ -494,14 +513,22 @@ export async function fetchTests(): Promise<DatabaseTestWithCount[]> {
 
 // Fetch active tests only (for students)
 export async function fetchActiveTests(): Promise<DatabaseTestWithCount[]> {
-  const [testsResult, countMap] = await Promise.all([
-    supabase
+  let testsResult = await supabase
+    .from('tests')
+    .select('*, subjects (name)')
+    .eq('is_active', true)
+    .order('display_order', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  if (testsResult.error) {
+    testsResult = await supabase
       .from('tests')
       .select('*, subjects (name)')
       .eq('is_active', true)
-      .order('created_at', { ascending: true }),
-    fetchDisplayQuestionCountsByTest(),
-  ]);
+      .order('created_at', { ascending: true });
+  }
+
+  const countMap = await fetchDisplayQuestionCountsByTest();
 
   if (testsResult.error) {
     console.error('Error fetching active tests:', testsResult.error);
@@ -518,15 +545,24 @@ export async function fetchActiveTests(): Promise<DatabaseTestWithCount[]> {
 
 // Fetch active tests for a specific subject (for students)
 export async function fetchActiveTestsForSubject(subjectId: string): Promise<DatabaseTestWithCount[]> {
-  const [testsResult, countMap] = await Promise.all([
-    supabase
+  let testsResult = await supabase
+    .from('tests')
+    .select('*, subjects (name)')
+    .eq('is_active', true)
+    .eq('subject_id', subjectId)
+    .order('display_order', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  if (testsResult.error) {
+    testsResult = await supabase
       .from('tests')
       .select('*, subjects (name)')
       .eq('is_active', true)
       .eq('subject_id', subjectId)
-      .order('created_at', { ascending: true }),
-    fetchDisplayQuestionCountsByTest(),
-  ]);
+      .order('created_at', { ascending: true });
+  }
+
+  const countMap = await fetchDisplayQuestionCountsByTest();
 
   if (testsResult.error) {
     console.error('Error fetching active tests for subject:', testsResult.error);
@@ -855,6 +891,7 @@ export function convertToTestFormat(dbTest: DatabaseTestWithCount): Test {
     subjectId: dbTest.subject_id,
     subjectName: dbTest.subject_name || undefined,
     questionCount: dbTest.question_count,
+    displayOrder: dbTest.display_order,
     createdAt: dbTest.created_at,
     updatedAt: dbTest.updated_at,
   };
@@ -940,16 +977,23 @@ export async function createSubject(subject: {
   color?: string;
   is_active?: boolean;
   display_order?: number;
+  group_id?: string | null;
 }): Promise<DatabaseSubject | null> {
+  const insertRow: Record<string, unknown> = {
+    name: subject.name,
+    description: subject.description || null,
+    color: subject.color || '#3B82F6',
+    is_active: subject.is_active ?? true,
+    display_order: subject.display_order ?? 0,
+  };
+  if (subject.group_id) {
+    // Only include when a real group was selected; omitting falls back to default NULL
+    // and avoids errors on environments where the group_id column hasn't been migrated yet.
+    insertRow.group_id = subject.group_id;
+  }
   const { data, error } = await supabase
     .from('subjects')
-    .insert([{
-      name: subject.name,
-      description: subject.description || null,
-      color: subject.color || '#3B82F6',
-      is_active: subject.is_active ?? true,
-      display_order: subject.display_order ?? 0,
-    }])
+    .insert([insertRow])
     .select()
     .single();
 
@@ -970,6 +1014,7 @@ export async function updateSubject(
     color: string;
     is_active: boolean;
     display_order: number;
+    group_id: string | null;
   }>
 ): Promise<DatabaseSubject | null> {
   const { data, error } = await supabase
@@ -985,6 +1030,44 @@ export async function updateSubject(
   }
 
   return data;
+}
+
+// Bulk-update subject display orders (used by drag-reorder in admin)
+export async function updateSubjectOrders(
+  orders: { id: string; display_order: number }[]
+): Promise<boolean> {
+  const updates = orders.map(({ id, display_order }) =>
+    supabase
+      .from('subjects')
+      .update({ display_order, updated_at: new Date().toISOString() })
+      .eq('id', id)
+  );
+  const results = await Promise.all(updates);
+  const failed = results.filter((r) => r.error);
+  if (failed.length > 0) {
+    console.error('Error updating subject orders:', failed[0].error);
+    return false;
+  }
+  return true;
+}
+
+// Bulk-update test display orders (used by drag-reorder in admin)
+export async function updateTestOrders(
+  orders: { id: string; display_order: number }[]
+): Promise<boolean> {
+  const updates = orders.map(({ id, display_order }) =>
+    supabase
+      .from('tests')
+      .update({ display_order, updated_at: new Date().toISOString() })
+      .eq('id', id)
+  );
+  const results = await Promise.all(updates);
+  const failed = results.filter((r) => r.error);
+  if (failed.length > 0) {
+    console.error('Error updating test orders:', failed[0].error);
+    return false;
+  }
+  return true;
 }
 
 // Delete a subject (will fail if subject has tests due to FK constraint)
@@ -1011,11 +1094,114 @@ export function convertToSubjectFormat(dbSubject: DatabaseSubjectWithCount): Sub
     color: dbSubject.color,
     isActive: dbSubject.is_active,
     displayOrder: dbSubject.display_order,
+    groupId: dbSubject.group_id ?? null,
     testCount: dbSubject.test_count,
     questionCount: dbSubject.question_count,
     createdAt: dbSubject.created_at,
     updatedAt: dbSubject.updated_at,
   };
+}
+
+export function convertToSubjectGroupFormat(row: DatabaseSubjectGroup): SubjectGroup {
+  return {
+    id: row.id,
+    name: row.name,
+    displayOrder: row.display_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// =====================================================
+// Subject Groups Management
+// =====================================================
+
+export async function fetchSubjectGroups(): Promise<DatabaseSubjectGroup[]> {
+  const { data, error } = await supabase
+    .from('subject_groups')
+    .select('*')
+    .order('display_order', { ascending: true })
+    .order('name', { ascending: true });
+  if (error) {
+    // Migration may not be applied yet — degrade gracefully
+    return [];
+  }
+  return (data || []) as DatabaseSubjectGroup[];
+}
+
+export async function createSubjectGroup(name: string): Promise<DatabaseSubjectGroup | null> {
+  // Place new group at end of list
+  const existing = await fetchSubjectGroups();
+  const nextOrder = existing.length;
+  const { data, error } = await supabase
+    .from('subject_groups')
+    .insert([{ name, display_order: nextOrder }])
+    .select()
+    .single();
+  if (error) {
+    console.error('Error creating subject group:', error);
+    return null;
+  }
+  return data as DatabaseSubjectGroup;
+}
+
+export async function updateSubjectGroup(
+  id: string,
+  updates: Partial<{ name: string; display_order: number }>
+): Promise<DatabaseSubjectGroup | null> {
+  const { data, error } = await supabase
+    .from('subject_groups')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) {
+    console.error('Error updating subject group:', error);
+    return null;
+  }
+  return data as DatabaseSubjectGroup;
+}
+
+export async function deleteSubjectGroup(id: string): Promise<boolean> {
+  const { error } = await supabase.from('subject_groups').delete().eq('id', id);
+  if (error) {
+    console.error('Error deleting subject group:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function updateSubjectGroupOrders(
+  orders: { id: string; display_order: number }[]
+): Promise<boolean> {
+  const updates = orders.map(({ id, display_order }) =>
+    supabase
+      .from('subject_groups')
+      .update({ display_order, updated_at: new Date().toISOString() })
+      .eq('id', id)
+  );
+  const results = await Promise.all(updates);
+  const failed = results.filter((r) => r.error);
+  if (failed.length > 0) {
+    console.error('Error updating subject group orders:', failed[0].error);
+    return false;
+  }
+  return true;
+}
+
+export async function assignSubjectToGroup(
+  subjectId: string,
+  groupId: string | null
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('subjects')
+    .update({ group_id: groupId, updated_at: new Date().toISOString() })
+    .eq('id', subjectId);
+  if (error) {
+    console.error('Error assigning subject to group:', error);
+    return false;
+  }
+  return true;
 }
 
 
@@ -1160,11 +1346,12 @@ export async function fetchQuestionsForAllSubjects(subjectIds: string[]): Promis
 export async function fetchAllDashboardData(): Promise<{
   tests: DatabaseTestWithCount[];
   subjects: DatabaseSubjectWithCount[];
+  subjectGroups: DatabaseSubjectGroup[];
   tags: string[];
   questionsBySubject: { [subjectId: string]: DashboardQuestion[] };
 }> {
   // Single parallel batch: fetch all raw data at once
-  const [testsResult, testQuestionsResult, subjectsResult, activeTestsResult, questionsResult, testCountMap] = await Promise.all([
+  const [testsResult, testQuestionsResult, subjectsResult, activeTestsResult, questionsResult, testCountMap, subjectGroups] = await Promise.all([
     // For active tests with subject names
     supabase.from('tests').select('*, subjects (name)').eq('is_active', true).order('created_at', { ascending: true }),
     // For question-subject mapping (per-question)
@@ -1177,6 +1364,8 @@ export async function fetchAllDashboardData(): Promise<{
     supabase.from('questions').select('id, skills, tags, difficulty'),
     // Display-question counts (parts-passage children collapsed to one).
     fetchDisplayQuestionCountsByTest(),
+    // Subject groups (for grouping subjects on student dashboard)
+    fetchSubjectGroups(),
   ]);
 
   const testQuestionRows = testQuestionsResult.data || [];
@@ -1249,7 +1438,7 @@ export async function fetchAllDashboardData(): Promise<{
     }
   }
 
-  return { tests, subjects, tags, questionsBySubject };
+  return { tests, subjects, subjectGroups, tags, questionsBySubject };
 }
 
 // Get subject ID for a question (via test association)

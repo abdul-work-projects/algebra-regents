@@ -34,6 +34,11 @@ import {
   updateSubject,
   deleteSubject,
   convertToSubjectFormat,
+  fetchSubjectGroups,
+  createSubjectGroup,
+  updateSubjectGroup,
+  deleteSubjectGroup,
+  convertToSubjectGroupFormat,
   extractSkillNames,
   extractTags,
   createPassageWithQuestions,
@@ -56,8 +61,9 @@ import {
 } from "@/lib/bugReports";
 import TestModal from "@/components/TestModal";
 import SubjectModal from "@/components/SubjectModal";
+import SubjectGroupModal from "@/components/SubjectGroupModal";
 import SectionModal from "@/components/SectionModal";
-import { Test, Subject, TestSection } from "@/lib/types";
+import { Test, Subject, SubjectGroup, TestSection } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 // Admin components
 import SubjectsTab from "@/components/admin/SubjectsTab";
@@ -88,6 +94,7 @@ export default function AdminPage() {
   const [isLoadingTests, setIsLoadingTests] = useState(true);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoadingSubjects, setIsLoadingSubjects] = useState(true);
+  const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
   const [questionTestMap, setQuestionTestMap] = useState<{ [questionId: string]: string[] }>({});
   const [testQuestionOrder, setTestQuestionOrder] = useState<{ [questionId: string]: number }>({});
   const [questionSectionMap, setQuestionSectionMap] = useState<{ [questionId: string]: string | undefined }>({});
@@ -160,6 +167,8 @@ export default function AdminPage() {
   const [editingTest, setEditingTest] = useState<Test | null>(null);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [showSubjectGroupModal, setShowSubjectGroupModal] = useState(false);
+  const [editingSubjectGroup, setEditingSubjectGroup] = useState<SubjectGroup | null>(null);
   const [showSectionModal, setShowSectionModal] = useState(false);
   const [editingSection, setEditingSection] = useState<TestSection | null>(null);
   const [expandedTestId, setExpandedTestId] = useState<string | null>(null);
@@ -220,11 +229,12 @@ export default function AdminPage() {
     setIsLoadingTests(true);
     setIsLoadingSubjects(true);
 
-    const [questionsData, mappings, testsData, subjectsData, bugCounts] = await Promise.all([
+    const [questionsData, mappings, testsData, subjectsData, groupsData, bugCounts] = await Promise.all([
       fetchQuestions(),
       getAllQuestionTestMappings(),
       fetchTests(),
       fetchSubjects(),
+      fetchSubjectGroups(),
       getBugReportCounts(),
     ]);
 
@@ -240,9 +250,15 @@ export default function AdminPage() {
     setIsLoadingTests(false);
 
     setSubjects(subjectsData.map(convertToSubjectFormat));
+    setSubjectGroups(groupsData.map(convertToSubjectGroupFormat));
     setIsLoadingSubjects(false);
 
     setBugCounts(bugCounts);
+  };
+
+  const loadSubjectGroupsData = async () => {
+    const data = await fetchSubjectGroups();
+    setSubjectGroups(data.map(convertToSubjectGroupFormat));
   };
 
   const loadQuestions = async () => {
@@ -266,8 +282,9 @@ export default function AdminPage() {
 
   const loadSubjectsData = async () => {
     setIsLoadingSubjects(true);
-    const data = await fetchSubjects();
+    const [data, groupsData] = await Promise.all([fetchSubjects(), fetchSubjectGroups()]);
     setSubjects(data.map(convertToSubjectFormat));
+    setSubjectGroups(groupsData.map(convertToSubjectGroupFormat));
     setIsLoadingSubjects(false);
   };
 
@@ -384,14 +401,21 @@ export default function AdminPage() {
   };
 
   // ── Subject CRUD ──────────────────────────────────────────────────────
-  const handleSaveSubject = async (subjectData: { name: string; description?: string; color: string; is_active: boolean; display_order: number }) => {
+  const handleSaveSubject = async (subjectData: { name: string; description?: string; color: string; is_active: boolean; display_order: number; group_id: string | null }) => {
     if (editingSubject) {
       const result = await updateSubject(editingSubject.id, subjectData);
       if (result) { setNotification({ type: "success", message: "Subject updated successfully" }); loadSubjectsData(); }
       else throw new Error("Failed to update subject");
     } else {
       const result = await createSubject(subjectData);
-      if (result) { setNotification({ type: "success", message: "Subject created successfully" }); loadSubjectsData(); }
+      if (result) {
+        setNotification({ type: "success", message: "Subject created successfully" });
+        // createSubject in lib doesn't currently set group_id; do it as a follow-up update
+        if (subjectData.group_id !== null && result.id) {
+          await updateSubject(result.id, { group_id: subjectData.group_id });
+        }
+        loadSubjectsData();
+      }
       else throw new Error("Failed to create subject");
     }
     setEditingSubject(null);
@@ -403,6 +427,31 @@ export default function AdminPage() {
     const success = await deleteSubject(subject.id);
     if (success) { setNotification({ type: "success", message: "Subject deleted successfully" }); loadSubjectsData(); }
     else setNotification({ type: "error", message: "Failed to delete subject" });
+  };
+
+  // ── Subject Group CRUD ────────────────────────────────────────────────
+  const handleSaveSubjectGroup = async ({ name }: { name: string }) => {
+    if (editingSubjectGroup) {
+      const result = await updateSubjectGroup(editingSubjectGroup.id, { name });
+      if (result) { setNotification({ type: "success", message: "Group updated successfully" }); loadSubjectGroupsData(); }
+      else throw new Error("Failed to update group");
+    } else {
+      const result = await createSubjectGroup(name);
+      if (result) { setNotification({ type: "success", message: "Group created successfully" }); loadSubjectGroupsData(); }
+      else throw new Error("Failed to create group");
+    }
+    setEditingSubjectGroup(null);
+  };
+
+  const handleDeleteSubjectGroup = async (group: SubjectGroup) => {
+    const subjectsInGroup = subjects.filter((s) => s.groupId === group.id).length;
+    const msg = subjectsInGroup > 0
+      ? `Delete "${group.name}"? Its ${subjectsInGroup} subject${subjectsInGroup === 1 ? '' : 's'} will become Ungrouped.`
+      : `Delete "${group.name}"?`;
+    if (!window.confirm(msg)) return;
+    const success = await deleteSubjectGroup(group.id);
+    if (success) { setNotification({ type: "success", message: "Group deleted" }); loadSubjectsData(); }
+    else setNotification({ type: "error", message: "Failed to delete group" });
   };
 
   // ── Question CRUD ─────────────────────────────────────────────────────
@@ -982,10 +1031,16 @@ export default function AdminPage() {
         {activeTab === "subjects" && (
           <SubjectsTab
             subjects={subjects}
+            tests={tests}
+            groups={subjectGroups}
             isLoading={isLoadingSubjects}
             onCreateSubject={() => { setEditingSubject(null); setShowSubjectModal(true); }}
             onEditSubject={(subject) => { setEditingSubject(subject); setShowSubjectModal(true); }}
             onDeleteSubject={handleDeleteSubject}
+            onCreateGroup={() => { setEditingSubjectGroup(null); setShowSubjectGroupModal(true); }}
+            onEditGroup={(group) => { setEditingSubjectGroup(group); setShowSubjectGroupModal(true); }}
+            onDeleteGroup={handleDeleteSubjectGroup}
+            onReorderPersisted={() => { loadSubjectsData(); loadTestsData(); }}
           />
         )}
 
@@ -1085,6 +1140,14 @@ export default function AdminPage() {
         onClose={() => { setShowSubjectModal(false); setEditingSubject(null); }}
         onSave={handleSaveSubject}
         editingSubject={editingSubject}
+        groups={subjectGroups}
+      />
+
+      <SubjectGroupModal
+        isOpen={showSubjectGroupModal}
+        onClose={() => { setShowSubjectGroupModal(false); setEditingSubjectGroup(null); }}
+        onSave={handleSaveSubjectGroup}
+        editingGroup={editingSubjectGroup}
       />
 
       <SectionModal

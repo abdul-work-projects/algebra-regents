@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Subject } from "@/lib/types";
+import { Subject, SubjectGroup } from "@/lib/types";
 
 const PRESET_COLORS = [
   { name: "Cyan", value: "#67E8F9" },
@@ -23,8 +23,10 @@ interface SubjectModalProps {
     color: string;
     is_active: boolean;
     display_order: number;
+    group_id: string | null;
   }) => Promise<void>;
   editingSubject?: Subject | null;
+  groups?: SubjectGroup[];
 }
 
 export default function SubjectModal({
@@ -32,12 +34,14 @@ export default function SubjectModal({
   onClose,
   onSave,
   editingSubject,
+  groups = [],
 }: SubjectModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#67E8F9");
   const [isActive, setIsActive] = useState(true);
   const [displayOrder, setDisplayOrder] = useState(0);
+  const [groupId, setGroupId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,12 +52,14 @@ export default function SubjectModal({
       setColor(editingSubject.color || "#67E8F9");
       setIsActive(editingSubject.isActive);
       setDisplayOrder(editingSubject.displayOrder);
+      setGroupId(editingSubject.groupId ?? null);
     } else {
       setName("");
       setDescription("");
       setColor("#67E8F9");
       setIsActive(true);
       setDisplayOrder(0);
+      setGroupId(null);
     }
     setError(null);
   }, [editingSubject, isOpen]);
@@ -74,6 +80,7 @@ export default function SubjectModal({
         color,
         is_active: isActive,
         display_order: displayOrder,
+        group_id: groupId,
       });
       onClose();
     } catch (err) {
@@ -150,6 +157,28 @@ export default function SubjectModal({
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
               />
+            </div>
+
+            {/* Group */}
+            <div>
+              <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
+                Group
+              </label>
+              <select
+                value={groupId ?? ""}
+                onChange={(e) => setGroupId(e.target.value || null)}
+                className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
+              >
+                <option value="">Ungrouped</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+                Optionally group related subjects (e.g., Global History + US History under Social Studies).
+              </p>
             </div>
 
             {/* Color Selection */}

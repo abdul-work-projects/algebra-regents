@@ -69,6 +69,7 @@ export interface Test {
   subjectId: string; // Required - which subject this test belongs to
   subjectName?: string; // Joined field for display
   sections?: TestSection[]; // Sections for this test
+  displayOrder?: number; // Order within subject for admin Subjects tab
   createdAt?: string;
   updatedAt?: string;
 }
@@ -181,8 +182,17 @@ export interface Subject {
   color: string; // Hex color code for the subject
   isActive: boolean;
   displayOrder: number;
+  groupId?: string | null; // Optional grouping (e.g. "Social Studies" for Global+US History)
   testCount?: number; // computed field, not stored in DB
   questionCount?: number; // computed field for question bank
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SubjectGroup {
+  id: string;
+  name: string;
+  displayOrder: number;
   createdAt?: string;
   updatedAt?: string;
 }

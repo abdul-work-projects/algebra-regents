@@ -4,8 +4,8 @@ import { loadSession, clearSession, loadMarkedForReview, loadSkillProgress, AllS
 import { loadAttempts, AttemptsStore } from '@/lib/attempts';
 import { loadTestAttempts, TestAttempt } from '@/lib/testAttempts';
 import TestAttemptHistoryModal from '@/components/TestAttemptHistoryModal';
-import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, fetchAllDashboardData, DashboardQuestion } from '@/lib/supabase';
-import { Test, Subject } from '@/lib/types';
+import { fetchActiveTests, convertToTestFormat, fetchActiveSubjects, convertToSubjectFormat, convertToSubjectGroupFormat, fetchAllDashboardData, DashboardQuestion } from '@/lib/supabase';
+import { Test, Subject, SubjectGroup } from '@/lib/types';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -49,6 +49,7 @@ function HomeContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [existingSessionTestId, setExistingSessionTestId] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
@@ -82,11 +83,12 @@ function HomeContent() {
 
     async function loadData() {
       try {
-        const { tests: dbTests, subjects: dbSubjects, tags, questionsBySubject } = await fetchAllDashboardData();
+        const { tests: dbTests, subjects: dbSubjects, subjectGroups: dbGroups, tags, questionsBySubject } = await fetchAllDashboardData();
 
         const formattedSubjects = dbSubjects.map(convertToSubjectFormat);
         setTests(dbTests.map(convertToTestFormat));
         setSubjects(formattedSubjects);
+        setSubjectGroups(dbGroups.map(convertToSubjectGroupFormat));
         setAllTags(tags);
 
         const loadedMarkedQuestions = loadMarkedForReview();
@@ -1140,75 +1142,107 @@ function HomeContent() {
                 No tests available yet. Check back later.
               </div>
             ) : (
-              <div className="space-y-6">
-                {subjects
-                  .filter(subject => tests.some(t => t.subjectId === subject.id))
-                  .map((subject) => {
-                    const searchLower = testSearch.toLowerCase().trim();
-                    const subjectTests = tests.filter(t =>
+              (() => {
+                const searchLower = testSearch.toLowerCase().trim();
+                const subjectsWithTests = subjects.filter((subject) =>
+                  tests.some(
+                    (t) =>
                       t.subjectId === subject.id &&
                       (!searchLower || t.name.toLowerCase().includes(searchLower))
-                    );
-                    if (subjectTests.length === 0) return null;
-                    return (
-                      <div
-                        key={subject.id}
-                        className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-sm hover:-translate-y-1 transition-transform"
-                      >
-                        {/* Subject Header with Color */}
-                        <div
-                          className="p-4 flex items-center justify-between"
-                          style={{ backgroundColor: subject.color }}
-                        >
-                          <div>
-                            <h3 className="font-bold text-gray-900 text-xl tracking-tight">
-                              {subject.name}
-                            </h3>
-                            <p className="text-gray-800/70 text-sm">
-                              {subjectTests.length} {subjectTests.length === 1 ? 'test' : 'tests'}
-                            </p>
-                          </div>
-                        </div>
+                  )
+                );
+                const groupedIds = new Set(subjectGroups.map((g) => g.id));
+                const subjectsByGroup = new Map<string | null, Subject[]>();
+                subjectsByGroup.set(null, []);
+                for (const g of subjectGroups) subjectsByGroup.set(g.id, []);
+                for (const s of subjectsWithTests) {
+                  const key = s.groupId && groupedIds.has(s.groupId) ? s.groupId : null;
+                  subjectsByGroup.get(key)!.push(s);
+                }
 
-                        {/* Tests List */}
-                        <div className="p-4">
-                          <div className="space-y-0.5">
-                            {subjectTests.map((test) => {
-                              const myAttempts = attemptsByTest.get(test.id) || [];
-                              const best = myAttempts.reduce((m, a) => Math.max(m, a.scaledScore), 0);
-                              return (
-                                <div
-                                  key={test.id}
-                                  onClick={() => handleStartTest(test.id)}
-                                  className="group/item flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
-                                >
-                                  <span className="text-gray-700 dark:text-neutral-300 group-hover/item:underline truncate">{test.name}</span>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    {myAttempts.length > 0 && (
-                                      <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
-                                        Best {best}
-                                      </span>
-                                    )}
-                                    {myAttempts.length > 0 && (
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); setHistoryTestId(test.id); }}
-                                        className="px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-neutral-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-full transition-all"
-                                        title="View attempt history"
-                                      >
-                                        {myAttempts.length}× history
-                                      </button>
-                                    )}
-                                    <span className="text-gray-400 dark:text-neutral-500 text-sm">{test.questionCount || 0} questions</span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                const renderSubjectCard = (subject: Subject) => {
+                  const subjectTests = tests.filter(
+                    (t) =>
+                      t.subjectId === subject.id &&
+                      (!searchLower || t.name.toLowerCase().includes(searchLower))
+                  );
+                  if (subjectTests.length === 0) return null;
+                  return (
+                    <div
+                      key={subject.id}
+                      className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-sm hover:-translate-y-1 transition-transform"
+                    >
+                      <div className="p-4 flex items-center justify-between" style={{ backgroundColor: subject.color }}>
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-xl tracking-tight">{subject.name}</h3>
+                          <p className="text-gray-800/70 text-sm">
+                            {subjectTests.length} {subjectTests.length === 1 ? 'test' : 'tests'}
+                          </p>
                         </div>
                       </div>
-                    );
-                  })}
-              </div>
+                      <div className="p-4">
+                        <div className="space-y-0.5">
+                          {subjectTests.map((test) => {
+                            const myAttempts = attemptsByTest.get(test.id) || [];
+                            const best = myAttempts.reduce((m, a) => Math.max(m, a.scaledScore), 0);
+                            return (
+                              <div
+                                key={test.id}
+                                onClick={() => handleStartTest(test.id)}
+                                className="group/item flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
+                              >
+                                <span className="text-gray-700 dark:text-neutral-300 group-hover/item:underline truncate">{test.name}</span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {myAttempts.length > 0 && (
+                                    <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
+                                      Best {best}
+                                    </span>
+                                  )}
+                                  {myAttempts.length > 0 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setHistoryTestId(test.id);
+                                      }}
+                                      className="px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-neutral-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-full transition-all"
+                                      title="View attempt history"
+                                    >
+                                      {myAttempts.length}× history
+                                    </button>
+                                  )}
+                                  <span className="text-gray-400 dark:text-neutral-500 text-sm">{test.questionCount || 0} questions</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                };
+
+                return (
+                  <div className="space-y-8">
+                    {subjectGroups.map((group) => {
+                      const list = subjectsByGroup.get(group.id) || [];
+                      if (list.length === 0) return null;
+                      return (
+                        <div key={group.id} className="space-y-4">
+                          <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
+                            {group.name}
+                          </h2>
+                          <div className="space-y-6">{list.map(renderSubjectCard)}</div>
+                        </div>
+                      );
+                    })}
+                    {(subjectsByGroup.get(null) || []).length > 0 && (
+                      <div className="space-y-6">
+                        {(subjectsByGroup.get(null) || []).map(renderSubjectCard)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
             )}
 
             {/* Features */}
