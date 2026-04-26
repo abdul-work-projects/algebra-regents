@@ -17,6 +17,8 @@ import {
   toggleMarkedForReview,
   loadGraphPaperDrawings,
   saveGraphPaperDrawings,
+  loadGraphingToolData,
+  saveGraphingToolData,
 } from "@/lib/storage";
 import { loadAttempts, syncSessionToAttempts, AttemptsStore } from "@/lib/attempts";
 import {
@@ -46,6 +48,8 @@ import LiveScoreBeaver from "@/components/LiveScoreBeaver";
 import PracticeProgressBar from "@/components/PracticeProgressBar";
 import DocsList from "@/components/DocsList";
 import GraphPaperCanvas from "@/components/GraphPaperCanvas";
+import GraphingToolModal from "@/components/GraphingTool/GraphingToolModal";
+import type { GraphData as GraphingToolData } from "@/components/GraphingTool/types";
 import FormattedText from "@/components/FormattedText";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/components/ThemeProvider";
@@ -63,6 +67,8 @@ function QuizPageContent() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [showGraphPaper, setShowGraphPaper] = useState(false);
   const [graphPaperDrawings, setGraphPaperDrawings] = useState<{ [questionId: string]: string }>({});
+  const [showGraphingTool, setShowGraphingTool] = useState(false);
+  const [graphingToolData, setGraphingToolData] = useState<{ [questionId: string]: GraphingToolData }>({});
   const [showBugReport, setShowBugReport] = useState(false);
   const [scratchWorkIndex, setScratchWorkIndex] = useState<number | null>(null);
   const [dragOrderView, setDragOrderView] = useState<"list" | "slots">(() => {
@@ -216,6 +222,7 @@ function QuizPageContent() {
     // (current session state takes precedence as the user answers).
     setPriorAttempts(loadAttempts());
     setGraphPaperDrawings(loadGraphPaperDrawings());
+    setGraphingToolData(loadGraphingToolData<GraphingToolData>());
 
     const testIdFromUrl = searchParams.get("testId");
     const testModeFromUrl = searchParams.get("testMode") as 'practice' | 'test' | null;
@@ -1134,6 +1141,24 @@ function QuizPageContent() {
                   <path strokeLinecap="round" d="M3 9h18M3 15h18M9 3v18M15 3v18" strokeWidth={1} />
                 </svg>
                 <span className="hidden md:block text-[9px] font-medium">Graph Paper</span>
+              </button>
+              )}
+
+              {toolFlags.graphingTool && (
+              <button
+                onClick={() => setShowGraphingTool(true)}
+                className={`flex flex-col items-center gap-0.5 active:scale-95 transition-all rounded-lg p-1 ${
+                  graphingToolData[currentQuestion.id]
+                    ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                    : "hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-neutral-400"
+                }`}
+                title="Graphing Tool"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 14l3-4 3 3 5-7" />
+                </svg>
+                <span className="hidden md:block text-[9px] font-medium">Graphing</span>
               </button>
               )}
 
@@ -2968,6 +2993,19 @@ function QuizPageContent() {
         isOpen={showReferenceImage}
         onClose={() => setShowReferenceImage(false)}
         docs={resolveReferenceDocs(currentQuestion, currentSection)}
+      />
+
+      {/* Graphing Tool Modal */}
+      <GraphingToolModal
+        isOpen={showGraphingTool}
+        onClose={() => setShowGraphingTool(false)}
+        initialData={graphingToolData[currentQuestion.id]}
+        onSave={(data) => {
+          const next = { ...graphingToolData, [currentQuestion.id]: data };
+          setGraphingToolData(next);
+          saveGraphingToolData(next);
+        }}
+        questionNumber={session.currentQuestionIndex + 1}
       />
 
       {/* Bug Report Modal */}

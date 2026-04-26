@@ -5,6 +5,7 @@ const SKILL_PROGRESS_KEY = 'algebra-regents-skill-progress';
 const MARKED_FOR_REVIEW_KEY = 'algebra-regents-marked-for-review';
 const SELECTED_SUBJECT_KEY = 'algebra-regents-selected-subject';
 const GRAPH_PAPER_KEY = 'algebra-regents-graph-paper';
+const GRAPHING_TOOL_KEY = 'algebra-regents-graphing-tool';
 
 // Per-question graph paper drawings (base64 data URLs).
 export const loadGraphPaperDrawings = (): { [questionId: string]: string } => {
@@ -24,6 +25,27 @@ export const saveGraphPaperDrawings = (drawings: { [questionId: string]: string 
     localStorage.setItem(GRAPH_PAPER_KEY, JSON.stringify(drawings));
   } catch (error) {
     console.error('Error saving graph paper drawings:', error);
+  }
+};
+
+// Per-question graphing-tool data (JSXGraph state).
+export const loadGraphingToolData = <T = unknown>(): { [questionId: string]: T } => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(GRAPHING_TOOL_KEY);
+    return raw ? (JSON.parse(raw) as { [questionId: string]: T }) : {};
+  } catch (error) {
+    console.error('Error loading graphing tool data:', error);
+    return {};
+  }
+};
+
+export const saveGraphingToolData = <T = unknown>(data: { [questionId: string]: T }): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(GRAPHING_TOOL_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.error('Error saving graphing tool data:', error);
   }
 };
 
