@@ -49,23 +49,24 @@ function SortableItem({ id, index, text, imageUrl, isChecked, isCorrectPosition,
     fontFamily: "'Times New Roman', Times, serif",
   };
 
-  let borderClass = 'border-gray-300 dark:border-neutral-600';
-  let bgClass = 'bg-white dark:bg-neutral-900';
-
+  // Exam-style: bare "(N) text" with subtle background tint for state. Keep grab cursor for drag affordance.
+  let textColor = 'text-gray-900 dark:text-neutral-100';
+  let bgClass = 'hover:bg-gray-100 dark:hover:bg-neutral-800';
   if (isChecked) {
     if (isCorrectPosition) {
-      borderClass = 'border-green-500 dark:border-green-400';
+      textColor = 'text-green-700 dark:text-green-300';
       bgClass = 'bg-green-50 dark:bg-green-900/30';
     } else {
-      borderClass = 'border-rose-500 dark:border-rose-400';
+      textColor = 'text-rose-700 dark:text-rose-300';
       bgClass = 'bg-rose-50 dark:bg-rose-900/30';
     }
   }
-
   if (isDragging) {
-    bgClass = 'bg-blue-50 dark:bg-blue-900/30';
-    borderClass = 'border-blue-400 dark:border-blue-500';
+    bgClass = 'bg-sky-50 dark:bg-sky-900/30';
   }
+
+  const grabClass = disabled ? '' : 'cursor-grab active:cursor-grabbing touch-none';
+  const draggingClass = isDragging ? 'shadow-md z-10 opacity-90' : '';
 
   if (horizontal) {
     return (
@@ -74,38 +75,15 @@ function SortableItem({ id, index, text, imageUrl, isChecked, isCorrectPosition,
         style={style}
         {...attributes}
         {...listeners}
-        className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-lg border-2 ${borderClass} ${bgClass} transition-colors min-w-[60px] ${
-          isDragging ? 'shadow-lg z-10 opacity-90' : ''
-        } ${disabled ? '' : 'cursor-grab active:cursor-grabbing touch-none'}`}
+        className={`flex flex-col items-center gap-1 px-2 py-1 rounded-md min-w-[60px] transition-colors ${textColor} ${bgClass} ${draggingClass} ${grabClass}`}
       >
-        <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-          isChecked
-            ? isCorrectPosition
-              ? 'bg-green-500 dark:bg-green-600 text-white'
-              : 'bg-rose-500 dark:bg-rose-600 text-white'
-            : 'bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300'
-        }`}>
-          {index + 1}
-        </span>
+        <span className="shrink-0 text-sm">({index + 1})</span>
         <div className="text-center min-w-0">
           {text && <MathText text={text} className="text-sm" />}
           {imageUrl && (
             <img src={imageUrl} alt={`Option ${index + 1}`} className="max-w-[80px] h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1" />
           )}
         </div>
-        {isChecked && (
-          <div className="flex-shrink-0">
-            {isCorrectPosition ? (
-              <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            )}
-          </div>
-        )}
       </div>
     );
   }
@@ -116,47 +94,20 @@ function SortableItem({ id, index, text, imageUrl, isChecked, isCorrectPosition,
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 ${borderClass} ${bgClass} transition-colors ${
-        isDragging ? 'shadow-lg z-10 opacity-90' : ''
-      } ${disabled ? '' : 'cursor-grab active:cursor-grabbing touch-none'}`}
+      className={`flex items-start gap-1.5 px-2 py-1 rounded-md transition-colors ${textColor} ${bgClass} ${draggingClass} ${grabClass}`}
     >
-      {/* Position number */}
-      <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-        isChecked
-          ? isCorrectPosition
-            ? 'bg-green-500 dark:bg-green-600 text-white'
-            : 'bg-rose-500 dark:bg-rose-600 text-white'
-          : 'bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300'
-      }`}>
-        {index + 1}
-      </span>
-
-      {/* Content */}
+      <span className="shrink-0">({index + 1})</span>
       <div className="flex-1 min-w-0">
         {text && <MathText text={text} className="text-left" />}
         {imageUrl && (
           <img
             src={imageUrl}
             alt={`Option ${index + 1}`}
-            className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1"
+            className="h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1"
+            style={{ maxWidth: '100%', display: 'block' }}
           />
         )}
       </div>
-
-      {/* Status indicator */}
-      {isChecked && (
-        <div className="flex-shrink-0">
-          {isCorrectPosition ? (
-            <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -236,7 +187,10 @@ export default function DragOrderAnswer({
   const isCorrect = JSON.stringify(items) === JSON.stringify(correctOrder);
 
   return (
-    <div className="space-y-2 relative z-[60]" style={{ pointerEvents: 'auto' }}>
+    <div
+      className="space-y-2 relative z-[60]"
+      style={{ pointerEvents: 'auto', fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}
+    >
       <div className="flex items-center gap-2 mb-3">
         <span className="text-sm font-medium text-gray-600 dark:text-neutral-400">
           Drag items into the correct order:
@@ -249,7 +203,7 @@ export default function DragOrderAnswer({
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={sortableIds} strategy={horizontal ? horizontalListSortingStrategy : verticalListSortingStrategy}>
-          <div className={horizontal ? 'flex flex-wrap gap-2' : 'space-y-2'}>
+          <div className={horizontal ? 'flex flex-wrap gap-2' : 'space-y-1'}>
             {orderedItems.map((item, index) => (
               <SortableItem
                 key={item.id}

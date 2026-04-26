@@ -480,7 +480,7 @@ export default function ScrollablePassage({
       let firstFootnote = true;
 
       return (
-        <div className="text-gray-900 dark:text-neutral-100" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
+        <div className="text-gray-900 dark:text-neutral-100" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem' }}>
           {blocks.map((block, blockIdx) => {
             if (block.type === 'blank') {
               return <div key={blockIdx} className="h-3" />;
@@ -592,7 +592,7 @@ export default function ScrollablePassage({
 
     // Default rendering (no line numbers)
     return (
-      <div className="text-gray-900 dark:text-neutral-100" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem', whiteSpace: 'pre-wrap' }}>
+      <div className="text-gray-900 dark:text-neutral-100" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1.125rem', whiteSpace: 'pre-wrap' }}>
         {segments.map((segment, idx) => {
           if (segment.type === 'math') {
             return (

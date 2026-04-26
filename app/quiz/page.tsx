@@ -1965,21 +1965,20 @@ function QuizPageContent() {
                 const partDragOrderCorrect = partIsDragOrder && partDragOrderChecked && JSON.stringify(partDragOrderAnswer) === JSON.stringify(partQ.answers);
 
                 return (
-                  <div key={partQ.id} className="mb-6 border-t border-gray-200 dark:border-neutral-700 pt-4 first:border-t-0 first:pt-0">
-                    {/* Part Label */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="inline-block text-sm font-bold px-3 py-1 rounded-full bg-black dark:bg-white text-white dark:text-black">
-                        {partInfo?.partLabel || String.fromCharCode(97 + partIdx)}
-                      </span>
-                      {partQ.points && (
-                        <span className="text-xs text-gray-500 dark:text-neutral-400">
-                          {partQ.points} {partQ.points === 1 ? 'pt' : 'pts'}
-                        </span>
-                      )}
+                  <div
+                    key={partQ.id}
+                    className="mb-6 border-t border-gray-200 dark:border-neutral-700 pt-4 first:border-t-0 first:pt-0 flex gap-3"
+                    style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: "1.125rem" }}
+                  >
+                    {/* Part label — Regents style: bold "1a", "1b" aligned with the question number. */}
+                    <div className="shrink-0 font-bold text-gray-900 dark:text-neutral-100" style={{ width: '2rem', textAlign: 'right' }}>
+                      {partInfo?.displayLabel || `${(partInfo?.displayNumber ?? '')}${partInfo?.partLabel || String.fromCharCode(97 + partIdx)}`}
                     </div>
+                    {/* Right column: question content + answers + notes share the same indent */}
+                    <div className="flex-1 min-w-0">
 
                     {/* Part Question Content */}
-                    <div className="mb-3" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: "1.125rem" }}>
+                    <div className="mb-3">
                       {partQ.aboveImageText && (
                         <div className="mb-2">
                           <MathText text={partQ.aboveImageText} className="leading-relaxed dark:text-neutral-200" />
@@ -2033,14 +2032,18 @@ function QuizPageContent() {
                       </div>
                     ) : (
                       <div
-                        className={`relative z-[60] ${
+                        className={`relative z-[60] -ml-2 ${
                           partQ.answerLayout === 'grid'
-                            ? 'grid grid-cols-2 gap-2'
+                            ? 'grid grid-cols-2 gap-x-4 gap-y-1'
                             : partQ.answerLayout === 'row'
-                            ? 'grid grid-cols-4 gap-2'
-                            : 'space-y-2'
+                            ? 'grid grid-cols-4 gap-x-2 gap-y-1'
+                            : 'space-y-1'
                         }`}
-                        style={{ pointerEvents: "auto" }}
+                        style={{
+                          pointerEvents: "auto",
+                          fontFamily: "'Times New Roman', Times, serif",
+                          fontSize: "1.125rem",
+                        }}
                       >
                         {partQ.answers.map((answer, ansIdx) => {
                           const answerNum = ansIdx + 1;
@@ -2050,23 +2053,25 @@ function QuizPageContent() {
                           const isCorrectAnswer = answerNum === partQ.correctAnswer;
                           const isSelected = partSelectedAnswer === answerNum;
 
-                          let buttonClass = "w-full px-4 py-3 text-left rounded-xl border-2 transition-all duration-200 font-medium active:scale-[0.98]";
+                          let textColor = "text-gray-900 dark:text-neutral-100";
+                          let bgClass = "hover:bg-gray-100 dark:hover:bg-neutral-800";
                           if (partHasChecked && isCorrectAnswer) {
                             // Always highlight correct answer green after checking
-                            buttonClass += " bg-green-50 dark:bg-green-900/30 border-black dark:border-green-500 text-green-900 dark:text-green-300";
+                            textColor = "text-green-700 dark:text-green-300";
+                            bgClass = "bg-green-50 dark:bg-green-900/30";
                           } else if (isChecked && !isCorrectAnswer) {
-                            buttonClass += " bg-rose-50 dark:bg-rose-900/30 border-rose-500 text-rose-900 dark:text-rose-300";
+                            textColor = "text-rose-700 dark:text-rose-300";
+                            bgClass = "bg-rose-50 dark:bg-rose-900/30";
                           } else if (isSelected) {
-                            buttonClass += " bg-sky-50 dark:bg-sky-900/30 border-sky-400 dark:border-sky-500 text-sky-900 dark:text-sky-300";
-                          } else {
-                            buttonClass += " bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-500 hover:bg-gray-50 dark:hover:bg-neutral-800";
+                            textColor = "text-sky-700 dark:text-sky-300";
+                            bgClass = "bg-sky-50 dark:bg-sky-900/30";
                           }
 
                           const answerImage = partQ.answerImageUrls?.[ansIdx];
                           const gridOrder = partQ.answerLayout === 'grid' ? [0, 2, 1, 3][ansIdx] : ansIdx;
 
                           return (
-                            <div key={ansIdx} className="relative group" style={{ order: gridOrder }}>
+                            <div key={ansIdx} className="relative" style={{ order: gridOrder }}>
                               <button
                                 onClick={() => {
                                   const timeSpent = Math.floor((Date.now() - session.lastQuestionStartTime) / 1000);
@@ -2079,13 +2084,11 @@ function QuizPageContent() {
                                     };
                                   });
                                 }}
-                                className={buttonClass}
+                                className={`w-full text-left rounded-lg px-2 py-1 transition-all active:scale-[0.98] ${textColor} ${bgClass}`}
                               >
-                                <div className="flex items-start gap-3" style={{ fontSize: "1.125rem" }}>
-                                  <span className="font-bold shrink-0 leading-normal" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-                                    ({answerNum})
-                                  </span>
-                                  <div className="flex-1 min-w-0 overflow-hidden" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                                <div className="flex items-start gap-1.5 min-w-0 w-full">
+                                  <span className="shrink-0">({answerNum})</span>
+                                  <div className="flex-1 min-w-0 overflow-hidden">
                                     {answer && (
                                       <div className="break-words overflow-wrap-anywhere">
                                         <MathText text={answer} className="text-left" />
@@ -2095,14 +2098,14 @@ function QuizPageContent() {
                                       <img
                                         src={answerImage}
                                         alt={`Answer ${answerNum}`}
-                                        className="max-w-full h-auto rounded border border-gray-300 dark:border-neutral-600 mt-2"
+                                        className="h-auto rounded border border-gray-300 dark:border-neutral-600 mt-1"
+                                        style={{ maxWidth: '100%', display: 'block' }}
                                       />
                                     )}
                                   </div>
                                 </div>
                               </button>
 
-                              {/* CHECK button overlay on selected answer — matches single question style */}
                               {showCheckButton && isSelected && !partHasChecked && partCanAttempt && (
                                 <button
                                   onClick={(e) => {
@@ -2122,7 +2125,7 @@ function QuizPageContent() {
                                       };
                                     });
                                   }}
-                                  className="absolute right-3 top-3 px-3 py-1.5 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
+                                  className="absolute right-2 top-1 px-2.5 py-1 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 text-white dark:text-black text-xs font-bold rounded-lg shadow-md transition-all"
                                 >
                                   CHECK
                                 </button>
@@ -2142,6 +2145,7 @@ function QuizPageContent() {
                         </p>
                       </div>
                     )}
+                    </div>
                   </div>
                 );
               })}
@@ -2218,63 +2222,58 @@ function QuizPageContent() {
                 </div>
               )}
 
-              {/* Question Card - Above Image Text, Documents, and/or Question Text */}
+              {/* Question Card — Regents style: bold question number on the left with text indented to match. */}
               {((currentQuestion.questionDocuments && currentQuestion.questionDocuments.length > 0) ||
                 currentQuestion.questionText ||
                 currentQuestion.aboveImageText) && (
-                <div className="mb-3">
-                  {currentQuestion.aboveImageText && (
-                    <div
-                      className="mb-2"
-                      style={{
-                        fontFamily: "'Times New Roman', Times, serif",
-                        fontSize: "1.125rem",
-                      }}
-                    >
-                      <MathText
-                        text={currentQuestion.aboveImageText}
-                        className="leading-relaxed dark:text-neutral-200"
-                      />
-                    </div>
-                  )}
-                  {currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position !== 'below').length > 0 && (
-                    <div className="w-full">
-                      <DocsList
-                        docs={currentQuestion.questionDocuments.filter((d) => d.position !== 'below')}
-                        pdfHeight="50vh"
-                        imageMaxWidthClass={currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
-                      />
-                    </div>
-                  )}
-                  {currentQuestion.questionText && (
-                    <div
-                      className={(currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position !== 'below').length > 0) ? "mt-4" : ""}
-                      style={{
-                        fontFamily: "'Times New Roman', Times, serif",
-                        fontSize: "1.125rem",
-                      }}
-                    >
-                      <MathText
-                        text={currentQuestion.questionText}
-                        className="leading-relaxed dark:text-neutral-200"
-                      />
-                    </div>
-                  )}
-                  {currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position === 'below').length > 0 && (
-                    <div className="w-full mt-4">
-                      <DocsList
-                        docs={currentQuestion.questionDocuments.filter((d) => d.position === 'below')}
-                        pdfHeight="50vh"
-                        imageMaxWidthClass={currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
-                      />
-                    </div>
-                  )}
-
+                <div
+                  className="mb-3 flex gap-3"
+                  style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: "1.125rem" }}
+                >
+                  <div className="shrink-0 font-bold text-gray-900 dark:text-neutral-100" style={{ width: '1.5rem', textAlign: 'right' }}>
+                    {(currentDisplayInfo?.displayNumber ?? session.currentQuestionIndex + 1)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {currentQuestion.aboveImageText && (
+                      <div className="mb-2">
+                        <MathText
+                          text={currentQuestion.aboveImageText}
+                          className="leading-relaxed dark:text-neutral-200"
+                        />
+                      </div>
+                    )}
+                    {currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position !== 'below').length > 0 && (
+                      <div className="w-full">
+                        <DocsList
+                          docs={currentQuestion.questionDocuments.filter((d) => d.position !== 'below')}
+                          pdfHeight="50vh"
+                          imageMaxWidthClass={currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
+                        />
+                      </div>
+                    )}
+                    {currentQuestion.questionText && (
+                      <div className={(currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position !== 'below').length > 0) ? "mt-4" : ""}>
+                        <MathText
+                          text={currentQuestion.questionText}
+                          className="leading-relaxed dark:text-neutral-200"
+                        />
+                      </div>
+                    )}
+                    {currentQuestion.questionDocuments && currentQuestion.questionDocuments.filter((d) => d.position === 'below').length > 0 && (
+                      <div className="w-full mt-4">
+                        <DocsList
+                          docs={currentQuestion.questionDocuments.filter((d) => d.position === 'below')}
+                          pdfHeight="50vh"
+                          imageMaxWidthClass={currentQuestion.imageSize === 'small' ? 'max-w-xs' : currentQuestion.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* More Space */}
-              <div className="relative z-[60]" style={{ pointerEvents: "auto" }}>
+              <div className="relative z-[60] pl-9" style={{ pointerEvents: "auto" }}>
                 <button
                   onClick={() => setScratchWorkIndex(scratchWorkIndex === session.currentQuestionIndex ? null : session.currentQuestionIndex)}
                   className="flex items-center gap-1 text-xs text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 transition-colors mb-2"
@@ -2286,7 +2285,7 @@ function QuizPageContent() {
                 </button>
               </div>
               <div
-                className={`transition-all duration-300 ease-in-out overflow-hidden ${scratchWorkIndex === session.currentQuestionIndex ? 'max-h-[300px] mb-4' : 'max-h-0'}`}
+                className={`transition-all duration-300 ease-in-out overflow-hidden pl-9 ${scratchWorkIndex === session.currentQuestionIndex ? 'max-h-[300px] mb-4' : 'max-h-0'}`}
               >
                 <div className="h-[300px] rounded-xl border-2 border-dashed border-gray-200 dark:border-neutral-700" />
               </div>
@@ -2406,7 +2405,7 @@ function QuizPageContent() {
                 </div>
               ) : (
                 <div
-                  className={`mb-6 relative ${
+                  className={`mb-6 relative pl-7 ${
                     currentQuestion.answerLayout === "grid"
                       ? "grid grid-cols-2 gap-x-4 gap-y-1"
                       : currentQuestion.answerLayout === "row"
