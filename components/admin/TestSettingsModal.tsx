@@ -80,8 +80,49 @@ export default function TestSettingsModal({
 
   const totalQuestions = testQuestions.length;
 
+  // Display-question counts: a parts-passage's child rows collapse into one logical question.
+  type QWithPassage = DatabaseQuestion & { passages?: { type?: string } | null };
+  const collapsePartsCount = (rows: QWithPassage[]): number => {
+    const seen = new Set<string>();
+    let n = 0;
+    for (const q of rows) {
+      if (q.passages?.type === 'parts' && q.passage_id) {
+        if (seen.has(q.passage_id)) continue;
+        seen.add(q.passage_id);
+      }
+      n++;
+    }
+    return n;
+  };
+
+  // Display groups: each entry is the list of raw test_question row IDs that form one logical
+  // "display" question. Parts-passage children are merged into a single group; everything else
+  // is its own single-row group. Used everywhere the range UX needs to think in display Q's.
+  const displayGroups = useMemo(() => {
+    const groups: string[][] = [];
+    const passageToGroup = new Map<string, string[]>();
+    for (const q of testQuestions as QWithPassage[]) {
+      if (q.passages?.type === 'parts' && q.passage_id) {
+        let group = passageToGroup.get(q.passage_id);
+        if (!group) {
+          group = [];
+          passageToGroup.set(q.passage_id, group);
+          groups.push(group);
+        }
+        group.push(q.id);
+        continue;
+      }
+      groups.push([q.id]);
+    }
+    return groups;
+  }, [testQuestions]);
+
+  const totalDisplayQuestions = displayGroups.length;
+
   const unassignedCount = useMemo(() => {
-    return testQuestions.filter((q) => !questionSectionMap[q.id]).length;
+    return collapsePartsCount(
+      (testQuestions as QWithPassage[]).filter((q) => !questionSectionMap[q.id]),
+    );
   }, [testQuestions, questionSectionMap]);
 
   // Score table helpers
@@ -139,11 +180,12 @@ export default function TestSettingsModal({
 
     const ranges: { [sectionId: string]: { from: string; to: string } } = {};
     testSections.forEach((section) => {
-      // Find questions assigned to this section
+      // Operate on display groups so parts-passage siblings count as one logical question.
       const assignedIndices: number[] = [];
-      testQuestions.forEach((q, idx) => {
-        if (questionSectionMap[q.id] === section.id) {
-          assignedIndices.push(idx + 1); // 1-indexed
+      displayGroups.forEach((group, idx) => {
+        // A display group counts as "in this section" if any of its raw rows is.
+        if (group.some((rowId) => questionSectionMap[rowId] === section.id)) {
+          assignedIndices.push(idx + 1); // 1-indexed display-question number
         }
       });
 
@@ -258,8 +300,8 @@ export default function TestSettingsModal({
     if (from && !to) return "To is required";
     if (!from && to) return "From is required";
     if (fromNum < 1) return "From must be at least 1";
-    if (toNum > totalQuestions)
-      return `To cannot exceed ${totalQuestions} (total questions)`;
+    if (toNum > totalDisplayQuestions)
+      return `To cannot exceed ${totalDisplayQuestions} (total questions)`;
     if (fromNum > toNum) return "From must be less than or equal to To";
 
     // Check overlap with other sections
@@ -330,10 +372,11 @@ export default function TestSettingsModal({
           );
         }
 
-        // Assign the new range (1-indexed from/to)
-        const questionIdsToAssign = testQuestions
-          .slice(fromNum - 1, toNum)
-          .map((q) => q.id);
+        // Assign the new range (1-indexed from/to) — interpreted as DISPLAY questions.
+        // Each display group expands to all its raw row IDs (so a parts-passage's children
+        // are assigned together rather than partially).
+        const groupsInRange = displayGroups.slice(fromNum - 1, toNum);
+        const questionIdsToAssign = groupsInRange.flat();
         if (questionIdsToAssign.length > 0) {
           await bulkAssignQuestionsToSection(
             test.id,
@@ -635,7 +678,7 @@ export default function TestSettingsModal({
                 {/* Summary bar */}
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-sm text-gray-600 dark:text-neutral-400">
-                    {totalQuestions} question{totalQuestions !== 1 ? "s" : ""} in
+                    {totalDisplayQuestions} question{totalDisplayQuestions !== 1 ? "s" : ""} in
                     this test
                   </span>
                   {unassignedCount > 0 && (
@@ -741,7 +784,7 @@ export default function TestSettingsModal({
                             )
                           }
                           min={1}
-                          max={totalQuestions}
+                          max={totalDisplayQuestions}
                           placeholder="—"
                           className="w-16 px-2 py-1 text-sm text-center border border-gray-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                         />
@@ -759,7 +802,7 @@ export default function TestSettingsModal({
                             )
                           }
                           min={1}
-                          max={totalQuestions}
+                          max={totalDisplayQuestions}
                           placeholder="—"
                           className="w-16 px-2 py-1 text-sm text-center border border-gray-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
                         />
