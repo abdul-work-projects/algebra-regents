@@ -975,21 +975,25 @@ function HomeContent() {
                 {subjectQuestionsData.length === 0 ? 'No subjects available yet.' : 'No skills match your filters.'}
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {filteredSubjectDataList.map(({ subject, skills, totalQuestions, correctQuestionCount }) => (
+              (() => {
+                type SubjectData = typeof filteredSubjectDataList[number];
+                const groupedIds = new Set(subjectGroups.map((g) => g.id));
+                const dataByGroup = new Map<string | null, SubjectData[]>();
+                dataByGroup.set(null, []);
+                for (const g of subjectGroups) dataByGroup.set(g.id, []);
+                for (const data of filteredSubjectDataList) {
+                  const key = data.subject.groupId && groupedIds.has(data.subject.groupId) ? data.subject.groupId : null;
+                  dataByGroup.get(key)!.push(data);
+                }
+
+                const renderSubjectCard = ({ subject, skills, totalQuestions, correctQuestionCount }: SubjectData) => (
                   <div
                     key={subject.id}
                     className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-sm hover:-translate-y-1 transition-transform"
                   >
-                    {/* Subject Header with Color */}
-                    <div
-                      className="p-4 flex items-center justify-between"
-                      style={{ backgroundColor: subject.color }}
-                    >
+                    <div className="p-4 flex items-center justify-between" style={{ backgroundColor: subject.color }}>
                       <div>
-                        <h3 className="font-bold text-gray-900 text-xl tracking-tight">
-                          {subject.name}
-                        </h3>
+                        <h3 className="font-bold text-gray-900 text-xl tracking-tight">{subject.name}</h3>
                         <p className="text-gray-800/70 text-sm">
                           {totalQuestions} questions
                           {correctQuestionCount > 0 && (
@@ -1008,7 +1012,6 @@ function HomeContent() {
                       </button>
                     </div>
 
-                    {/* Skills List */}
                     <div className="p-4">
                       {skills.length === 0 ? (
                         <p className="text-gray-500 dark:text-neutral-400 text-center py-4">No questions available yet.</p>
@@ -1046,8 +1049,30 @@ function HomeContent() {
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+
+                return (
+                  <div className="space-y-8">
+                    {subjectGroups.map((group) => {
+                      const list = dataByGroup.get(group.id) || [];
+                      if (list.length === 0) return null;
+                      return (
+                        <div key={group.id} className="space-y-4">
+                          <h2 className="text-lg font-bold text-gray-900 dark:text-neutral-100">{group.name}</h2>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {list.map(renderSubjectCard)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {(dataByGroup.get(null) || []).length > 0 && (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {(dataByGroup.get(null) || []).map(renderSubjectCard)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
             )}
           </div>
         ) : (
