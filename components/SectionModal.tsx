@@ -55,10 +55,10 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
   };
 
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md mx-4">
+    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-neutral-800">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-neutral-800 flex-shrink-0">
           <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
             {title || (section ? 'Edit Section' : 'Add Section')}
           </h3>
@@ -72,8 +72,8 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-4 space-y-4 overflow-y-auto flex-1">
             <div>
               <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
                 Section Name *
@@ -91,34 +91,9 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5">
-                  <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100">
-                    Description
-                  </label>
-                  {/* Hover icon — shows a rendered preview of the description as it would appear on the actual divider page. */}
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      className="w-4 h-4 rounded-full border border-gray-400 dark:border-neutral-500 text-[10px] font-bold text-gray-500 dark:text-neutral-400 flex items-center justify-center cursor-help select-none"
-                      aria-label="Show rendered preview"
-                    >
-                      i
-                    </button>
-                    <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity absolute z-20 left-0 top-full mt-1 w-80 p-3 bg-white dark:bg-neutral-950 border border-gray-200 dark:border-neutral-700 rounded-md shadow-lg pointer-events-none">
-                      {description.trim() ? (
-                        <FormattedText
-                          text={description}
-                          className="text-sm leading-relaxed text-gray-700 dark:text-neutral-300 text-left"
-                        />
-                      ) : (
-                        <p className="text-xs italic text-gray-400 dark:text-neutral-500">
-                          Type a description to preview how it will appear on the divider page.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100">
+                  Description
+                </label>
                 <button
                   type="button"
                   onClick={() => setShowDescriptionPreview((v) => !v)}
@@ -150,7 +125,9 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
                 />
               )}
               <p className="mt-1 text-xs text-gray-500 dark:text-neutral-400">
-                Shown on the divider page between test parts.
+                Shown on the divider page between test parts. Formatting:{' '}
+                <code className="font-mono">**bold**</code>,{' '}
+                <code className="font-mono">*italic*</code>, blank line for a new paragraph.
               </p>
             </div>
 
@@ -163,7 +140,7 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-950">
+          <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-950 flex-shrink-0">
             <button
               type="button"
               onClick={onClose}

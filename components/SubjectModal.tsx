@@ -24,6 +24,9 @@ interface SubjectModalProps {
     is_active: boolean;
     display_order: number;
     group_id: string | null;
+    tool_graph_paper: boolean;
+    tool_graphing_tool: boolean;
+    tool_calculator: boolean;
   }) => Promise<void>;
   editingSubject?: Subject | null;
   groups?: SubjectGroup[];
@@ -42,6 +45,9 @@ export default function SubjectModal({
   const [isActive, setIsActive] = useState(true);
   const [displayOrder, setDisplayOrder] = useState(0);
   const [groupId, setGroupId] = useState<string | null>(null);
+  const [toolGraphPaper, setToolGraphPaper] = useState(true);
+  const [toolGraphingTool, setToolGraphingTool] = useState(true);
+  const [toolCalculator, setToolCalculator] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +59,9 @@ export default function SubjectModal({
       setIsActive(editingSubject.isActive);
       setDisplayOrder(editingSubject.displayOrder);
       setGroupId(editingSubject.groupId ?? null);
+      setToolGraphPaper(editingSubject.toolGraphPaper ?? true);
+      setToolGraphingTool(editingSubject.toolGraphingTool ?? true);
+      setToolCalculator(editingSubject.toolCalculator ?? true);
     } else {
       setName("");
       setDescription("");
@@ -60,6 +69,9 @@ export default function SubjectModal({
       setIsActive(true);
       setDisplayOrder(0);
       setGroupId(null);
+      setToolGraphPaper(true);
+      setToolGraphingTool(true);
+      setToolCalculator(true);
     }
     setError(null);
   }, [editingSubject, isOpen]);
@@ -81,6 +93,9 @@ export default function SubjectModal({
         is_active: isActive,
         display_order: displayOrder,
         group_id: groupId,
+        tool_graph_paper: toolGraphPaper,
+        tool_graphing_tool: toolGraphingTool,
+        tool_calculator: toolCalculator,
       });
       onClose();
     } catch (err) {
@@ -244,6 +259,21 @@ export default function SubjectModal({
               </p>
             </div>
 
+            {/* Quiz Tools */}
+            <div>
+              <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-2">
+                Quiz Tools
+              </label>
+              <div className="space-y-2">
+                <ToggleRow label="Graph paper" checked={toolGraphPaper} onChange={setToolGraphPaper} />
+                <ToggleRow label="Graphing tool" checked={toolGraphingTool} onChange={setToolGraphingTool} />
+                <ToggleRow label="Calculator" checked={toolCalculator} onChange={setToolCalculator} />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-neutral-400 mt-2">
+                Reference sheet is automatic — it appears only when a question or section provides reference material.
+              </p>
+            </div>
+
             {/* Active Status */}
             <div className="flex items-center gap-2">
               <input
@@ -285,5 +315,28 @@ export default function SubjectModal({
         </div>
       </div>
     </>
+  );
+}
+
+function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-neutral-300 cursor-pointer select-none">
+      <span>{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black dark:focus:ring-white ${
+          checked ? 'bg-black dark:bg-white' : 'bg-gray-300 dark:bg-neutral-700'
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-neutral-950 shadow transition-transform ${
+            checked ? 'translate-x-4' : 'translate-x-0.5'
+          }`}
+        />
+      </button>
+    </label>
   );
 }

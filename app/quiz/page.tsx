@@ -25,6 +25,7 @@ import {
   fetchTestById,
   fetchQuestionsForSubject,
   fetchSectionsWithCounts,
+  fetchSubjectById,
 } from "@/lib/supabase";
 import DragOrderAnswer from "@/components/DragOrderAnswer";
 import BucketOrderAnswer from "@/components/BucketOrderAnswer";
@@ -92,6 +93,7 @@ function QuizPageContent() {
   const [sections, setSections] = useState<TestSection[]>([]);
   const [sectionDivider, setSectionDivider] = useState<TestSection | null>(null);
   const [scaledScoreTable, setScaledScoreTable] = useState<{ [key: number]: number } | null>(null);
+  const [toolFlags, setToolFlags] = useState<{ graphPaper: boolean; graphingTool: boolean; calculator: boolean }>({ graphPaper: true, graphingTool: true, calculator: true });
 
   // Practice mode - multiple questions from question bank
   const practiceMode = searchParams.get("mode");
@@ -321,6 +323,17 @@ function QuizPageContent() {
             const testSections = await fetchSectionsWithCounts(testId);
             if (testSections.length > 0) {
               setSections(testSections);
+            }
+            // Per-subject tool toggles (graph paper / graphing tool / calculator)
+            if (testData.subject_id) {
+              const subj = await fetchSubjectById(testData.subject_id);
+              if (subj) {
+                setToolFlags({
+                  graphPaper: subj.tool_graph_paper ?? true,
+                  graphingTool: subj.tool_graphing_tool ?? true,
+                  calculator: subj.tool_calculator ?? true,
+                });
+              }
             }
           }
         } else {
@@ -1079,6 +1092,7 @@ function QuizPageContent() {
             )}
 
             <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+              {resolveReferenceDocs(currentQuestion, currentSection).length > 0 && (
               <button
                 onClick={() => setShowReferenceImage(true)}
                 className="flex flex-col items-center gap-0.5 hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all rounded-lg p-1"
@@ -1101,7 +1115,9 @@ function QuizPageContent() {
                   Reference
                 </span>
               </button>
+              )}
 
+              {toolFlags.graphPaper && (
               <button
                 onClick={() => setShowGraphPaper(!showGraphPaper)}
                 className={`flex flex-col items-center gap-0.5 active:scale-95 transition-all rounded-lg p-1 ${
@@ -1119,7 +1135,9 @@ function QuizPageContent() {
                 </svg>
                 <span className="hidden md:block text-[9px] font-medium">Graph Paper</span>
               </button>
+              )}
 
+              {toolFlags.calculator && (
               <button
                 onClick={() => setShowCalculator(!showCalculator)}
                 className="flex flex-col items-center gap-0.5 hover:bg-gray-100 dark:hover:bg-neutral-800 active:scale-95 transition-all rounded-lg p-1"
@@ -1142,6 +1160,7 @@ function QuizPageContent() {
                   Calculator
                 </span>
               </button>
+              )}
 
               <ThemeToggle />
 

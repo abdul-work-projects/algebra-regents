@@ -183,6 +183,9 @@ export interface Subject {
   isActive: boolean;
   displayOrder: number;
   groupId?: string | null; // Optional grouping (e.g. "Social Studies" for Global+US History)
+  toolGraphPaper?: boolean; // default true; controls graph paper tool button in quiz
+  toolGraphingTool?: boolean; // default true; controls graphing tool availability in quiz
+  toolCalculator?: boolean; // default true; controls calculator tool button in quiz
   testCount?: number; // computed field, not stored in DB
   questionCount?: number; // computed field for question bank
   createdAt?: string;

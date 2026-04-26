@@ -401,7 +401,17 @@ export default function AdminPage() {
   };
 
   // ── Subject CRUD ──────────────────────────────────────────────────────
-  const handleSaveSubject = async (subjectData: { name: string; description?: string; color: string; is_active: boolean; display_order: number; group_id: string | null }) => {
+  const handleSaveSubject = async (subjectData: {
+    name: string;
+    description?: string;
+    color: string;
+    is_active: boolean;
+    display_order: number;
+    group_id: string | null;
+    tool_graph_paper: boolean;
+    tool_graphing_tool: boolean;
+    tool_calculator: boolean;
+  }) => {
     if (editingSubject) {
       const result = await updateSubject(editingSubject.id, subjectData);
       if (result) { setNotification({ type: "success", message: "Subject updated successfully" }); loadSubjectsData(); }
@@ -410,9 +420,14 @@ export default function AdminPage() {
       const result = await createSubject(subjectData);
       if (result) {
         setNotification({ type: "success", message: "Subject created successfully" });
-        // createSubject in lib doesn't currently set group_id; do it as a follow-up update
-        if (subjectData.group_id !== null && result.id) {
-          await updateSubject(result.id, { group_id: subjectData.group_id });
+        // createSubject in lib may skip group_id when migration not applied; sync via update
+        if (result.id) {
+          await updateSubject(result.id, {
+            group_id: subjectData.group_id,
+            tool_graph_paper: subjectData.tool_graph_paper,
+            tool_graphing_tool: subjectData.tool_graphing_tool,
+            tool_calculator: subjectData.tool_calculator,
+          });
         }
         loadSubjectsData();
       }

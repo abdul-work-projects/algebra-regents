@@ -431,6 +431,9 @@ export interface DatabaseSubject {
   is_active: boolean;
   display_order: number;
   group_id: string | null;
+  tool_graph_paper?: boolean;
+  tool_graphing_tool?: boolean;
+  tool_calculator?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -1015,6 +1018,9 @@ export async function updateSubject(
     is_active: boolean;
     display_order: number;
     group_id: string | null;
+    tool_graph_paper: boolean;
+    tool_graphing_tool: boolean;
+    tool_calculator: boolean;
   }>
 ): Promise<DatabaseSubject | null> {
   const { data, error } = await supabase
@@ -1030,6 +1036,20 @@ export async function updateSubject(
   }
 
   return data;
+}
+
+// Fetch a single subject by id (used by quiz to read tool toggles)
+export async function fetchSubjectById(id: string): Promise<DatabaseSubject | null> {
+  const { data, error } = await supabase
+    .from('subjects')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) {
+    console.error('Error fetching subject:', error);
+    return null;
+  }
+  return (data as DatabaseSubject) || null;
 }
 
 // Bulk-update subject display orders (used by drag-reorder in admin)
@@ -1095,6 +1115,9 @@ export function convertToSubjectFormat(dbSubject: DatabaseSubjectWithCount): Sub
     isActive: dbSubject.is_active,
     displayOrder: dbSubject.display_order,
     groupId: dbSubject.group_id ?? null,
+    toolGraphPaper: dbSubject.tool_graph_paper ?? true,
+    toolGraphingTool: dbSubject.tool_graphing_tool ?? true,
+    toolCalculator: dbSubject.tool_calculator ?? true,
     testCount: dbSubject.test_count,
     questionCount: dbSubject.question_count,
     createdAt: dbSubject.created_at,
