@@ -611,10 +611,18 @@ export default function AdminPage() {
     const hasQuestionImage = hasAnyDoc(q1.questionDocuments);
     if (!hasQuestionText && !hasQuestionImage) { setNotification({ type: "error", message: "Question 1 must have text (above or below) or at least one document" }); return; }
 
-    for (let i = 0; i < 4; i++) {
-      const hasText = q1.answers[i]?.trim();
-      const hasImage = q1.answerImages[i] || q1.answerImagePreviews[i];
-      if (!hasText && !hasImage) { setNotification({ type: "error", message: `Question 1 Answer ${i + 1} must have either text or image (or both)` }); return; }
+    {
+      const filledCount = q1.answers.reduce((n, a, i) => n + ((a?.trim() || q1.answerImages[i] || q1.answerImagePreviews[i]) ? 1 : 0), 0);
+      const minRequired = q1.questionType === 'drag-order' ? 4 : 2;
+      if (filledCount < minRequired) {
+        setNotification({ type: "error", message: q1.questionType === 'drag-order' ? "Drag-order questions need all 4 answers filled" : "Question 1 needs at least 2 filled answer choices" });
+        return;
+      }
+      const correctIdx = q1.correctAnswer - 1;
+      if (q1.questionType !== 'drag-order' && !(q1.answers[correctIdx]?.trim() || q1.answerImages[correctIdx] || q1.answerImagePreviews[correctIdx])) {
+        setNotification({ type: "error", message: "Question 1: the correct-answer slot must be filled" });
+        return;
+      }
     }
     if (!q1.explanationText.trim()) { setNotification({ type: "error", message: "Question 1 explanation text is required" }); return; }
     if (q1.selectedSkills.length === 0) { setNotification({ type: "error", message: "At least one skill is required" }); return; }
@@ -631,10 +639,16 @@ export default function AdminPage() {
         const hasFormText = form.questionText.trim() || form.aboveImageText.trim();
         const hasFormImage = hasAnyDoc(form.questionDocuments);
         if (!hasFormText && !hasFormImage) { setNotification({ type: "error", message: `${label} must have text (above or below) or at least one document` }); return; }
-        for (let i = 0; i < 4; i++) {
-          const hasText = form.answers[i]?.trim();
-          const hasImage = form.answerImages[i] || form.answerImagePreviews[i];
-          if (!hasText && !hasImage) { setNotification({ type: "error", message: `${label} Answer ${i + 1} must have either text or image (or both)` }); return; }
+        const filledCount = form.answers.reduce((n, a, i) => n + ((a?.trim() || form.answerImages[i] || form.answerImagePreviews[i]) ? 1 : 0), 0);
+        const minRequired = form.questionType === 'drag-order' ? 4 : 2;
+        if (filledCount < minRequired) {
+          setNotification({ type: "error", message: form.questionType === 'drag-order' ? `${label}: drag-order questions need all 4 answers filled` : `${label} needs at least 2 filled answer choices` });
+          return;
+        }
+        const correctIdx = form.correctAnswer - 1;
+        if (form.questionType !== 'drag-order' && !(form.answers[correctIdx]?.trim() || form.answerImages[correctIdx] || form.answerImagePreviews[correctIdx])) {
+          setNotification({ type: "error", message: `${label}: the correct-answer slot must be filled` });
+          return;
         }
         if (!form.explanationText.trim()) { setNotification({ type: "error", message: `${label} explanation text is required` }); return; }
       }

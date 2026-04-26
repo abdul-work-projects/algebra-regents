@@ -1,6 +1,7 @@
 'use client';
 
 import { TestSection } from '@/lib/types';
+import FormattedText from '@/components/FormattedText';
 
 interface SectionHeaderProps {
   section: TestSection;
@@ -20,9 +21,10 @@ export default function SectionHeader({ section, sectionNumber, totalSections }:
         </span>
       </div>
       {section.description && (
-        <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-          {section.description}
-        </p>
+        <FormattedText
+          text={section.description}
+          className="text-sm text-blue-700 dark:text-blue-300 mt-1 text-left"
+        />
       )}
       {section.questionCount !== undefined && (
         <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">

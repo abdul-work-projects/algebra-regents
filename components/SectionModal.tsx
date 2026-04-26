@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { TestSection } from '@/lib/types';
 import DocumentsEditor, { DocumentDraft } from '@/components/admin/DocumentsEditor';
 import { docsToDrafts } from '@/hooks/useQuestionForm';
+import FormattedText from '@/components/FormattedText';
 
 interface SectionModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
   const [description, setDescription] = useState('');
   const [referenceDocuments, setReferenceDocuments] = useState<DocumentDraft[]>([]);
   const [saving, setSaving] = useState(false);
+  const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
 
   useEffect(() => {
     if (section) {
@@ -54,7 +56,7 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
 
   return (
     <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+      <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-neutral-800">
           <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">
@@ -88,18 +90,67 @@ export default function SectionModal({ isOpen, onClose, onSave, section, title }
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100 mb-1">
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g., Answer all 24 questions. Each correct answer will receive 2 credits."
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
+                  <label className="block text-sm font-bold text-gray-900 dark:text-neutral-100">
+                    Description
+                  </label>
+                  {/* Hover icon — shows a rendered preview of the description as it would appear on the actual divider page. */}
+                  <div className="relative group">
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      className="w-4 h-4 rounded-full border border-gray-400 dark:border-neutral-500 text-[10px] font-bold text-gray-500 dark:text-neutral-400 flex items-center justify-center cursor-help select-none"
+                      aria-label="Show rendered preview"
+                    >
+                      i
+                    </button>
+                    <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity absolute z-20 left-0 top-full mt-1 w-80 p-3 bg-white dark:bg-neutral-950 border border-gray-200 dark:border-neutral-700 rounded-md shadow-lg pointer-events-none">
+                      {description.trim() ? (
+                        <FormattedText
+                          text={description}
+                          className="text-sm leading-relaxed text-gray-700 dark:text-neutral-300 text-left"
+                        />
+                      ) : (
+                        <p className="text-xs italic text-gray-400 dark:text-neutral-500">
+                          Type a description to preview how it will appear on the divider page.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDescriptionPreview((v) => !v)}
+                  className="text-xs font-medium text-blue-700 dark:text-blue-400 hover:underline"
+                >
+                  {showDescriptionPreview ? 'Edit' : 'Preview'}
+                </button>
+              </div>
+              {showDescriptionPreview ? (
+                <div className="min-h-[3.5rem] px-4 py-3 border border-gray-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-950">
+                  {description.trim() ? (
+                    <FormattedText
+                      text={description}
+                      className="text-sm leading-relaxed text-gray-700 dark:text-neutral-300 text-left"
+                    />
+                  ) : (
+                    <p className="text-xs text-gray-400 dark:text-neutral-500 italic">
+                      Nothing to preview yet — type a description to see how it&apos;ll render on the divider page.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="e.g., **Part III** — Answer all *3 questions* in this part. Each correct answer will receive **4 credits**."
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono text-sm"
+                />
+              )}
               <p className="mt-1 text-xs text-gray-500 dark:text-neutral-400">
-                Shown on the divider page between test parts
+                Shown on the divider page between test parts.
               </p>
             </div>
 

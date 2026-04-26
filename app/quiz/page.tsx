@@ -45,6 +45,7 @@ import LiveScoreBeaver from "@/components/LiveScoreBeaver";
 import PracticeProgressBar from "@/components/PracticeProgressBar";
 import DocsList from "@/components/DocsList";
 import GraphPaperCanvas from "@/components/GraphPaperCanvas";
+import FormattedText from "@/components/FormattedText";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -509,16 +510,15 @@ function QuizPageContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950 px-4">
         <div className="max-w-lg w-full">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-neutral-100 mb-2">
-              {sectionDivider.name}
-            </h1>
-            {sectionDivider.description && (
-              <p className="text-gray-500 dark:text-neutral-400 text-sm">
-                {sectionDivider.description}
-              </p>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-neutral-100 mb-3 text-left">
+            {sectionDivider.name}
+          </h1>
+          {sectionDivider.description && (
+            <FormattedText
+              text={sectionDivider.description}
+              className="text-gray-700 dark:text-neutral-300 text-sm leading-relaxed text-left mb-8"
+            />
+          )}
           <button
             onClick={() => setSectionDivider(null)}
             className="w-full p-5 rounded-xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all group"
@@ -1809,6 +1809,10 @@ function QuizPageContent() {
                     >
                       {currentQuestion.answers.map((answer, index) => {
                         const answerNum = index + 1;
+                        // Hide empty answer slots for multiple-choice (admins can leave 1-2 blank to make
+                        // a 2- or 3-option question). Slot numbering still maps to correctAnswer.
+                        const hasAnswerImage = currentQuestion.answerImageUrls?.[index];
+                        if (currentQuestion.questionType !== 'drag-order' && !answer?.trim() && !hasAnswerImage) return null;
                         const isChecked = checkedAnswers.includes(answerNum);
                         const isCorrectAnswer = answerNum === currentQuestion.correctAnswer;
                         const isSelected = selectedAnswer === answerNum;
@@ -2040,6 +2044,8 @@ function QuizPageContent() {
                       >
                         {partQ.answers.map((answer, ansIdx) => {
                           const answerNum = ansIdx + 1;
+                          const partAnswerImage = partQ.answerImageUrls?.[ansIdx];
+                          if (partQ.questionType !== 'drag-order' && !answer?.trim() && !partAnswerImage) return null;
                           const isChecked = partCheckedAnswers.includes(answerNum);
                           const isCorrectAnswer = answerNum === partQ.correctAnswer;
                           const isSelected = partSelectedAnswer === answerNum;
@@ -2417,6 +2423,8 @@ function QuizPageContent() {
                 >
                   {currentQuestion.answers.map((answer, index) => {
                     const answerNum = index + 1;
+                    const answerImageHere = currentQuestion.answerImageUrls?.[index];
+                    if (currentQuestion.questionType !== 'drag-order' && !answer?.trim() && !answerImageHere) return null;
                     const isChecked = checkedAnswers.includes(answerNum);
                     const isCorrectAnswer =
                       answerNum === currentQuestion.correctAnswer;

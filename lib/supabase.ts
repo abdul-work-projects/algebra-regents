@@ -439,29 +439,49 @@ export interface DatabaseSubjectWithCount extends DatabaseSubject {
   question_count?: number;
 }
 
+// Build a map of test_id -> "display question" count.
+// A "display question" treats a parts-type passage's child questions as ONE logical question
+// (so a passage with parts a, b, c, d counts as 1, not 4). Grouped passages and standalone
+// questions each count as 1.
+async function fetchDisplayQuestionCountsByTest(): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('test_questions')
+    .select('test_id, questions (passage_id, passages (type))');
+
+  if (error || !data) return {};
+
+  const counts: Record<string, number> = {};
+  const seenPartsPerTest: Record<string, Set<string>> = {};
+  for (const row of (data as unknown as Array<{ test_id: string; questions: { passage_id: string | null; passages: { type: string } | null } | null }>)) {
+    const testId = row.test_id;
+    if (!testId) continue;
+    const q = row.questions;
+    if (!q) continue;
+    const isPartsGroup = q.passages?.type === 'parts' && q.passage_id;
+    if (isPartsGroup) {
+      let seen = seenPartsPerTest[testId];
+      if (!seen) { seen = new Set(); seenPartsPerTest[testId] = seen; }
+      if (seen.has(q.passage_id!)) continue;
+      seen.add(q.passage_id!);
+    }
+    counts[testId] = (counts[testId] || 0) + 1;
+  }
+  return counts;
+}
+
 // Fetch all tests
 export async function fetchTests(): Promise<DatabaseTestWithCount[]> {
-  const [testsResult, countsResult] = await Promise.all([
+  const [testsResult, countMap] = await Promise.all([
     supabase
       .from('tests')
       .select(`*, subjects (name)`)
       .order('created_at', { ascending: true }),
-    supabase
-      .from('test_questions')
-      .select('test_id'),
+    fetchDisplayQuestionCountsByTest(),
   ]);
 
   if (testsResult.error) {
     console.error('Error fetching tests:', testsResult.error);
     return [];
-  }
-
-  // Count questions per test from the flat list
-  const countMap: Record<string, number> = {};
-  if (countsResult.data) {
-    for (const row of countsResult.data) {
-      countMap[row.test_id] = (countMap[row.test_id] || 0) + 1;
-    }
   }
 
   return (testsResult.data || []).map((test: any) => ({
@@ -474,28 +494,18 @@ export async function fetchTests(): Promise<DatabaseTestWithCount[]> {
 
 // Fetch active tests only (for students)
 export async function fetchActiveTests(): Promise<DatabaseTestWithCount[]> {
-  const [testsResult, countsResult] = await Promise.all([
+  const [testsResult, countMap] = await Promise.all([
     supabase
       .from('tests')
       .select('*, subjects (name)')
       .eq('is_active', true)
       .order('created_at', { ascending: true }),
-    supabase
-      .from('test_questions')
-      .select('test_id'),
+    fetchDisplayQuestionCountsByTest(),
   ]);
 
   if (testsResult.error) {
     console.error('Error fetching active tests:', testsResult.error);
     return [];
-  }
-
-  // Count questions per test from the flat list
-  const countMap: Record<string, number> = {};
-  if (countsResult.data) {
-    for (const row of countsResult.data) {
-      countMap[row.test_id] = (countMap[row.test_id] || 0) + 1;
-    }
   }
 
   return (testsResult.data || []).map((test: any) => ({
@@ -508,28 +518,19 @@ export async function fetchActiveTests(): Promise<DatabaseTestWithCount[]> {
 
 // Fetch active tests for a specific subject (for students)
 export async function fetchActiveTestsForSubject(subjectId: string): Promise<DatabaseTestWithCount[]> {
-  const [testsResult, countsResult] = await Promise.all([
+  const [testsResult, countMap] = await Promise.all([
     supabase
       .from('tests')
       .select('*, subjects (name)')
       .eq('is_active', true)
       .eq('subject_id', subjectId)
       .order('created_at', { ascending: true }),
-    supabase
-      .from('test_questions')
-      .select('test_id'),
+    fetchDisplayQuestionCountsByTest(),
   ]);
 
   if (testsResult.error) {
     console.error('Error fetching active tests for subject:', testsResult.error);
     return [];
-  }
-
-  const countMap: Record<string, number> = {};
-  if (countsResult.data) {
-    for (const row of countsResult.data) {
-      countMap[row.test_id] = (countMap[row.test_id] || 0) + 1;
-    }
   }
 
   return (testsResult.data || []).map((test: any) => ({
@@ -1163,10 +1164,10 @@ export async function fetchAllDashboardData(): Promise<{
   questionsBySubject: { [subjectId: string]: DashboardQuestion[] };
 }> {
   // Single parallel batch: fetch all raw data at once
-  const [testsResult, testQuestionsResult, subjectsResult, activeTestsResult, questionsResult] = await Promise.all([
+  const [testsResult, testQuestionsResult, subjectsResult, activeTestsResult, questionsResult, testCountMap] = await Promise.all([
     // For active tests with subject names
     supabase.from('tests').select('*, subjects (name)').eq('is_active', true).order('created_at', { ascending: true }),
-    // For question counts per test AND question-subject mapping
+    // For question-subject mapping (per-question)
     supabase.from('test_questions').select('test_id, question_id'),
     // For active subjects
     supabase.from('subjects').select('*').eq('is_active', true).order('display_order', { ascending: true }).order('name', { ascending: true }),
@@ -1174,14 +1175,11 @@ export async function fetchAllDashboardData(): Promise<{
     supabase.from('tests').select('subject_id').eq('is_active', true),
     // For all questions (lightweight: id, skills, tags, difficulty)
     supabase.from('questions').select('id, skills, tags, difficulty'),
+    // Display-question counts (parts-passage children collapsed to one).
+    fetchDisplayQuestionCountsByTest(),
   ]);
 
-  // Build test question count map
-  const testCountMap: Record<string, number> = {};
   const testQuestionRows = testQuestionsResult.data || [];
-  for (const row of testQuestionRows) {
-    testCountMap[row.test_id] = (testCountMap[row.test_id] || 0) + 1;
-  }
 
   // Format tests with counts
   const tests: DatabaseTestWithCount[] = (testsResult.data || []).map((test: any) => ({
@@ -1543,22 +1541,40 @@ export async function fetchSectionsForTest(testId: string): Promise<DatabaseTest
 export async function fetchSectionsWithCounts(testId: string): Promise<TestSection[]> {
   const sections = await fetchSectionsForTest(testId);
 
-  const sectionsWithCounts = await Promise.all(
-    sections.map(async (section) => {
-      const { count } = await supabase
-        .from('test_questions')
-        .select('*', { count: 'exact', head: true })
-        .eq('test_id', testId)
-        .eq('section_id', section.id);
+  // Pull all test_question rows for this test joined with passage info, then count per section
+  // collapsing parts-type passage children into one logical "display question".
+  const { data, error } = await supabase
+    .from('test_questions')
+    .select('section_id, questions (passage_id, passages (type))')
+    .eq('test_id', testId);
 
-      return convertToSectionFormat({
-        ...section,
-        question_count: count || 0,
-      });
-    })
+  if (error || !data) {
+    return sections.map((s) => convertToSectionFormat(s));
+  }
+
+  const counts: Record<string, number> = {};
+  const seenPartsPerSection: Record<string, Set<string>> = {};
+  for (const row of (data as unknown as Array<{
+    section_id: string | null;
+    questions: { passage_id: string | null; passages: { type: string } | null } | null;
+  }>)) {
+    const sectionId = row.section_id;
+    if (!sectionId) continue;
+    const q = row.questions;
+    if (!q) continue;
+    const isPartsGroup = q.passages?.type === 'parts' && q.passage_id;
+    if (isPartsGroup) {
+      let seen = seenPartsPerSection[sectionId];
+      if (!seen) { seen = new Set(); seenPartsPerSection[sectionId] = seen; }
+      if (seen.has(q.passage_id!)) continue;
+      seen.add(q.passage_id!);
+    }
+    counts[sectionId] = (counts[sectionId] || 0) + 1;
+  }
+
+  return sections.map((section) =>
+    convertToSectionFormat({ ...section, question_count: counts[section.id] || 0 }),
   );
-
-  return sectionsWithCounts;
 }
 
 // Create a new test section
