@@ -1191,7 +1191,7 @@ function HomeContent() {
                                 onClick={() => handleStartTest(test.id)}
                                 className="group/item flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
                               >
-                                <span className="text-gray-700 dark:text-neutral-300 group-hover/item:underline truncate">{test.name}</span>
+                                <span className="text-gray-700 dark:text-neutral-300 group-hover/item:underline truncate">{(() => { const m = test.name.match(/\(([^)]+)\)/); return m ? m[1] : test.name; })()}</span>
                                 <div className="flex items-center gap-2 shrink-0">
                                   {myAttempts.length > 0 && (
                                     <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
