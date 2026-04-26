@@ -214,10 +214,17 @@ function HomeContent() {
       })
       .sort((a, b) => a.name.localeCompare(b.name));
 
+    // Distinct correct count for this subject (avoid double-counting questions tagged with multiple skills).
+    const correctQuestionCount = filteredQuestions.reduce(
+      (n, q) => n + (attempts[q.id]?.isCorrect ? 1 : 0),
+      0,
+    );
+
     return {
       subject,
       skills,
       totalQuestions: filteredQuestions.length,
+      correctQuestionCount,
     };
   }).filter(subjectData => subjectData.totalQuestions > 0); // Remove subjects with no matching questions
 
@@ -241,15 +248,15 @@ function HomeContent() {
     const totalIncorrect = totalAttempted - totalCorrect;
     const accuracyPercent = totalAttempted > 0 ? Math.round((totalCorrect / totalAttempted) * 100) : 0;
 
-    // Aggregate per-skill stats across all subjects.
-    // Map: skillName -> { attempted, correct, subjectId (primary = subject with most questions for this skill) }
-    const skillAgg = new Map<string, { attempted: number; correct: number; subjectCounts: Map<string, number>; totalQuestions: number }>();
+    // Aggregate per-skill stats across all subjects, also tracking the most recent attempt
+    // timestamp so we can surface "skills last worked on" within each subject group.
+    const skillAgg = new Map<string, { attempted: number; correct: number; subjectCounts: Map<string, number>; totalQuestions: number; lastAttemptedAt: number }>();
     subjectQuestionsData.forEach(({ subject, questions }) => {
       questions.forEach((q) => {
         (q.skills || []).forEach((skill) => {
           let entry = skillAgg.get(skill);
           if (!entry) {
-            entry = { attempted: 0, correct: 0, subjectCounts: new Map(), totalQuestions: 0 };
+            entry = { attempted: 0, correct: 0, subjectCounts: new Map(), totalQuestions: 0, lastAttemptedAt: 0 };
             skillAgg.set(skill, entry);
           }
           entry.totalQuestions++;
@@ -258,6 +265,7 @@ function HomeContent() {
           if (a) {
             entry.attempted++;
             if (a.isCorrect) entry.correct++;
+            if (a.timestamp && a.timestamp > entry.lastAttemptedAt) entry.lastAttemptedAt = a.timestamp;
           }
         });
       });
@@ -278,16 +286,53 @@ function HomeContent() {
         incorrect: e.attempted - e.correct,
         totalQuestions: e.totalQuestions,
         accuracy: e.attempted > 0 ? Math.round((e.correct / e.attempted) * 100) : 0,
+        lastAttemptedAt: e.lastAttemptedAt,
       };
     });
 
     const weakSkills = skillStats
       .filter((s) => s.attempted >= 2 && s.accuracy < 70)
       .sort((a, b) => a.accuracy - b.accuracy)
-      .slice(0, 10);
+      .slice(0, 20);
 
-    return { totalAttempted, totalCorrect, totalIncorrect, accuracyPercent, weakSkills };
+    // Group weak skills by subject; within each group sort by most-recent attempt desc, then accuracy asc.
+    const subjectMeta = (id: string) => {
+      const found = subjects.find((s) => s.id === id);
+      return { name: found?.name || 'Other', color: found?.color || '#9ca3af' };
+    };
+    const grouped = new Map<string, typeof weakSkills>();
+    for (const s of weakSkills) {
+      const list = grouped.get(s.subjectId) || [];
+      list.push(s);
+      grouped.set(s.subjectId, list);
+    }
+    const weakSkillsBySubject = Array.from(grouped.entries())
+      .map(([subjectId, skills]) => {
+        const meta = subjectMeta(subjectId);
+        return {
+          subjectId,
+          subjectName: meta.name,
+          subjectColor: meta.color,
+          skills: [...skills].sort((a, b) => (b.lastAttemptedAt - a.lastAttemptedAt) || (a.accuracy - b.accuracy)),
+          mostRecent: skills.reduce((m, s) => Math.max(m, s.lastAttemptedAt), 0),
+        };
+      })
+      .sort((a, b) => b.mostRecent - a.mostRecent);
+
+    // Top 5 most recently practiced skills (any accuracy), with their parent subject for deep-linking.
+    const recentSkills = skillStats
+      .filter((s) => s.attempted > 0 && s.lastAttemptedAt > 0)
+      .sort((a, b) => b.lastAttemptedAt - a.lastAttemptedAt)
+      .slice(0, 5)
+      .map((s) => ({ ...s, subjectName: subjects.find((sub) => sub.id === s.subjectId)?.name || 'Other', subjectColor: subjects.find((sub) => sub.id === s.subjectId)?.color || '#9ca3af' }));
+
+    return { totalAttempted, totalCorrect, totalIncorrect, accuracyPercent, weakSkills, weakSkillsBySubject, recentSkills };
   })();
+
+  // Most recent test attempts (flat, newest-first) for the "Most Recent Tests" section.
+  const recentTestAttempts = [...testAttempts]
+    .sort((a, b) => b.completedAt - a.completedAt)
+    .slice(0, 5);
 
   // Helper to toggle tag selection
   const toggleTag = (tagName: string) => {
@@ -325,7 +370,7 @@ function HomeContent() {
       />
 
       {/* Main Content */}
-      <main className="flex-1 min-h-screen">
+      <main className="flex-1 min-w-0 min-h-screen overflow-x-hidden">
         {/* Mobile Header */}
         <div className="lg:hidden sticky top-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-gray-100 dark:border-neutral-800 px-4 py-3 flex items-center gap-3">
           <button
@@ -337,7 +382,7 @@ function HomeContent() {
             </svg>
           </button>
           <h1 className="text-lg font-bold text-gray-900 dark:text-neutral-100 tracking-tight">
-            {activeTab === 'overview' ? 'Overview' : activeTab === 'question-bank' ? 'Question Bank' : 'Full-length Tests'}
+            {activeTab === 'overview' ? 'Home' : activeTab === 'question-bank' ? 'Question Bank' : 'Full-length Tests'}
           </h1>
           <div className="ml-auto">
             <ThemeToggle />
@@ -349,19 +394,15 @@ function HomeContent() {
         {activeTab === 'overview' ? (
           <div>
             <div className="mb-6 hidden lg:block">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-neutral-100 tracking-tight">Overview</h2>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-neutral-100 tracking-tight">Home</h2>
               <p className="text-gray-600 dark:text-neutral-400 mt-1">Your progress and areas to focus on</p>
             </div>
 
             {/* Stat tiles */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-5">
                 <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">Attempted</div>
                 <div className="text-3xl font-bold text-gray-900 dark:text-neutral-100 mt-1.5">{overview.totalAttempted}</div>
-              </div>
-              <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-5">
-                <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">Accuracy</div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-neutral-100 mt-1.5">{overview.accuracyPercent}%</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-5">
                 <div className="text-xs font-bold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">Correct</div>
@@ -373,13 +414,70 @@ function HomeContent() {
               </div>
             </div>
 
-            {/* Areas to improve */}
+            {/* Jump back in — resumable in-progress test */}
+            {existingTest && (
+              <div className="mb-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-2xl p-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wide">Jump back in</div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate mt-0.5">
+                    {existingTest.name}
+                  </div>
+                </div>
+                <button
+                  onClick={handleContinueTest}
+                  className="shrink-0 px-4 py-2 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full transition-all"
+                >
+                  Resume
+                </button>
+              </div>
+            )}
+
+            {/* Recent Practice — last skills the student worked on */}
+            {overview.recentSkills.length > 0 && (
+              <div className="mb-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100 mb-1">Recent practice</h3>
+                <p className="text-xs text-gray-500 dark:text-neutral-400 mb-4">
+                  Skills you&apos;ve practiced most recently
+                </p>
+                <div className="overflow-x-auto pb-1 min-w-0">
+                  <div className="flex gap-3 w-max">
+                    {overview.recentSkills.map((s) => (
+                      <button
+                        key={`${s.subjectId}-${s.name}`}
+                        onClick={() => handlePracticeSkill(s.name, s.subjectId)}
+                        className="text-left w-56 shrink-0 rounded-xl border border-gray-200 dark:border-neutral-700 hover:border-gray-300 dark:hover:border-neutral-600 hover:shadow-sm transition-all p-3 bg-white dark:bg-neutral-950"
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span
+                            className="inline-block px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-gray-900 truncate max-w-[110px]"
+                            style={{ backgroundColor: s.subjectColor }}
+                          >
+                            {s.subjectName}
+                          </span>
+                          <span className="text-[10px] text-gray-500 dark:text-neutral-400 ml-auto">
+                            {new Date(s.lastAttemptedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                        <div className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate mb-1.5">
+                          {s.name}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-neutral-400">
+                          {s.correct}/{s.attempted} · {s.accuracy}%
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Areas to improve — grouped by subject, ordered by most-recent activity */}
             <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Areas to improve</h3>
                   <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
-                    Skills where your accuracy is below 70% (at least 2 attempts)
+                    Skills below 70% accuracy (≥ 2 attempts), grouped by subject and ordered by most recent practice
                   </p>
                 </div>
               </div>
@@ -396,47 +494,71 @@ function HomeContent() {
                     Browse question bank
                   </button>
                 </div>
-              ) : overview.weakSkills.length === 0 ? (
+              ) : overview.weakSkillsBySubject.length === 0 ? (
                 <div className="py-8 text-center">
                   <p className="text-sm text-gray-500 dark:text-neutral-400">
                     Nothing to flag yet. Keep practicing and we&apos;ll surface weak spots here.
                   </p>
                 </div>
               ) : (
-                <ul className="divide-y divide-gray-100 dark:divide-neutral-800">
-                  {overview.weakSkills.map((skill) => (
-                    <li key={skill.name} className="py-3 flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate">
-                            {skill.name}
-                          </span>
-                          <span className="text-xs text-gray-500 dark:text-neutral-400 shrink-0">
-                            {skill.correct}/{skill.attempted} correct · {skill.accuracy}%
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full bg-gray-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${
-                              skill.accuracy < 40
-                                ? 'bg-rose-500'
-                                : skill.accuracy < 60
-                                ? 'bg-orange-500'
-                                : 'bg-yellow-500'
-                            }`}
-                            style={{ width: `${Math.max(skill.accuracy, 4)}%` }}
-                          />
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handlePracticeSkill(skill.name, skill.subjectId)}
-                        className="shrink-0 px-3 py-1.5 text-xs font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full transition-all"
-                      >
-                        Practice
-                      </button>
-                    </li>
+                <div className="space-y-3">
+                  {overview.weakSkillsBySubject.map((group) => (
+                    <div
+                      key={group.subjectId}
+                      className="rounded-xl border-l-4 pl-4 pr-3 py-3"
+                      style={{
+                        borderLeftColor: group.subjectColor,
+                        backgroundColor: `${group.subjectColor}14`, // ~8% alpha tint
+                      }}
+                    >
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-neutral-100 mb-2 flex items-center gap-2">
+                        <span
+                          className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-gray-900"
+                          style={{ backgroundColor: group.subjectColor }}
+                        >
+                          {group.subjectName}
+                        </span>
+                        <span className="text-xs font-normal text-gray-500 dark:text-neutral-400">
+                          · {group.skills.length} {group.skills.length === 1 ? 'skill' : 'skills'}
+                        </span>
+                      </h4>
+                      <ul className="divide-y divide-gray-100 dark:divide-neutral-800/60">
+                        {group.skills.map((skill) => (
+                          <li key={skill.name} className="py-3 flex items-center gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <span className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate">
+                                  {skill.name}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-neutral-400 shrink-0">
+                                  {skill.correct}/{skill.attempted} correct · {skill.accuracy}%
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full bg-white/60 dark:bg-neutral-800 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    skill.accuracy < 40
+                                      ? 'bg-rose-500'
+                                      : skill.accuracy < 60
+                                      ? 'bg-orange-500'
+                                      : 'bg-yellow-500'
+                                  }`}
+                                  style={{ width: `${Math.max(skill.accuracy, 4)}%` }}
+                                />
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handlePracticeSkill(skill.name, skill.subjectId)}
+                              className="shrink-0 px-3 py-1.5 text-xs font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full transition-all"
+                            >
+                              Practice
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
 
@@ -444,79 +566,60 @@ function HomeContent() {
             <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-6 mt-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Tests taken</h3>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Most recent tests</h3>
                   <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
-                    Full-length tests you&apos;ve completed
+                    The most recent full-length tests you&apos;ve completed
                   </p>
                 </div>
               </div>
 
-              {(() => {
-                const summaries = Array.from(attemptsByTest.entries()).map(([testId, list]) => {
-                  const best = list.reduce((m, a) => Math.max(m, a.scaledScore), 0);
-                  const latest = list[0]; // list is sorted newest-first
-                  return {
-                    testId,
-                    testName: latest.testName,
-                    count: list.length,
-                    best,
-                    latestAt: latest.completedAt,
-                    latestScaled: latest.scaledScore,
-                  };
-                }).sort((a, b) => b.latestAt - a.latestAt);
-
-                if (summaries.length === 0) {
-                  return (
-                    <div className="py-8 text-center">
-                      <p className="text-sm text-gray-500 dark:text-neutral-400 mb-4">
-                        You haven&apos;t completed any full-length tests yet.
-                      </p>
-                      <button
-                        onClick={() => handleTabChange('full-length-tests')}
-                        className="px-4 py-2 text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full transition-all"
-                      >
-                        Browse tests
-                      </button>
-                    </div>
-                  );
-                }
-
-                return (
-                  <ul className="divide-y divide-gray-100 dark:divide-neutral-800">
-                    {summaries.map((s) => {
-                      const badgeClass =
-                        s.best >= 85 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                          : s.best >= 65 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                          : s.best >= 50 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                          : 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400';
-                      const latestDate = new Date(s.latestAt).toLocaleDateString(undefined, {
-                        month: 'short', day: 'numeric', year: 'numeric',
-                      });
-                      return (
-                        <li key={s.testId} className="py-3 flex items-center gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate">
-                              {s.testName}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
-                              {s.count} {s.count === 1 ? 'attempt' : 'attempts'} · last {latestDate}
-                            </div>
+              {recentTestAttempts.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-gray-500 dark:text-neutral-400 mb-4">
+                    You haven&apos;t completed any full-length tests yet.
+                  </p>
+                  <button
+                    onClick={() => handleTabChange('full-length-tests')}
+                    className="px-4 py-2 text-sm font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-neutral-200 active:scale-95 rounded-full transition-all"
+                  >
+                    Browse tests
+                  </button>
+                </div>
+              ) : (
+                <ul className="divide-y divide-gray-100 dark:divide-neutral-800">
+                  {recentTestAttempts.map((a) => {
+                    const badgeClass =
+                      a.scaledScore >= 85 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : a.scaledScore >= 65 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                        : a.scaledScore >= 50 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                        : 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400';
+                    const completedAt = new Date(a.completedAt).toLocaleString(undefined, {
+                      month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+                    });
+                    return (
+                      <li key={a.id} className="py-3 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate">
+                            {a.testName}
                           </div>
-                          <div className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-bold ${badgeClass}`}>
-                            Best {s.best}
+                          <div className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
+                            {completedAt} · {a.correctCount}/{a.totalQuestions} correct
                           </div>
-                          <button
-                            onClick={() => setHistoryTestId(s.testId)}
-                            className="shrink-0 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-neutral-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-full transition-all"
-                          >
-                            History
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                );
-              })()}
+                        </div>
+                        <div className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-bold ${badgeClass}`}>
+                          {a.scaledScore}/100
+                        </div>
+                        <button
+                          onClick={() => setHistoryTestId(a.testId)}
+                          className="shrink-0 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-neutral-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-full transition-all"
+                        >
+                          History
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           </div>
         ) : activeTab === 'question-bank' ? (
@@ -887,7 +990,7 @@ function HomeContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {filteredSubjectDataList.map(({ subject, skills, totalQuestions }) => (
+                {filteredSubjectDataList.map(({ subject, skills, totalQuestions, correctQuestionCount }) => (
                   <div
                     key={subject.id}
                     className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-sm hover:-translate-y-1 transition-transform"
@@ -903,6 +1006,12 @@ function HomeContent() {
                         </h3>
                         <p className="text-gray-800/70 text-sm">
                           {totalQuestions} questions
+                          {correctQuestionCount > 0 && (
+                            <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-white/70 text-green-700 rounded-full text-xs font-bold align-middle">
+                              <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                              {correctQuestionCount}/{totalQuestions}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <button
