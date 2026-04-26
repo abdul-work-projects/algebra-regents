@@ -115,10 +115,6 @@ export default function AdminPage() {
   const [passageType, setPassageType] = useState<'grouped' | 'parts'>('grouped');
   const [passageAboveText, setPassageAboveText] = useState("");
   const [passageText, setPassageText] = useState("");
-  const [passageIframeUrl, setPassageIframeUrl] = useState("");
-  const [passageIframePage, setPassageIframePage] = useState<number | "">("");
-  const [passageImage, setPassageImage] = useState<File | null>(null);
-  const [passageImagePreview, setPassageImagePreview] = useState<string | null>(null);
   const [passageImageSize, setPassageImageSize] = useState<"small" | "medium" | "large" | "extra-large">("large");
   const [passageDocuments, setPassageDocuments] = useState<DocumentDraft[]>([]);
   const [activeQuestionTab, setActiveQuestionTab] = useState<number>(1);
@@ -423,10 +419,6 @@ export default function AdminPage() {
     setEditingExtraPartIds([]);
     setPassageAboveText("");
     setPassageText("");
-    setPassageIframeUrl("");
-    setPassageIframePage("");
-    setPassageImage(null);
-    setPassageImagePreview(null);
     setPassageImageSize("large");
     setPassageDocuments([]);
     setActiveQuestionTab(1);
@@ -449,12 +441,13 @@ export default function AdminPage() {
 
   const confirmLinkQuestions = async (linkPassageText: string, linkPassageImage: File | null, type: 'grouped' | 'parts' = 'grouped') => {
     if (selectedForGrouping.length < 2) return;
-    let passageImageUrl: string | null = null;
+    const passageDocs: QuestionDocument[] = [];
     if (linkPassageImage) {
       const sanitizedName = linkPassageImage.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-      passageImageUrl = await uploadImage("question-images", linkPassageImage, `passages/${Date.now()}-${sanitizedName}`);
+      const url = await uploadImage("question-images", linkPassageImage, `passages/${Date.now()}-${sanitizedName}`);
+      if (url) passageDocs.push({ type: 'image', url, position: 'above', size: 'large' });
     }
-    const result = await linkQuestionsToNewPassage(selectedForGrouping, { passage_text: linkPassageText.trim() || null, passage_image_url: passageImageUrl, type });
+    const result = await linkQuestionsToNewPassage(selectedForGrouping, { passage_text: linkPassageText.trim() || null, passage_documents: passageDocs, type });
     if (result && result.updatedCount === selectedForGrouping.length) {
       setNotification({ type: "success", message: "Questions linked successfully!" });
       setShowLinkModal(false);
@@ -505,21 +498,8 @@ export default function AdminPage() {
         const passage = question.passages;
         setPassageAboveText(passage?.above_text || "");
         setPassageText(passage?.passage_text || "");
-        setPassageIframeUrl(passage?.iframe_url || "");
-        setPassageIframePage(passage?.iframe_page ?? "");
-        setPassageImagePreview(passage?.passage_image_url || null);
-        setPassageImage(null);
         setPassageImageSize((passage?.image_size as "small" | "medium" | "large" | "extra-large") || "large");
-        // Pre-populate the multi-doc editor: prefer the new array, fall back to legacy single image/PDF.
-        const existingDocs = Array.isArray(passage?.passage_documents) ? passage!.passage_documents! : null;
-        if (existingDocs && existingDocs.length > 0) {
-          setPassageDocuments(docsToDrafts(existingDocs));
-        } else {
-          const legacy: DocumentDraft[] = [];
-          if (passage?.passage_image_url) legacy.push({ id: newDocId(), type: 'image', file: null, url: passage.passage_image_url, position: 'above' });
-          if (passage?.iframe_url) legacy.push({ id: newDocId(), type: 'pdf', url: passage.iframe_url, page: passage.iframe_page ?? undefined, position: 'above' });
-          setPassageDocuments(legacy);
-        }
+        setPassageDocuments(docsToDrafts(passage?.passage_documents));
 
         // Load first two into hook-based forms
         q1Form.loadFromQuestion(loadFormData(allGrouped[0]));
@@ -532,9 +512,9 @@ export default function AdminPage() {
             questionText: dbQ.question_text || "",
             aboveImageText: dbQ.above_image_text || "",
             questionImage: null,
-            questionImagePreview: dbQ.question_image_url || null,
+            questionImagePreview: null,
             referenceImage: null,
-            referenceImagePreview: dbQ.reference_image_url || null,
+            referenceImagePreview: null,
             explanationImage: null,
             explanationImagePreview: dbQ.explanation_image_url || null,
             answers: dbQ.answers,
@@ -550,22 +530,8 @@ export default function AdminPage() {
             difficulty: dbQ.difficulty || "",
             points: dbQ.points || 1,
             notes: dbQ.notes || "",
-            questionDocuments: docsToDrafts(dbQ.question_documents)
-              .concat(
-                (Array.isArray(dbQ.question_documents) && dbQ.question_documents.length > 0)
-                  ? []
-                  : (dbQ.question_image_url
-                      ? [{ id: newDocId(), type: 'image' as const, file: null, url: dbQ.question_image_url, position: 'above' as const }]
-                      : [])
-              ),
-            referenceDocuments: docsToDrafts(dbQ.reference_documents)
-              .concat(
-                (Array.isArray(dbQ.reference_documents) && dbQ.reference_documents.length > 0)
-                  ? []
-                  : (dbQ.reference_image_url
-                      ? [{ id: newDocId(), type: 'image' as const, file: null, url: dbQ.reference_image_url }]
-                      : [])
-              ),
+            questionDocuments: docsToDrafts(dbQ.question_documents),
+            referenceDocuments: docsToDrafts(dbQ.reference_documents),
           }));
           setExtraPartStates(extras);
           setEditingExtraPartIds(allGrouped.slice(2).map((q) => q.id));
@@ -585,7 +551,7 @@ export default function AdminPage() {
     setEditingQ2Id(null);
     setEditingPassageId(null);
     setIsGroupedQuestion(false);
-    q1Form.loadFromQuestion({ name: question.name, question_text: question.question_text, above_image_text: question.above_image_text, question_image_url: question.question_image_url, reference_image_url: question.reference_image_url, explanation_image_url: question.explanation_image_url, answers: question.answers, answer_image_urls: question.answer_image_urls, answer_layout: question.answer_layout, image_size: question.image_size, question_type: question.question_type, correct_answer: question.correct_answer, explanation_text: question.explanation_text, skills: question.skills || [], tags: question.tags || [], difficulty: question.difficulty, points: question.points, notes: question.notes, question_documents: question.question_documents, reference_documents: question.reference_documents });
+    q1Form.loadFromQuestion({ name: question.name, question_text: question.question_text, above_image_text: question.above_image_text, explanation_image_url: question.explanation_image_url, answers: question.answers, answer_image_urls: question.answer_image_urls, answer_layout: question.answer_layout, image_size: question.image_size, question_type: question.question_type, correct_answer: question.correct_answer, explanation_text: question.explanation_text, skills: question.skills || [], tags: question.tags || [], difficulty: question.difficulty, points: question.points, notes: question.notes, question_documents: question.question_documents, reference_documents: question.reference_documents });
     const questionTestIds = await getTestsForQuestion(question.id);
     setSelectedTestIds(questionTestIds);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -626,7 +592,7 @@ export default function AdminPage() {
     const q2 = q2Form.state;
 
     const hasQuestionText = q1.questionText.trim() || q1.aboveImageText.trim();
-    const hasQuestionImage = q1.questionImage || q1.questionImagePreview || hasAnyDoc(q1.questionDocuments);
+    const hasQuestionImage = hasAnyDoc(q1.questionDocuments);
     if (!hasQuestionText && !hasQuestionImage) { setNotification({ type: "error", message: "Question 1 must have text (above or below) or at least one document" }); return; }
 
     for (let i = 0; i < 4; i++) {
@@ -639,7 +605,7 @@ export default function AdminPage() {
     if (selectedTestIds.length === 0) { setNotification({ type: "error", message: "Question must be assigned to at least one test" }); return; }
 
     if (isGroupedQuestion) {
-      if (!passageText.trim() && !passageAboveText.trim() && !passageImage && !passageImagePreview && !passageIframeUrl.trim() && !hasAnyDoc(passageDocuments)) { setNotification({ type: "error", message: "Grouped questions must have a passage (text, image, PDF, or iframe URL)" }); return; }
+      if (!passageText.trim() && !passageAboveText.trim() && !hasAnyDoc(passageDocuments)) { setNotification({ type: "error", message: "Grouped questions must have a passage (text or at least one document)" }); return; }
       // Validate all secondary forms (q2 + extra parts)
       const secondaryForms = [q2, ...extraPartStates];
       const isPartsMode = passageType === 'parts';
@@ -647,7 +613,7 @@ export default function AdminPage() {
         const form = secondaryForms[fi];
         const label = isPartsMode ? `Part ${String.fromCharCode(98 + fi)}` : `Question ${fi + 2}`;
         const hasFormText = form.questionText.trim() || form.aboveImageText.trim();
-        const hasFormImage = form.questionImage || form.questionImagePreview || hasAnyDoc(form.questionDocuments);
+        const hasFormImage = hasAnyDoc(form.questionDocuments);
         if (!hasFormText && !hasFormImage) { setNotification({ type: "error", message: `${label} must have text (above or below) or at least one document` }); return; }
         for (let i = 0; i < 4; i++) {
           const hasText = form.answers[i]?.trim();
@@ -665,21 +631,19 @@ export default function AdminPage() {
       if (isGroupedQuestion && !editingId) {
         const passageDocs = await uploadDocs(passageDocuments, "passages");
 
-        const uploadQuestionImages = async (form: typeof q1, prefix: string) => {
-          let imageUrl: string | null = null;
-          if (form.questionImage) imageUrl = await uploadImage("question-images", form.questionImage, `questions/${Date.now()}-${prefix}-${sanitizeFilename(form.questionImage.name)}`);
+        const uploadAuxiliaryImages = async (form: typeof q1, prefix: string) => {
           let explanationImageUrl: string | null = null;
           if (form.explanationImage) explanationImageUrl = await uploadImage("explanation-images", form.explanationImage, `explanations/${Date.now()}-${prefix}-${sanitizeFilename(form.explanationImage.name)}`);
           const answerImageUrls = await Promise.all(form.answerImages.map(async (img, index) => { if (img) return await uploadImage("answer-images", img, `answers/${Date.now()}-${prefix}-${index}-${sanitizeFilename(img.name)}`); return form.answerImagePreviews[index] || null; }));
-          return { imageUrl, explanationImageUrl, answerImageUrls };
+          return { explanationImageUrl, answerImageUrls };
         };
 
         // Build all forms: q1, q2, + any extra parts
         const allFormStates = [q1, q2, ...extraPartStates];
-        const allImages: { imageUrl: string | null; explanationImageUrl: string | null; answerImageUrls: (string | null)[] }[] = [];
+        const allAux: { explanationImageUrl: string | null; answerImageUrls: (string | null)[] }[] = [];
         const allDocs: { questionDocs: QuestionDocument[]; referenceDocs: QuestionDocument[] }[] = [];
         for (let fi = 0; fi < allFormStates.length; fi++) {
-          allImages.push(await uploadQuestionImages(allFormStates[fi], `q${fi + 1}`));
+          allAux.push(await uploadAuxiliaryImages(allFormStates[fi], `q${fi + 1}`));
           allDocs.push({
             questionDocs: await uploadDocs(allFormStates[fi].questionDocuments, `questions/q${fi + 1}`),
             referenceDocs: await uploadDocs(allFormStates[fi].referenceDocuments, `references/q${fi + 1}`),
@@ -696,13 +660,13 @@ export default function AdminPage() {
           question_documents: allDocs[fi].questionDocs,
           reference_documents: allDocs[fi].referenceDocs,
           answers: form.answers,
-          answer_image_urls: allImages[fi].answerImageUrls,
+          answer_image_urls: allAux[fi].answerImageUrls,
           answer_layout: form.answerLayout,
           image_size: form.imageSize,
           question_type: form.questionType,
           correct_answer: form.correctAnswer,
           explanation_text: form.explanationText,
-          explanation_image_url: allImages[fi].explanationImageUrl,
+          explanation_image_url: allAux[fi].explanationImageUrl,
           skills: form.selectedSkills,
           tags: form.selectedTags,
           difficulty: (form.difficulty as "easy" | "medium" | "hard") || null,
@@ -728,13 +692,11 @@ export default function AdminPage() {
         const passageResult = await updatePassage(editingPassageId, { above_text: passageAboveText.trim() || null, passage_text: passageText.trim() || null, passage_image_url: null, iframe_url: null, iframe_page: null, passage_documents: passageDocs, image_size: passageImageSize, type: passageType });
         if (!passageResult) throw new Error("Failed to update passage");
 
-        const uploadQuestionImages = async (form: typeof q1, prefix: string) => {
-          let imageUrl: string | null = form.questionImagePreview;
-          if (form.questionImage) imageUrl = await uploadImage("question-images", form.questionImage, `questions/${Date.now()}-${prefix}-${sanitizeFilename(form.questionImage.name)}`);
+        const uploadAuxiliaryImages = async (form: typeof q1, prefix: string) => {
           let explanationImageUrl: string | null = form.explanationImagePreview;
           if (form.explanationImage) explanationImageUrl = await uploadImage("explanation-images", form.explanationImage, `explanations/${Date.now()}-${prefix}-${sanitizeFilename(form.explanationImage.name)}`);
           const answerImageUrls = await Promise.all(form.answerImages.map(async (img, index) => { if (img) return await uploadImage("answer-images", img, `answers/${Date.now()}-${prefix}-${index}-${sanitizeFilename(img.name)}`); return form.answerImagePreviews[index] || null; }));
-          return { imageUrl, explanationImageUrl, answerImageUrls };
+          return { explanationImageUrl, answerImageUrls };
         };
 
         const uploadAndUpdate = async (form: typeof q1, qId: string, prefix: string) => {
@@ -760,7 +722,7 @@ export default function AdminPage() {
             await uploadAndUpdate(extraForm, extraId, `q${ei + 3}`);
           } else {
             // New extra part — create it and link to passage
-            const imgs = await uploadQuestionImages(extraForm, `q${ei + 3}`);
+            const imgs = await uploadAuxiliaryImages(extraForm, `q${ei + 3}`);
             const extraQuestionDocs = await uploadDocs(extraForm.questionDocuments, `questions/q${ei + 3}`);
             const extraReferenceDocs = await uploadDocs(extraForm.referenceDocuments, `references/q${ei + 3}`);
             const newQ = await createQuestion({
@@ -1060,13 +1022,6 @@ export default function AdminPage() {
               onPassageAboveTextChange={setPassageAboveText}
               passageText={passageText}
               onPassageTextChange={setPassageText}
-              passageIframeUrl={passageIframeUrl}
-              onPassageIframeUrlChange={setPassageIframeUrl}
-              passageIframePage={passageIframePage}
-              onPassageIframePageChange={setPassageIframePage}
-              passageImage={passageImage}
-              passageImagePreview={passageImagePreview}
-              onPassageImageChange={(file, preview) => { setPassageImage(file); setPassageImagePreview(preview); }}
               passageImageSize={passageImageSize}
               onPassageImageSizeChange={setPassageImageSize}
               passageDocuments={passageDocuments}
@@ -1106,17 +1061,12 @@ export default function AdminPage() {
         isOpen={showSectionModal}
         onClose={() => { setShowSectionModal(false); setEditingSection(null); }}
         onSave={async (data) => {
-          let referenceImageUrl = data.referenceImageUrl || "";
-          if (data.referenceImageFile) {
-            const uploadedUrl = await uploadImage("reference-images", data.referenceImageFile, "sections/" + Date.now() + "-" + data.referenceImageFile.name);
-            if (uploadedUrl) referenceImageUrl = uploadedUrl;
-          }
           const sectionRefDocs = await uploadDocs(data.referenceDocuments, "sections");
           const targetTestId = showTestSettingsModal ? filterTestId : expandedTestId;
           if (editingSection) {
-            await updateTestSection(editingSection.id, { name: data.name, description: data.description || null, reference_image_url: referenceImageUrl || null, reference_documents: sectionRefDocs });
+            await updateTestSection(editingSection.id, { name: data.name, description: data.description || null, reference_image_url: null, reference_documents: sectionRefDocs });
           } else if (targetTestId) {
-            await createTestSection({ test_id: targetTestId, name: data.name, description: data.description || undefined, reference_image_url: referenceImageUrl || undefined, reference_documents: sectionRefDocs, display_order: testSections.length });
+            await createTestSection({ test_id: targetTestId, name: data.name, description: data.description || undefined, reference_documents: sectionRefDocs, display_order: testSections.length });
           }
           setShowSectionModal(false);
           setEditingSection(null);

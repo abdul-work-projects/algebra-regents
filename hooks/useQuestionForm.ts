@@ -112,8 +112,6 @@ export function useQuestionForm() {
     name?: string | null;
     question_text?: string | null;
     above_image_text?: string | null;
-    question_image_url?: string | null;
-    reference_image_url?: string | null;
     explanation_image_url?: string | null;
     answers: string[];
     answer_image_urls?: (string | null)[];
@@ -135,9 +133,9 @@ export function useQuestionForm() {
       questionText: question.question_text || "",
       aboveImageText: question.above_image_text || "",
       questionImage: null,
-      questionImagePreview: question.question_image_url || null,
+      questionImagePreview: null,
       referenceImage: null,
-      referenceImagePreview: question.reference_image_url || null,
+      referenceImagePreview: null,
       explanationImage: null,
       explanationImagePreview: question.explanation_image_url || null,
       answers: question.answers,
@@ -153,23 +151,8 @@ export function useQuestionForm() {
       difficulty: question.difficulty || "",
       points: question.points || 1,
       notes: question.notes || "",
-      questionDocuments: docsToDrafts(question.question_documents)
-        .concat(
-          // Backfill from legacy single image if new array is empty.
-          (Array.isArray(question.question_documents) && question.question_documents.length > 0)
-            ? []
-            : (question.question_image_url
-                ? [{ id: newDocId(), type: 'image' as const, file: null, url: question.question_image_url, position: 'above' as const }]
-                : [])
-        ),
-      referenceDocuments: docsToDrafts(question.reference_documents)
-        .concat(
-          (Array.isArray(question.reference_documents) && question.reference_documents.length > 0)
-            ? []
-            : (question.reference_image_url
-                ? [{ id: newDocId(), type: 'image' as const, file: null, url: question.reference_image_url }]
-                : [])
-        ),
+      questionDocuments: docsToDrafts(question.question_documents),
+      referenceDocuments: docsToDrafts(question.reference_documents),
     });
   };
 
@@ -231,9 +214,9 @@ export function createFormAccessor(
         questionText: question.question_text || "",
         aboveImageText: question.above_image_text || "",
         questionImage: null,
-        questionImagePreview: question.question_image_url || null,
+        questionImagePreview: null,
         referenceImage: null,
-        referenceImagePreview: question.reference_image_url || null,
+        referenceImagePreview: null,
         explanationImage: null,
         explanationImagePreview: question.explanation_image_url || null,
         answers: question.answers,
@@ -249,22 +232,8 @@ export function createFormAccessor(
         difficulty: question.difficulty || "",
         points: question.points || 1,
         notes: question.notes || "",
-        questionDocuments: docsToDrafts(question.question_documents)
-          .concat(
-            (Array.isArray(question.question_documents) && question.question_documents.length > 0)
-              ? []
-              : (question.question_image_url
-                  ? [{ id: newDocId(), type: 'image' as const, file: null, url: question.question_image_url, position: 'above' as const }]
-                  : [])
-          ),
-        referenceDocuments: docsToDrafts(question.reference_documents)
-          .concat(
-            (Array.isArray(question.reference_documents) && question.reference_documents.length > 0)
-              ? []
-              : (question.reference_image_url
-                  ? [{ id: newDocId(), type: 'image' as const, file: null, url: question.reference_image_url }]
-                  : [])
-          ),
+        questionDocuments: docsToDrafts(question.question_documents),
+        referenceDocuments: docsToDrafts(question.reference_documents),
       }));
     },
   };

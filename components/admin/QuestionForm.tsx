@@ -24,13 +24,6 @@ interface QuestionFormProps {
   onPassageAboveTextChange: (text: string) => void;
   passageText: string;
   onPassageTextChange: (text: string) => void;
-  passageIframeUrl: string;
-  onPassageIframeUrlChange: (url: string) => void;
-  passageIframePage: number | "";
-  onPassageIframePageChange: (page: number | "") => void;
-  passageImage: File | null;
-  passageImagePreview: string | null;
-  onPassageImageChange: (file: File | null, preview: string | null) => void;
   passageImageSize: "small" | "medium" | "large" | "extra-large";
   onPassageImageSizeChange: (size: "small" | "medium" | "large" | "extra-large") => void;
   passageDocuments: import("@/components/admin/DocumentsEditor").DocumentDraft[];
@@ -63,13 +56,6 @@ export default function QuestionForm({
   onPassageAboveTextChange,
   passageText,
   onPassageTextChange,
-  passageIframeUrl,
-  onPassageIframeUrlChange,
-  passageIframePage,
-  onPassageIframePageChange,
-  passageImage,
-  passageImagePreview,
-  onPassageImageChange,
   passageImageSize,
   onPassageImageSizeChange,
   passageDocuments,

@@ -312,42 +312,13 @@ function coerceDocs(value: unknown): QuestionDocument[] {
   );
 }
 
-// Use new `*_documents` array when present, otherwise synthesise a single-entry array
-// from the legacy single-URL column so existing rows keep rendering.
-function questionDocsOrLegacy(dbQuestion: DatabaseQuestion): QuestionDocument[] {
-  const docs = coerceDocs(dbQuestion.question_documents);
-  if (docs.length > 0) return docs;
-  if (dbQuestion.question_image_url) {
-    return [{ type: 'image', url: dbQuestion.question_image_url, position: 'above' }];
-  }
-  return [];
-}
-
-function referenceDocsOrLegacy(legacyUrl: string | null | undefined, docs: unknown): QuestionDocument[] {
-  const arr = coerceDocs(docs);
-  if (arr.length > 0) return arr;
-  if (legacyUrl) return [{ type: 'image', url: legacyUrl }];
-  return [];
-}
-
-function passageDocsOrLegacy(p: DatabasePassage): QuestionDocument[] {
-  const docs = coerceDocs(p.passage_documents);
-  if (docs.length > 0) return docs;
-  const out: QuestionDocument[] = [];
-  if (p.passage_image_url) out.push({ type: 'image', url: p.passage_image_url, position: 'above' });
-  if (p.iframe_url) out.push({ type: 'pdf', url: p.iframe_url, page: p.iframe_page ?? undefined, position: 'above' });
-  return out;
-}
-
 export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: DatabasePassage | null }, sectionInfo?: { sectionId?: string; sectionName?: string }): Question {
   return {
     id: dbQuestion.id,
     questionText: dbQuestion.question_text || undefined,
     aboveImageText: dbQuestion.above_image_text || undefined,
-    imageFilename: dbQuestion.question_image_url || undefined,
-    referenceImageUrl: dbQuestion.reference_image_url || undefined,
-    questionDocuments: questionDocsOrLegacy(dbQuestion),
-    referenceDocuments: referenceDocsOrLegacy(dbQuestion.reference_image_url, dbQuestion.reference_documents),
+    questionDocuments: coerceDocs(dbQuestion.question_documents),
+    referenceDocuments: coerceDocs(dbQuestion.reference_documents),
     answers: dbQuestion.answers,
     answerImageUrls: dbQuestion.answer_image_urls?.map(url => url || undefined),
     answerLayout: dbQuestion.answer_layout || 'list',
@@ -367,10 +338,7 @@ export function convertToQuizFormat(dbQuestion: DatabaseQuestion & { passages?: 
       type: dbQuestion.passages.type || 'grouped',
       aboveText: dbQuestion.passages.above_text || undefined,
       passageText: dbQuestion.passages.passage_text || undefined,
-      passageImageUrl: dbQuestion.passages.passage_image_url || undefined,
-      iframeUrl: dbQuestion.passages.iframe_url || undefined,
-      iframePage: dbQuestion.passages.iframe_page || undefined,
-      passageDocuments: passageDocsOrLegacy(dbQuestion.passages),
+      passageDocuments: coerceDocs(dbQuestion.passages.passage_documents),
       imageSize: dbQuestion.passages.image_size || 'large',
     } : undefined,
     sectionId: sectionInfo?.sectionId,
@@ -1325,10 +1293,7 @@ export function convertToPassageFormat(dbPassage: DatabasePassage): Passage {
     id: dbPassage.id,
     aboveText: dbPassage.above_text || undefined,
     passageText: dbPassage.passage_text || undefined,
-    passageImageUrl: dbPassage.passage_image_url || undefined,
-    iframeUrl: dbPassage.iframe_url || undefined,
-    iframePage: dbPassage.iframe_page || undefined,
-    passageDocuments: passageDocsOrLegacy(dbPassage),
+    passageDocuments: coerceDocs(dbPassage.passage_documents),
     imageSize: dbPassage.image_size || 'large',
     createdAt: dbPassage.created_at,
     updatedAt: dbPassage.updated_at,
@@ -1552,8 +1517,7 @@ export function convertToSectionFormat(dbSection: DatabaseTestSection & { questi
     testId: dbSection.test_id,
     name: dbSection.name,
     description: dbSection.description || undefined,
-    referenceImageUrl: dbSection.reference_image_url || undefined,
-    referenceDocuments: referenceDocsOrLegacy(dbSection.reference_image_url, dbSection.reference_documents),
+    referenceDocuments: coerceDocs(dbSection.reference_documents),
     displayOrder: dbSection.display_order,
     questionCount: dbSection.question_count,
   };

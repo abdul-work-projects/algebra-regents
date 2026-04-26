@@ -16,9 +16,6 @@ export interface Passage {
   type?: 'grouped' | 'parts';
   aboveText?: string;
   passageText?: string;
-  passageImageUrl?: string;       // legacy single image — prefer passageDocuments
-  iframeUrl?: string;             // legacy single PDF — prefer passageDocuments
-  iframePage?: number;
   passageDocuments?: QuestionDocument[];
   imageSize?: 'small' | 'medium' | 'large' | 'extra-large';
   createdAt?: string;
@@ -29,8 +26,6 @@ export interface Question {
   id: string;
   questionText?: string; // Optional question text (can have text, image, or both)
   aboveImageText?: string; // Text displayed above the question image
-  imageFilename?: string; // Legacy single question image — prefer questionDocuments
-  referenceImageUrl?: string; // Legacy single reference image — prefer referenceDocuments
   questionDocuments?: QuestionDocument[];   // Multi-doc embedded in question body
   referenceDocuments?: QuestionDocument[];  // Multi-doc reference materials
   answers: string[];
@@ -57,7 +52,6 @@ export interface TestSection {
   testId: string;
   name: string;
   description?: string;
-  referenceImageUrl?: string; // Legacy single reference image — prefer referenceDocuments
   referenceDocuments?: QuestionDocument[];
   displayOrder: number;
   questionCount?: number; // computed field

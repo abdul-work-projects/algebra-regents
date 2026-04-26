@@ -506,25 +506,37 @@ export default function ResultsPage() {
                                   <MathText text={question.aboveImageText} className="leading-relaxed dark:text-neutral-200" />
                                 </div>
                               )}
-                              {question.imageFilename && (
-                                <img
-                                  src={question.imageFilename}
-                                  alt="Question"
-                                  className={`mx-auto h-auto rounded-lg mb-2 w-full ${question.imageSize === 'small' ? 'max-w-xs' : question.imageSize === 'medium' ? 'max-w-md' : question.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
-                                />
-                              )}
+                              {question.questionDocuments && question.questionDocuments.filter((d) => d.position !== 'below').map((d, di) => (
+                                d.type === 'image'
+                                  ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      key={`above-${di}`}
+                                      src={d.url}
+                                      alt="Question"
+                                      className={`mx-auto h-auto rounded-lg mb-2 w-full ${(d.size ?? question.imageSize) === 'small' ? 'max-w-xs' : (d.size ?? question.imageSize) === 'medium' ? 'max-w-md' : (d.size ?? question.imageSize) === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
+                                    />
+                                  )
+                                  : null
+                              ))}
                               {question.questionText && (
                                 <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '1rem' }}>
                                   <MathText text={question.questionText} className="leading-relaxed" />
                                 </div>
                               )}
-                              {question.referenceImageUrl && (
-                                <img
-                                  src={question.referenceImageUrl}
-                                  alt="Reference"
-                                  className="w-full h-auto max-h-48 object-contain rounded-lg mt-2 border border-gray-300 dark:border-neutral-600"
-                                />
-                              )}
+                              {question.questionDocuments && question.questionDocuments.filter((d) => d.position === 'below').map((d, di) => (
+                                d.type === 'image'
+                                  ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      key={`below-${di}`}
+                                      src={d.url}
+                                      alt="Question"
+                                      className={`mx-auto h-auto rounded-lg mt-2 w-full ${(d.size ?? question.imageSize) === 'small' ? 'max-w-xs' : (d.size ?? question.imageSize) === 'medium' ? 'max-w-md' : (d.size ?? question.imageSize) === 'extra-large' ? 'max-w-full' : 'max-w-lg'}`}
+                                    />
+                                  )
+                                  : null
+                              ))}
 
                               {/* Answer Options - Same styling as quiz page */}
                               <div className={`mt-3 ${
