@@ -1720,14 +1720,13 @@ function QuizPageContent() {
                     {/* Passage Documents (images / PDFs) */}
                     {currentQuestion.passage?.passageDocuments && currentQuestion.passage.passageDocuments.length > 0 && (
                       <div
-                        className={`mb-3 ${currentQuestion.passage.passageText ? 'shrink-0' : 'flex-1 min-h-[400px]'}`}
+                        className="mb-3 shrink-0"
                         style={{ zIndex: 60, pointerEvents: "auto", position: "relative" }}
                       >
                         <DocsList
                           docs={currentQuestion.passage.passageDocuments}
-                          pdfHeight={currentQuestion.passage.passageText ? '60vh' : '100%'}
+                          pdfHeight="80vh"
                           imageMaxWidthClass={currentQuestion.passage.imageSize === 'small' ? 'max-w-xs' : currentQuestion.passage.imageSize === 'medium' ? 'max-w-lg' : currentQuestion.passage.imageSize === 'extra-large' ? 'max-w-full' : 'max-w-2xl'}
-                          className="h-full"
                         />
                       </div>
                     )}

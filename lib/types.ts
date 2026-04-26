@@ -9,6 +9,8 @@ export interface QuestionDocument {
   label?: string;         // optional human label, e.g. for reference modal thumbnails
   position?: 'above' | 'below'; // for question_documents / passage_documents
   size?: DocumentSize;    // image-size class hint, falls back to parent default when absent
+  sourceUrl?: string;     // optional clickable source link rendered as a caption beneath the doc
+  sourceLabel?: string;   // optional display text for the source link (falls back to sourceUrl)
 }
 
 export interface Passage {

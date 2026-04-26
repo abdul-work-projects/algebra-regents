@@ -42,6 +42,8 @@ export function docsToDrafts(docs: QuestionDocument[] | undefined | null): Docum
     label: d.label,
     position: d.position,
     size: d.size,
+    sourceUrl: d.sourceUrl,
+    sourceLabel: d.sourceLabel,
   }));
 }
 

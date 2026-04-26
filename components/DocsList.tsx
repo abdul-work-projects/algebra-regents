@@ -27,25 +27,51 @@ export default function DocsList({
 }: DocsListProps) {
   if (!docs || docs.length === 0) return null;
 
+  const renderSource = (doc: QuestionDocument, idx: number) => {
+    if (!doc.sourceUrl && !doc.sourceLabel) return null;
+    const text = doc.sourceLabel || doc.sourceUrl || '';
+    return (
+      <div key={`src-${idx}`} className="text-[11px] text-gray-500 dark:text-neutral-400 italic mt-1 text-left">
+        {doc.sourceUrl ? (
+          <a
+            href={doc.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-800 dark:hover:text-neutral-200 no-underline"
+          >
+            {text}
+          </a>
+        ) : (
+          text
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className={`${spacingClass} ${className}`}>
       {docs.map((doc, idx) => {
         if (doc.type === 'pdf') {
           return (
-            <div key={`pdf-${idx}-${doc.url}`} style={{ height: pdfHeight, position: 'relative', zIndex: 60 }}>
-              <PassageIframe url={doc.url} page={doc.page} className="h-full" />
+            <div key={`pdf-${idx}-${doc.url}`}>
+              <div style={{ height: pdfHeight, position: 'relative', zIndex: 60 }}>
+                <PassageIframe url={doc.url} page={doc.page} className="h-full" />
+              </div>
+              {renderSource(doc, idx)}
             </div>
           );
         }
         const widthClass = doc.size ? SIZE_TO_CLASS[doc.size] : imageMaxWidthClass;
         return (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={`img-${idx}-${doc.url}`}
-            src={doc.url}
-            alt={doc.label || `Document ${idx + 1}`}
-            className={`mx-auto h-auto rounded-lg w-full ${widthClass}`}
-          />
+          <div key={`img-${idx}-${doc.url}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={doc.url}
+              alt={doc.label || `Document ${idx + 1}`}
+              className={`mx-auto h-auto rounded-lg w-full ${widthClass}`}
+            />
+            {renderSource(doc, idx)}
+          </div>
         );
       })}
     </div>

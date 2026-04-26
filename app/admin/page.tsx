@@ -577,10 +577,26 @@ export default function AdminPage() {
           url = uploaded;
         }
         if (!url) continue;
-        out.push({ type: 'image', url, position: d.position, label: d.label || undefined, size: d.size });
+        out.push({
+          type: 'image',
+          url,
+          position: d.position,
+          label: d.label || undefined,
+          size: d.size,
+          sourceUrl: d.sourceUrl?.trim() || undefined,
+          sourceLabel: d.sourceLabel?.trim() || undefined,
+        });
       } else {
         if (!d.url) continue;
-        out.push({ type: 'pdf', url: d.url, page: d.page, position: d.position, label: d.label || undefined });
+        out.push({
+          type: 'pdf',
+          url: d.url,
+          page: d.page,
+          position: d.position,
+          label: d.label || undefined,
+          sourceUrl: d.sourceUrl?.trim() || undefined,
+          sourceLabel: d.sourceLabel?.trim() || undefined,
+        });
       }
     }
     return out;

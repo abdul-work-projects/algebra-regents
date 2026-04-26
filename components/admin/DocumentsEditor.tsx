@@ -13,6 +13,8 @@ export interface DocumentDraft {
   label?: string;
   position?: 'above' | 'below';     // omit for reference docs
   size?: DocumentSize;              // per-image display size
+  sourceUrl?: string;               // optional clickable source link
+  sourceLabel?: string;             // optional caption text
 }
 
 export const newDocId = (): string => `doc-${Math.random().toString(36).slice(2, 9)}`;
@@ -309,6 +311,23 @@ export default function DocumentsEditor({
                 onChange={(e) => update(idx, { label: e.target.value })}
                 className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
               />
+
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr] gap-2">
+                <input
+                  type="url"
+                  placeholder="Source URL (optional)"
+                  value={doc.sourceUrl ?? ''}
+                  onChange={(e) => update(idx, { sourceUrl: e.target.value })}
+                  className="px-2 py-1 text-xs border border-gray-200 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Source caption (optional)"
+                  value={doc.sourceLabel ?? ''}
+                  onChange={(e) => update(idx, { sourceLabel: e.target.value })}
+                  className="px-2 py-1 text-xs border border-gray-200 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                />
+              </div>
             </li>
           ))}
         </ul>
