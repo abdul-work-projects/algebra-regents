@@ -503,15 +503,20 @@ export default function AdminPage() {
     setShowLinkModal(true);
   };
 
-  const confirmLinkQuestions = async (linkPassageText: string, linkPassageImage: File | null, type: 'grouped' | 'parts' = 'grouped') => {
+  const confirmLinkQuestions = async (
+    linkPassageAboveText: string,
+    linkPassageText: string,
+    linkPassageDocuments: DocumentDraft[],
+    type: 'grouped' | 'parts' = 'grouped',
+  ) => {
     if (selectedForGrouping.length < 2) return;
-    const passageDocs: QuestionDocument[] = [];
-    if (linkPassageImage) {
-      const sanitizedName = linkPassageImage.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-      const url = await uploadImage("question-images", linkPassageImage, `passages/${Date.now()}-${sanitizedName}`);
-      if (url) passageDocs.push({ type: 'image', url, position: 'above', size: 'large' });
-    }
-    const result = await linkQuestionsToNewPassage(selectedForGrouping, { passage_text: linkPassageText.trim() || null, passage_documents: passageDocs, type });
+    const passageDocs = await uploadDocs(linkPassageDocuments, 'passages');
+    const result = await linkQuestionsToNewPassage(selectedForGrouping, {
+      above_text: linkPassageAboveText.trim() || null,
+      passage_text: linkPassageText.trim() || null,
+      passage_documents: passageDocs,
+      type,
+    });
     if (result && result.updatedCount === selectedForGrouping.length) {
       setNotification({ type: "success", message: "Questions linked successfully!" });
       setShowLinkModal(false);

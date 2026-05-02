@@ -1805,7 +1805,7 @@ function QuizPageContent() {
                     <div className="mb-4 shrink-0 flex gap-3" style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: "1.125rem" }}>
                       {/* Question number */}
                       <div className="shrink-0 font-bold text-gray-900 dark:text-neutral-100" style={{ width: '1.5rem', textAlign: 'right' }}>
-                        {session.currentQuestionIndex + 1}
+                        {currentDisplayInfo?.displayNumber ?? session.currentQuestionIndex + 1}
                       </div>
                       {/* Question body */}
                       <div className="flex-1 min-w-0">
@@ -2768,7 +2768,7 @@ function QuizPageContent() {
                           });
                           setShowAllQuestions(false);
                         }}
-                        className={`relative ${isPartGroup ? 'min-w-[3.5rem] px-2' : 'w-10'} h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${bgClass} ${hasPassage ? 'ring-2 ring-purple-300 dark:ring-purple-700 ring-offset-1 dark:ring-offset-neutral-900' : ''}`}
+                        className={`relative ${isPartGroup ? 'min-w-[3.5rem] px-2' : 'w-10'} h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-colors ${bgClass} ${hasPassage ? 'ring-2 ring-purple-300 dark:ring-purple-700 ring-offset-1 dark:ring-offset-neutral-900' : ''}`}
                         title={`Question ${displayInfo.displayNumber}${isPartGroup ? ` (${flatIndices.length} parts)` : ''}${hasPassage ? " (Grouped)" : ""}${
                           isMarked ? " (Marked for review)" : ""
                         }`}

@@ -2,13 +2,19 @@ import { useState } from "react";
 import { DatabaseQuestion } from "@/lib/supabase";
 import MathText from "@/components/MathText";
 import PassageTextEditor from "@/components/admin/PassageTextEditor";
+import DocumentsEditor, { DocumentDraft } from "@/components/admin/DocumentsEditor";
 
 interface LinkQuestionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedQuestions: string[];
   questions: DatabaseQuestion[];
-  onConfirm: (passageText: string, passageImage: File | null, type: 'grouped' | 'parts') => Promise<void>;
+  onConfirm: (
+    passageAboveText: string,
+    passageText: string,
+    passageDocuments: DocumentDraft[],
+    type: 'grouped' | 'parts',
+  ) => Promise<void>;
 }
 
 export default function LinkQuestionsModal({
@@ -18,64 +24,42 @@ export default function LinkQuestionsModal({
   questions,
   onConfirm,
 }: LinkQuestionsModalProps) {
+  const [passageAboveText, setPassageAboveText] = useState("");
   const [passageText, setPassageText] = useState("");
-  const [passageImage, setPassageImage] = useState<File | null>(null);
-  const [passageImagePreview, setPassageImagePreview] = useState<string | null>(null);
+  const [passageDocuments, setPassageDocuments] = useState<DocumentDraft[]>([]);
   const [isLinking, setIsLinking] = useState(false);
-  const [draggedOver, setDraggedOver] = useState(false);
   const [passageType, setPassageType] = useState<'grouped' | 'parts'>('grouped');
 
   if (!isOpen) return null;
 
+  const hasAnyDoc = passageDocuments.some(
+    (d) => (d.type === 'image' && (d.file || d.url)) || (d.type === 'pdf' && d.url),
+  );
+
   const handleClose = () => {
+    setPassageAboveText("");
     setPassageText("");
-    setPassageImage(null);
-    setPassageImagePreview(null);
+    setPassageDocuments([]);
     setPassageType('grouped');
     onClose();
   };
 
   const handleConfirm = async () => {
-    if (!passageText.trim() && !passageImage) return;
+    if (!passageAboveText.trim() && !passageText.trim() && !hasAnyDoc) return;
     setIsLinking(true);
     try {
-      await onConfirm(passageText, passageImage, passageType);
+      await onConfirm(passageAboveText, passageText, passageDocuments, passageType);
+      setPassageAboveText("");
       setPassageText("");
-      setPassageImage(null);
-      setPassageImagePreview(null);
+      setPassageDocuments([]);
     } finally {
       setIsLinking(false);
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDraggedOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDraggedOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDraggedOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      setPassageImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setPassageImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+      <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 p-4 border-b border-gray-100 dark:border-neutral-800 bg-purple-50 dark:bg-purple-900/30">
           <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-full">
@@ -89,12 +73,14 @@ export default function LinkQuestionsModal({
         {/* Body */}
         <div className="p-4 overflow-y-auto max-h-[calc(100vh-200px)]">
           <p className="text-sm text-gray-600 dark:text-neutral-400 mb-4">
-            Add a shared passage for these questions. The passage will be displayed above both questions when students take the quiz.
+            Add a shared passage for these questions. The passage will be displayed alongside each question when students take the quiz.
           </p>
 
           {/* Selected Questions Preview */}
           <div className="mb-4 p-3 bg-gray-50 dark:bg-neutral-950 rounded-2xl border border-gray-100 dark:border-neutral-800">
-            <p className="text-xs font-bold text-gray-700 dark:text-neutral-300 mb-2">Selected Questions:</p>
+            <p className="text-xs font-bold text-gray-700 dark:text-neutral-300 mb-2">
+              Selected Questions ({selectedQuestions.length}):
+            </p>
             <div className="space-y-1">
               {selectedQuestions.map((id, idx) => {
                 const q = questions.find((q) => q.id === id);
@@ -135,84 +121,33 @@ export default function LinkQuestionsModal({
             </p>
           </div>
 
-          {/* Passage Text */}
-          <div className="mb-4">
+          {/* Passage container — mirrors QuestionForm shared-passage block */}
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-2xl space-y-3">
+            <h3 className="text-sm font-bold text-blue-900 dark:text-blue-300">Shared Passage</h3>
+            <PassageTextEditor
+              value={passageAboveText}
+              onChange={setPassageAboveText}
+              label="Passage Text (above image)"
+              labelClassName="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1"
+              placeholder="Text displayed above the passage (supports LaTeX)..."
+              rows={3}
+              inputClassName="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
+            />
+            <DocumentsEditor
+              title="Passage Documents"
+              value={passageDocuments}
+              onChange={setPassageDocuments}
+              emptyHint="Add images or PDFs that appear with the passage."
+            />
             <PassageTextEditor
               value={passageText}
               onChange={setPassageText}
-              label="Passage Text"
-              placeholder="Enter the shared passage text... (supports LaTeX: $x^2$)"
-              rows={12}
-              inputClassName="w-full px-3 py-2 border border-gray-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-sm bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
+              label="Passage Text (below image)"
+              labelClassName="block text-xs font-medium text-blue-800 dark:text-blue-400 mb-1"
+              placeholder="Enter the shared passage or summary text..."
+              rows={10}
+              inputClassName="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 font-mono"
             />
-          </div>
-
-          {/* Passage Image */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-neutral-300 mb-1">Passage Image (Optional)</label>
-            <input
-              type="file"
-              id="link-passage-image"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                setPassageImage(file);
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onload = (ev) => setPassageImagePreview(ev.target?.result as string);
-                  reader.readAsDataURL(file);
-                } else {
-                  setPassageImagePreview(null);
-                }
-              }}
-              className="hidden"
-            />
-            <label
-              htmlFor="link-passage-image"
-              className="cursor-pointer block"
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              {passageImagePreview ? (
-                <div
-                  className={`relative w-full h-32 rounded-xl border overflow-hidden transition-all ${
-                    draggedOver ? "border-purple-500 ring-2 ring-purple-200" : "border-gray-200 dark:border-neutral-700"
-                  }`}
-                >
-                  <img src={passageImagePreview} alt="Passage preview" className="w-full h-full object-contain bg-gray-50 dark:bg-neutral-800" />
-                  {draggedOver && (
-                    <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
-                      <span className="text-sm font-bold text-purple-700">Drop to replace</span>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setPassageImage(null);
-                      setPassageImagePreview(null);
-                    }}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 shadow-md"
-                  >
-                    x
-                  </button>
-                </div>
-              ) : (
-                <div
-                  className={`w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-gray-400 dark:text-neutral-500 transition-colors ${
-                    draggedOver ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30" : "border-gray-200 dark:border-neutral-700 hover:border-purple-500"
-                  }`}
-                >
-                  <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span className="text-sm font-medium">Drop image here</span>
-                  <span className="text-xs">or click to browse</span>
-                </div>
-              )}
-            </label>
           </div>
         </div>
 
@@ -227,7 +162,7 @@ export default function LinkQuestionsModal({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isLinking || (!passageText.trim() && !passageImage)}
+            disabled={isLinking || (!passageAboveText.trim() && !passageText.trim() && !hasAnyDoc)}
             className="px-4 py-2 text-sm font-bold bg-purple-600 text-white rounded-full hover:bg-purple-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {isLinking ? "Linking..." : "Group Questions"}

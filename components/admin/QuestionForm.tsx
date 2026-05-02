@@ -78,7 +78,7 @@ export default function QuestionForm({
   const allForms = [q1Form, q2Form, ...additionalForms];
   const currentForm = isGroupedQuestion ? (allForms[activeQuestionTab - 1] || q1Form) : q1Form;
   const isPartsMode = passageType === 'parts';
-  const totalParts = isPartsMode ? 2 + additionalForms.length : 2;
+  const totalParts = 2 + additionalForms.length;
 
   const handleImageSelect = (
     event: React.ChangeEvent<HTMLInputElement>,
